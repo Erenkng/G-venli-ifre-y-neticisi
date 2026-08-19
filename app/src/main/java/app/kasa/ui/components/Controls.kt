@@ -210,7 +210,7 @@ private fun KasaButtonShaped(
 fun <T> KasaButtonGroup(
     options: List<T>,
     selected: T,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier
 ) {

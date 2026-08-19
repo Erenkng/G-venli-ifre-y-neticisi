@@ -309,4 +309,12 @@
     <string name="crack_months">months</string>
     <string name="crack_years">%1$s years</string>
     <string name="crack_centuries">centuries</string>
+    <string name="breach_mark">seen in a breach</string>
+    <string name="editor_custom_fields">Custom fields</string>
+    <string name="editor_custom_field_name">Field name</string>
+    <string name="editor_custom_hint">PIN, security question…</string>
+    <string name="editor_add_field">Add</string>
+    <string name="editor_tags_hint">bank, work</string>
+    <string name="editor_url_hint">example.com</string>
+    <string name="dur_seconds_short">%1$d s</string>
 </resources>

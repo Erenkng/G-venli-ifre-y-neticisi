@@ -100,6 +100,9 @@ class KasaApplication : Application(), Configuration.Provider {
 /** Uygulama ömrü boyunca yaşayan tekil nesneler. */
 class AppContainer(private val application: Application) {
 
+    /** Uygulama ömürlü bağlam; hiçbir Activity sızdırmaz. */
+    val appContext: Context get() = application.applicationContext
+
     val scope = CoroutineScope(SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
 
     val settingsStore by lazy { SettingsStore(application) }

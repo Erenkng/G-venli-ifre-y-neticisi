@@ -327,4 +327,12 @@
     <string name="crack_months">aylar</string>
     <string name="crack_years">%1$s yıl</string>
     <string name="crack_centuries">yüzyıllar</string>
+    <string name="breach_mark">sızıntıda görüldü</string>
+    <string name="editor_custom_fields">Özel alanlar</string>
+    <string name="editor_custom_field_name">Alan adı</string>
+    <string name="editor_custom_hint">PIN, güvenlik sorusu…</string>
+    <string name="editor_add_field">Ekle</string>
+    <string name="editor_tags_hint">banka, iş</string>
+    <string name="editor_url_hint">ornek.com</string>
+    <string name="dur_seconds_short">%1$d sn</string>
 </resources>
