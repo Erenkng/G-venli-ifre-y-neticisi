@@ -1,7 +1,6 @@
 package app.kasa.core.util
 
 import android.content.Context
-import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -10,17 +9,13 @@ import android.os.VibratorManager
  * Dokunsal geri bildirim.
  *
  * Tasarımdaki `HAPTIC` haritasının birebir karşılığı: her etkileşim türünün
- * kendi kısa titreşim deseni var. Android 8+'da genlik denetimi olan
- * cihazlarda desenler genlikle, olmayanlarda sade süreyle çalınır.
+ * kendi kısa titreşim deseni var. Genlik denetimi olan cihazlarda desenler
+ * genlikle, olmayanlarda sade süreyle çalınır.
  */
 class Haptics(context: Context) {
 
-    private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    private val vibrator: Vibrator? =
         (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
-    } else {
-        @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-    }
 
     @Volatile
     var enabled: Boolean = true

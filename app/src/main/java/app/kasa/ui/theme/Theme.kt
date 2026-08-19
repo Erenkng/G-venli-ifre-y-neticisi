@@ -1,7 +1,6 @@
 package app.kasa.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -135,12 +134,15 @@ fun KasaTheme(
         ThemeMode.DARK -> true
     }
     val context = LocalContext.current
-    val dynamicAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
+    // Duvar kâğıdı renkleri Android 12'den beri var; minSdk 36 olduğu için
+    // burada sürüm kontrolüne gerek yok.
     val colorScheme = when {
-        dynamicColor && dynamicAvailable && dark ->
-            dynamicDarkColorScheme(context).let { if (pureBlack) it.copy(background = Color.Black, surface = Color.Black) else it }
-        dynamicColor && dynamicAvailable -> dynamicLightColorScheme(context)
+        dynamicColor && dark ->
+            dynamicDarkColorScheme(context).let {
+                if (pureBlack) it.copy(background = Color.Black, surface = Color.Black) else it
+            }
+        dynamicColor -> dynamicLightColorScheme(context)
         dark && pureBlack -> PureBlackScheme
         dark -> DarkScheme
         else -> LightScheme

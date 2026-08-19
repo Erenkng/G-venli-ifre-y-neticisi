@@ -1,7 +1,6 @@
 package app.kasa.ui.screens
 
 import android.content.Intent
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -187,21 +186,18 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(6.dp))
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    ToggleRow(
-                        title = stringResource(R.string.set_dynamic),
-                        subtitle = stringResource(R.string.set_dynamic_sub),
-                        checked = settings.dynamicColor,
-                        onCheckedChange = viewModel::setDynamicColor,
-                        first = true
-                    )
-                }
+                ToggleRow(
+                    title = stringResource(R.string.set_dynamic),
+                    subtitle = stringResource(R.string.set_dynamic_sub),
+                    checked = settings.dynamicColor,
+                    onCheckedChange = viewModel::setDynamicColor,
+                    first = true
+                )
                 ToggleRow(
                     title = stringResource(R.string.set_amoled),
                     subtitle = stringResource(R.string.set_amoled_sub),
                     checked = settings.pureBlack,
-                    onCheckedChange = viewModel::setPureBlack,
-                    first = Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+                    onCheckedChange = viewModel::setPureBlack
                 )
             }
         }

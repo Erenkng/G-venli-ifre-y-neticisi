@@ -7,20 +7,29 @@ plugins {
 
 android {
     namespace = "app.kasa"
-    compileSdk = 35
+
+    // Kasa yalnızca Android 16 ve üstünde çalışır: minSdk = targetSdk = 36.
+    //
+    // Android 17'de çalışmak için burayı yükseltmek GEREKMEZ; Android sürümleri
+    // geriye dönük uyumludur ve targetSdk yalnızca hangi davranış değişikliklerine
+    // katıldığını belirler. API 37 SDK'sı kurulduğunda yapılacak tek şey bu
+    // sayıları 37'ye çekmek — uygulama kodunda başka hiçbir yerde sürüm dalı yok,
+    // çünkü minSdk 36 ile tüm eski sürüm kontrolleri kaldırıldı.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.kasa"
-        minSdk = 26
-        targetSdk = 35
+        minSdk = 36
+        targetSdk = 36
         versionCode = 1
         versionName = "3.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += listOf("tr", "en")
 
-        // Argon2 yerel kitaplığı yalnızca gereken ABI'ler için paketlenir.
-        ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64") }
+        // Android 16 yalnızca 64 bit cihazlarda çalışıyor; 32 bit ABI'leri
+        // paketlemek APK'yı büyütmekten başka bir işe yaramaz.
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     buildTypes {
@@ -53,6 +62,13 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            // Yerel kitaplıklar APK içinde sıkıştırılmadan durur ve doğrudan
+            // eşlenir. Android 15+ cihazların bir kısmı 16 KB bellek sayfası
+            // kullanıyor; sıkıştırılmış kitaplık orada eşlenemez.
+            // Argon2Kt 1.6.0'ın dört ABI'si de 16 KB hizalı (doğrulandı).
+            useLegacyPackaging = false
         }
     }
     dependenciesInfo {

@@ -4,7 +4,6 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import app.kasa.core.security.AutoLocker
@@ -75,7 +74,6 @@ class KasaApplication : Application(), Configuration.Provider {
             .build()
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = getSystemService(NotificationManager::class.java) ?: return
         val channel = NotificationChannel(
             CHANNEL_SECURITY,

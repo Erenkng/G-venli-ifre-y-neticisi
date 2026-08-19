@@ -2,7 +2,6 @@ package app.kasa.autofill
 
 import android.app.PendingIntent
 import android.content.Intent
-import android.os.Build
 import android.os.CancellationSignal
 import android.service.autofill.AutofillService
 import android.service.autofill.Dataset
@@ -206,9 +205,7 @@ class KasaAutofillService : AutofillService() {
         if (node.autofillId == id) {
             val value = node.autofillValue
             if (value != null && value.isText) return value.textValue.toString()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                node.text?.let { return it.toString() }
-            }
+            node.text?.let { return it.toString() }
         }
         for (i in 0 until node.childCount) {
             val found = findValue(node.getChildAt(i), id)

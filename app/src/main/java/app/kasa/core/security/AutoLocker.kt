@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -62,7 +63,16 @@ class AutoLocker(
     fun start() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         if (!registered) {
-            context.registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+            // Android 14'ten (API 34) itibaren bağlam üzerinden kaydedilen her
+            // alıcının dışa aktarılıp aktarılmadığı açıkça belirtilmek zorunda.
+            // Bu alıcı yalnızca sistemin yayınladığı ACTION_SCREEN_OFF'u dinliyor,
+            // dışarıya kapalı olmalı.
+            ContextCompat.registerReceiver(
+                context,
+                screenOffReceiver,
+                IntentFilter(Intent.ACTION_SCREEN_OFF),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
             registered = true
         }
     }

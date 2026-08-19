@@ -1,8 +1,8 @@
 package app.kasa.tile
 
+import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.drawable.Icon
-import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import app.kasa.KasaApplication
@@ -48,28 +48,18 @@ class VaultTileService : TileService() {
         tile.state = if (unlocked) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.label = getString(R.string.app_name)
         tile.icon = Icon.createWithResource(this, R.drawable.ic_shield)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            tile.subtitle = getString(if (unlocked) R.string.set_lock_now else R.string.lock_unlock)
-        }
+        tile.subtitle = getString(if (unlocked) R.string.set_lock_now else R.string.lock_unlock)
         tile.updateTile()
     }
 
-    /**
-     * Android 14'ten itibaren `startActivityAndCollapse(Intent)` yasak;
-     * `PendingIntent` alan sürümü kullanılmalı.
-     */
+    /** `startActivityAndCollapse(Intent)` Android 14'ten beri yasak; PendingIntent alınır. */
     private fun startActivityAndCollapseCompat(intent: Intent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val pending = android.app.PendingIntent.getActivity(
-                this,
-                0,
-                intent,
-                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-            )
-            startActivityAndCollapse(pending)
-        } else {
-            @Suppress("DEPRECATION")
-            startActivityAndCollapse(intent)
-        }
+        val pending = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        startActivityAndCollapse(pending)
     }
 }

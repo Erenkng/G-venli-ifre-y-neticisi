@@ -2,7 +2,6 @@ package app.kasa.core.crypto
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyPermanentlyInvalidatedException
@@ -56,19 +55,13 @@ object KeystoreKeys {
         val key = loadOrCreateDeviceKey()
         val factory = javax.crypto.SecretKeyFactory.getInstance(key.algorithm, PROVIDER)
         val info = factory.getKeySpec(key, KeyInfo::class.java) as KeyInfo
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            info.securityLevel != KeyProperties.SECURITY_LEVEL_SOFTWARE
-        } else {
-            @Suppress("DEPRECATION")
-            info.isInsideSecureHardware
-        }
+        info.securityLevel != KeyProperties.SECURITY_LEVEL_SOFTWARE
     } catch (t: Throwable) {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
     }
 
     fun hasStrongBox(context: Context): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
-            context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
 
     // ---------------------------------------------------------------- biyometrik
 
@@ -83,17 +76,10 @@ object KeystoreKeys {
             .setUserAuthenticationRequired(true)
             .setRandomizedEncryptionRequired(true)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // Yeni bir parmak izi/yüz kaydedilirse anahtar geçersizleşsin.
-            builder.setInvalidatedByBiometricEnrollment(true)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Her kullanımda taze doğrulama; yalnızca güçlü (Class 3) biyometri kabul.
-            builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
-        } else {
-            @Suppress("DEPRECATION")
-            builder.setUserAuthenticationValidityDurationSeconds(-1)
-        }
+        // Yeni bir parmak izi/yüz kaydedilirse anahtar geçersizleşsin.
+        builder.setInvalidatedByBiometricEnrollment(true)
+        // Her kullanımda taze doğrulama; yalnızca güçlü (Class 3) biyometri kabul.
+        builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
 
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, PROVIDER)
 

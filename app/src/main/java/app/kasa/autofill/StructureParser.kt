@@ -1,7 +1,6 @@
 package app.kasa.autofill
 
 import android.app.assist.AssistStructure
-import android.os.Build
 import android.text.InputType
 import android.view.View
 import android.view.autofill.AutofillId
@@ -98,11 +97,9 @@ class StructureParser(private val structure: AssistStructure) {
             node.idEntry?.let { append(it).append(' ') }
             node.hint?.let { append(it).append(' ') }
             node.contentDescription?.let { append(it).append(' ') }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                node.htmlInfo?.attributes?.forEach { attribute ->
-                    if (attribute.first == "name" || attribute.first == "id" || attribute.first == "placeholder") {
-                        append(attribute.second).append(' ')
-                    }
+            node.htmlInfo?.attributes?.forEach { attribute ->
+                if (attribute.first == "name" || attribute.first == "id" || attribute.first == "placeholder") {
+                    append(attribute.second).append(' ')
                 }
             }
         }.lowercase()

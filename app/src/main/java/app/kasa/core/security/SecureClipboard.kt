@@ -8,7 +8,6 @@ import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.PersistableBundle
 import android.widget.Toast
 import app.kasa.R
@@ -35,13 +34,11 @@ object SecureClipboard {
         val manager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
         val clip = ClipData.newPlainText(SENSITIVE_LABEL, text)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            clip.description.extras = PersistableBundle().apply {
-                // Android 13+ bu bayrağı görünce içeriği pano önizlemesinde gizler.
-                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
-                // Eski Samsung/OneUI sürümleri kendi anahtarına bakar.
-                putBoolean("android.content.extra.IS_SENSITIVE", true)
-            }
+        clip.description.extras = PersistableBundle().apply {
+            // Sistem bu bayrağı görünce içeriği pano önizleme balonunda gizler.
+            putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+            // Bazı üreticiler kendi anahtarlarına bakıyor.
+            putBoolean("android.content.extra.IS_SENSITIVE", true)
         }
         manager.setPrimaryClip(clip)
 
@@ -88,11 +85,7 @@ object SecureClipboard {
         val ours = current?.description?.label?.toString() == SENSITIVE_LABEL
         if (!ours) return
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            manager.clearPrimaryClip()
-        } else {
-            manager.setPrimaryClip(ClipData.newPlainText("", " "))
-        }
+        manager.clearPrimaryClip()
         if (notifyUser) {
             Toast.makeText(context, R.string.clipboard_cleared, Toast.LENGTH_SHORT).show()
         }
