@@ -322,7 +322,7 @@ fun KasaSwitch(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .offset(x = offsetX - thumbSize / 2 + 0.dp)
+                .offset(x = offsetX)
                 .size(thumbSize)
                 .clip(RoundedCornerShape(KasaRadius.full))
                 .background(
@@ -404,7 +404,7 @@ fun ExpressiveSlider(
         // dolu kısım
         Box(
             modifier = Modifier
-                .fillMaxWidth(fraction)
+                .fillMaxWidth(fraction.coerceAtLeast(0.001f))
                 .height(16.dp)
                 .clip(RoundedCornerShape(KasaRadius.full))
                 .background(MaterialTheme.colorScheme.primary)
