@@ -317,4 +317,109 @@
     <string name="editor_tags_hint">bank, work</string>
     <string name="editor_url_hint">example.com</string>
     <string name="dur_seconds_short">%1$d s</string>
+
+    <!-- New entry types -->
+    <string name="cat_identity">Identity</string>
+    <string name="cat_bank">Bank</string>
+    <string name="cat_ssh">Keys</string>
+    <string name="cat_license">Licence</string>
+    <string name="cat_wifi">Wi-Fi</string>
+    <string name="item_identity">Identity document</string>
+    <string name="item_bank">Bank account</string>
+    <string name="item_ssh">SSH / API key</string>
+    <string name="item_license">Software licence</string>
+    <string name="item_wifi">Wi-Fi network</string>
+    <string name="add_identity">Add identity</string>
+    <string name="add_bank">Add bank account</string>
+    <string name="add_ssh">Add key</string>
+    <string name="add_license">Add licence</string>
+    <string name="add_wifi">Add Wi-Fi</string>
+
+    <!-- Type fields -->
+    <string name="f_full_name">Full name</string>
+    <string name="f_national_id">National ID number</string>
+    <string name="f_birth_date">Date of birth</string>
+    <string name="f_passport">Passport number</string>
+    <string name="f_driver_license">Driving licence number</string>
+    <string name="f_serial">Serial number</string>
+    <string name="f_bank_name">Bank</string>
+    <string name="f_account_holder">Account holder</string>
+    <string name="f_iban">IBAN</string>
+    <string name="f_account_no">Account number</string>
+    <string name="f_branch">Branch</string>
+    <string name="f_swift">SWIFT / BIC</string>
+    <string name="f_host">Host</string>
+    <string name="f_private_key">Private key</string>
+    <string name="f_public_key">Public key</string>
+    <string name="f_key_passphrase">Key passphrase</string>
+    <string name="f_fingerprint">Fingerprint</string>
+    <string name="f_product">Product</string>
+    <string name="f_version">Version</string>
+    <string name="f_license_key">Licence key</string>
+    <string name="f_licensee">Licensee</string>
+    <string name="f_purchase_date">Purchase date</string>
+    <string name="f_ssid">Network name (SSID)</string>
+    <string name="f_wifi_password">Network password</string>
+    <string name="f_security">Security type</string>
+    <string name="f_hidden">Hidden network</string>
+
+    <!-- Folders and collections -->
+    <string name="collections_label">Collections</string>
+    <string name="collection_all">All</string>
+    <string name="folder_none">No folder</string>
+    <string name="folder_new">New folder</string>
+    <string name="folder_name">Folder name</string>
+    <string name="folder_field">Folder</string>
+    <string name="folder_create">Create</string>
+    <string name="folder_rename">Rename</string>
+    <string name="folder_delete_confirm">Delete this folder?</string>
+    <string name="folder_delete_body">%1$s will be removed. Entries inside are kept and simply lose their folder.</string>
+    <string name="folder_created">%1$s created</string>
+    <string name="set_folders">Folders</string>
+    <string name="set_folders_sub">%1$d folders</string>
+    <string name="folders_empty_title">No folders yet</string>
+    <string name="folders_empty_sub">Create a folder to group your entries.</string>
+
+    <string name="smart_favorites">Favourites</string>
+    <string name="smart_leaked">Breached</string>
+    <string name="smart_reused">Reused</string>
+    <string name="smart_weak">Weak</string>
+    <string name="smart_old">Over a year old</string>
+    <string name="smart_no2fa">No 2FA</string>
+    <string name="smart_trash">Trash</string>
+
+    <!-- Trash -->
+    <string name="trash_title">Trash</string>
+    <string name="trash_empty_title">Trash is empty</string>
+    <string name="trash_empty_sub">Deleted entries wait here for 30 days.</string>
+    <string name="trash_note">Deleted entries disappear on their own after %1$d days.</string>
+    <string name="trash_restore">Restore</string>
+    <string name="trash_delete_forever">Delete forever</string>
+    <string name="trash_empty_all">Empty trash</string>
+    <string name="trash_restored">%1$s restored</string>
+    <string name="trash_purged">%1$s permanently deleted</string>
+    <string name="trash_emptied">Trash emptied</string>
+    <string name="trash_moved">%1$s moved to trash</string>
+    <string name="trash_purge_confirm">Delete permanently?</string>
+    <string name="trash_purge_body">%1$s and its attachments will be gone for good.</string>
+    <string name="trash_empty_confirm">Empty the trash?</string>
+    <string name="trash_empty_body">%1$d entries and their attachments will be gone for good.</string>
+    <string name="set_trash_sub">%1$d entries waiting</string>
+    <string name="detail_delete_to_trash">Move to trash</string>
+
+    <!-- Attachments -->
+    <string name="att_title">Attachments</string>
+    <string name="att_add">Attach file</string>
+    <string name="att_remove">Remove attachment</string>
+    <string name="att_export">Export</string>
+    <string name="att_added">%1$s attached</string>
+    <string name="att_removed">Attachment removed</string>
+    <string name="att_exported">%1$s exported</string>
+    <string name="att_too_big">File too large · %1$d MB maximum</string>
+    <string name="att_failed">Could not attach the file</string>
+    <string name="att_save_first">Save the entry before attaching files</string>
+    <string name="att_note">Each attachment is encrypted in its own file with its own key.</string>
+
+    <!-- Schema -->
+    <string name="vault_too_new">This vault was created by a newer version of the app. It was not opened, to avoid losing data — please update.</string>
 </resources>

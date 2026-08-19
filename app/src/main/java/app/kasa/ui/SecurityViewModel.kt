@@ -40,7 +40,7 @@ class SecurityViewModel(private val container: AppContainer) : ViewModel() {
         // Açılışta ağa çıkmadan yerel bir değerlendirme yap; kullanıcı ekrana
         // girdiğinde boş bir puan görmesin.
         viewModelScope.launch {
-            val items = container.vaultRepository.data.value.items
+            val items = container.vaultRepository.data.value.liveItems
             if (items.isNotEmpty()) {
                 val report = container.securityAnalyzer.analyze(items, onlineCheck = false)
                 _state.value = _state.value.copy(
@@ -58,13 +58,16 @@ class SecurityViewModel(private val container: AppContainer) : ViewModel() {
             container.haptics.play(Haptics.Kind.MEDIUM)
 
             val onlineAllowed = container.settingsStore.settings.first().onlineBreachCheck
-            val items = container.vaultRepository.data.value.items
+            val items = container.vaultRepository.data.value.liveItems
 
             val report = container.securityAnalyzer.analyze(items, onlineAllowed) { progress ->
                 _state.value = _state.value.copy(progress = progress)
             }
 
-            container.vaultRepository.recordScan(report.updatedItems, report.scannedAt)
+            // Tarama yalnızca canlı kayıtlara bakar; çöp kutusundakiler
+            // olduğu gibi korunur, yoksa geri yükleme onları kaybederdi.
+            val trashed = container.vaultRepository.data.value.trashedItems
+            container.vaultRepository.recordScan(report.updatedItems + trashed, report.scannedAt)
             container.settingsStore.setLastScanAt(report.scannedAt)
 
             _state.value = State(

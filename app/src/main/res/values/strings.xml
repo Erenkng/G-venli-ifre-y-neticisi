@@ -335,4 +335,109 @@
     <string name="editor_tags_hint">banka, iş</string>
     <string name="editor_url_hint">ornek.com</string>
     <string name="dur_seconds_short">%1$d sn</string>
+
+    <!-- Yeni kayıt türleri -->
+    <string name="cat_identity">Kimlik</string>
+    <string name="cat_bank">Banka</string>
+    <string name="cat_ssh">Anahtar</string>
+    <string name="cat_license">Lisans</string>
+    <string name="cat_wifi">Wi-Fi</string>
+    <string name="item_identity">Kimlik belgesi</string>
+    <string name="item_bank">Banka hesabı</string>
+    <string name="item_ssh">SSH / API anahtarı</string>
+    <string name="item_license">Yazılım lisansı</string>
+    <string name="item_wifi">Wi-Fi ağı</string>
+    <string name="add_identity">Kimlik ekle</string>
+    <string name="add_bank">Banka hesabı ekle</string>
+    <string name="add_ssh">Anahtar ekle</string>
+    <string name="add_license">Lisans ekle</string>
+    <string name="add_wifi">Wi-Fi ekle</string>
+
+    <!-- Tür alanları -->
+    <string name="f_full_name">Ad soyad</string>
+    <string name="f_national_id">TC kimlik numarası</string>
+    <string name="f_birth_date">Doğum tarihi</string>
+    <string name="f_passport">Pasaport numarası</string>
+    <string name="f_driver_license">Ehliyet numarası</string>
+    <string name="f_serial">Seri numarası</string>
+    <string name="f_bank_name">Banka</string>
+    <string name="f_account_holder">Hesap sahibi</string>
+    <string name="f_iban">IBAN</string>
+    <string name="f_account_no">Hesap numarası</string>
+    <string name="f_branch">Şube</string>
+    <string name="f_swift">SWIFT / BIC</string>
+    <string name="f_host">Sunucu</string>
+    <string name="f_private_key">Özel anahtar</string>
+    <string name="f_public_key">Açık anahtar</string>
+    <string name="f_key_passphrase">Anahtar parolası</string>
+    <string name="f_fingerprint">Parmak izi</string>
+    <string name="f_product">Ürün</string>
+    <string name="f_version">Sürüm</string>
+    <string name="f_license_key">Lisans anahtarı</string>
+    <string name="f_licensee">Lisans sahibi</string>
+    <string name="f_purchase_date">Satın alma tarihi</string>
+    <string name="f_ssid">Ağ adı (SSID)</string>
+    <string name="f_wifi_password">Ağ parolası</string>
+    <string name="f_security">Güvenlik türü</string>
+    <string name="f_hidden">Gizli ağ</string>
+
+    <!-- Klasörler ve koleksiyonlar -->
+    <string name="collections_label">Koleksiyonlar</string>
+    <string name="collection_all">Tümü</string>
+    <string name="folder_none">Klasörsüz</string>
+    <string name="folder_new">Yeni klasör</string>
+    <string name="folder_name">Klasör adı</string>
+    <string name="folder_field">Klasör</string>
+    <string name="folder_create">Oluştur</string>
+    <string name="folder_rename">Yeniden adlandır</string>
+    <string name="folder_delete_confirm">Klasör silinsin mi?</string>
+    <string name="folder_delete_body">%1$s silinecek. İçindeki kayıtlar silinmez, klasörsüz kalır.</string>
+    <string name="folder_created">%1$s oluşturuldu</string>
+    <string name="set_folders">Klasörler</string>
+    <string name="set_folders_sub">%1$d klasör</string>
+    <string name="folders_empty_title">Henüz klasör yok</string>
+    <string name="folders_empty_sub">Kayıtları gruplamak için klasör oluştur.</string>
+
+    <string name="smart_favorites">Sık kullanılan</string>
+    <string name="smart_leaked">Sızmış</string>
+    <string name="smart_reused">Tekrar kullanılan</string>
+    <string name="smart_weak">Zayıf</string>
+    <string name="smart_old">Bir yıldan eski</string>
+    <string name="smart_no2fa">2FA yok</string>
+    <string name="smart_trash">Çöp kutusu</string>
+
+    <!-- Çöp kutusu -->
+    <string name="trash_title">Çöp kutusu</string>
+    <string name="trash_empty_title">Çöp kutusu boş</string>
+    <string name="trash_empty_sub">Silinen kayıtlar 30 gün burada bekler.</string>
+    <string name="trash_note">Silinen kayıtlar %1$d gün sonra kendiliğinden yok olur.</string>
+    <string name="trash_restore">Geri yükle</string>
+    <string name="trash_delete_forever">Kalıcı sil</string>
+    <string name="trash_empty_all">Çöp kutusunu boşalt</string>
+    <string name="trash_restored">%1$s geri yüklendi</string>
+    <string name="trash_purged">%1$s kalıcı olarak silindi</string>
+    <string name="trash_emptied">Çöp kutusu boşaltıldı</string>
+    <string name="trash_moved">%1$s çöp kutusuna taşındı</string>
+    <string name="trash_purge_confirm">Kalıcı olarak silinsin mi?</string>
+    <string name="trash_purge_body">%1$s ve ekleri geri dönüşsüz silinecek.</string>
+    <string name="trash_empty_confirm">Çöp kutusu boşaltılsın mı?</string>
+    <string name="trash_empty_body">%1$d kayıt ve ekleri geri dönüşsüz silinecek.</string>
+    <string name="set_trash_sub">%1$d kayıt bekliyor</string>
+    <string name="detail_delete_to_trash">Çöp kutusuna taşı</string>
+
+    <!-- Ekler -->
+    <string name="att_title">Ekler</string>
+    <string name="att_add">Dosya ekle</string>
+    <string name="att_remove">Eki kaldır</string>
+    <string name="att_export">Dışa aktar</string>
+    <string name="att_added">%1$s eklendi</string>
+    <string name="att_removed">Ek kaldırıldı</string>
+    <string name="att_exported">%1$s dışa aktarıldı</string>
+    <string name="att_too_big">Dosya çok büyük · en fazla %1$d MB</string>
+    <string name="att_failed">Dosya eklenemedi</string>
+    <string name="att_save_first">Ek eklemek için kaydı önce kaydet</string>
+    <string name="att_note">Her ek kendi anahtarıyla ayrı bir dosyada şifrelenir.</string>
+
+    <!-- Şema -->
+    <string name="vault_too_new">Bu kasa uygulamanın daha yeni bir sürümüyle oluşturulmuş. Veri kaybetmemek için açılmadı; uygulamayı güncelle.</string>
 </resources>

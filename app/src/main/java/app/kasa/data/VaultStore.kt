@@ -9,6 +9,7 @@ import app.kasa.core.crypto.RecoveryKey
 import app.kasa.core.crypto.SecretBytes
 import app.kasa.data.model.VaultData
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -48,6 +49,9 @@ class VaultStore(private val context: Context) {
     private val biometricKeyFile get() = File(dir, "biometric.key")
     private val vaultFile get() = File(dir, "vault.bin")
     private val attemptsFile get() = File(dir, "attempts.bin")
+
+    /** Ek dosyaları: her biri kendi anahtarıyla ayrı ayrı şifreli. */
+    private val attachmentDir get() = File(dir, "att").apply { if (!exists()) mkdirs() }
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -246,7 +250,11 @@ class VaultStore(private val context: Context) {
         val aad = blob.copyOfRange(0, MAGIC_LEN + 1)
         val plain = Crypto.open(vaultKey.raw(), sealed, aad)
         return try {
-            json.decodeFromString(VaultData.serializer(), String(plain, Charsets.UTF_8))
+            // Önce ham JSON'a bak: şema sürümünü öğrenip gerekiyorsa yükselt.
+            // Doğrudan decode etmek, bizden yeni bir dosyayı sessizce budardı.
+            val root = json.parseToJsonElement(String(plain, Charsets.UTF_8)).jsonObject
+            val migrated = VaultMigrations.migrate(root)
+            json.decodeFromJsonElement(VaultData.serializer(), migrated)
         } finally {
             plain.fill(0)
         }
@@ -321,13 +329,70 @@ class VaultStore(private val context: Context) {
             Kdf.derive(exportPassword, params).use { kek ->
                 val plain = Crypto.open(kek.raw(), sealed, headerBytes)
                 try {
-                    json.decodeFromString(VaultData.serializer(), String(plain, Charsets.UTF_8))
+                    val root = json.parseToJsonElement(String(plain, Charsets.UTF_8)).jsonObject
+                    json.decodeFromJsonElement(VaultData.serializer(), VaultMigrations.migrate(root))
                 } finally {
                     plain.fill(0)
                 }
             }
         } catch (t: Throwable) {
             null
+        }
+    }
+
+    // ---------------------------------------------------------------- ekler
+
+    /**
+     * Eki diske yazar. [key] o eke özel 32 baytlık anahtardır; kasa anahtarı
+     * değil. Dosya biçimi kasa dosyasıyla aynı: sihirli sayı + AES-GCM.
+     */
+    fun writeAttachment(id: String, key: ByteArray, content: ByteArray) {
+        require(key.size == Crypto.KEY_BYTES) { "Ek anahtarı 32 bayt olmalı" }
+        val header = ByteArrayOutputStream().apply {
+            write(MAGIC_ATTACHMENT)
+            write(FORMAT_VERSION)
+        }.toByteArray()
+        val sealed = Crypto.seal(key, content, header)
+        val out = ByteArrayOutputStream()
+        DataOutputStream(out).use { d ->
+            d.write(header)
+            d.writeInt(sealed.size)
+            d.write(sealed)
+        }
+        writeAtomically(File(attachmentDir, "$id.bin"), out.toByteArray())
+    }
+
+    /** Eki çözer. Dosya yoksa ya da anahtar yanlışsa `null`. */
+    fun readAttachment(id: String, key: ByteArray): ByteArray? = try {
+        val blob = File(attachmentDir, "$id.bin").readBytes()
+        val input = DataInputStream(ByteArrayInputStream(blob))
+        val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
+        require(magic.contentEquals(MAGIC_ATTACHMENT)) { "Bu bir Kasa eki değil" }
+        input.readByte()
+        val len = input.readInt()
+        val sealed = ByteArray(len).also { input.readFully(it) }
+        Crypto.open(key, sealed, blob.copyOfRange(0, MAGIC_LEN + 1))
+    } catch (t: Throwable) {
+        null
+    }
+
+    fun deleteAttachment(id: String) {
+        secureDelete(File(attachmentDir, "$id.bin"))
+    }
+
+    /**
+     * Kasada artık adı geçmeyen ek dosyalarını siler.
+     *
+     * Kayıt silinirken ekleri de silinir, ama içe aktarma ya da yarım kalmış
+     * bir yazma sonrası sahipsiz dosya kalabilir; bunlar diskte şifreli
+     * çöp olarak birikmemeli.
+     */
+    fun pruneOrphanAttachments(known: Set<String>) {
+        runCatching {
+            attachmentDir.listFiles()?.forEach { file ->
+                val id = file.name.removeSuffix(".bin")
+                if (id !in known) secureDelete(file)
+            }
         }
     }
 
@@ -384,8 +449,10 @@ class VaultStore(private val context: Context) {
     fun wipe() {
         listOf(masterKeyFile, recoveryKeyFile, biometricKeyFile, vaultFile, attemptsFile)
             .forEach { secureDelete(it) }
+        runCatching { attachmentDir.listFiles()?.forEach { secureDelete(it) } }
+        runCatching { attachmentDir.delete() }
         KeystoreKeys.deleteAll()
-        runCatching { dir.listFiles()?.forEach { secureDelete(it) } }
+        runCatching { dir.listFiles()?.forEach { if (it.isFile) secureDelete(it) } }
     }
 
     // ------------------------------------------------------------- yardımcılar
@@ -477,6 +544,7 @@ class VaultStore(private val context: Context) {
         private val MAGIC_RECOVERY = "KASAREC1".toByteArray(Charsets.US_ASCII)
         private val MAGIC_BIOMETRIC = "KASABIO1".toByteArray(Charsets.US_ASCII)
         private val MAGIC_VAULT = "KASAVLT1".toByteArray(Charsets.US_ASCII)
+        private val MAGIC_ATTACHMENT = "KASAATT1".toByteArray(Charsets.US_ASCII)
         val MAGIC_EXPORT = "KASAEXP1".toByteArray(Charsets.US_ASCII)
 
         const val EXPORT_EXTENSION = "kasa"

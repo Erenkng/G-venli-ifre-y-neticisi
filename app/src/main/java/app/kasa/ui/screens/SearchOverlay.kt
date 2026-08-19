@@ -94,6 +94,7 @@ fun SearchOverlay(
                     VaultRow(
                         item = item,
                         position = groupPositionOf(index, results.size),
+                        folderName = viewModel.folderName(item.folderId),
                         onClick = {
                             viewModel.select(item.id)
                             onClose()

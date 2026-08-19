@@ -1,5 +1,7 @@
 package app.kasa.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +19,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Star
@@ -43,7 +48,10 @@ import app.kasa.R
 import app.kasa.core.util.Haptics
 import app.kasa.core.util.PasswordStrength
 import app.kasa.data.SettingsStore
+import app.kasa.data.model.Attachment
 import app.kasa.data.model.Category
+import app.kasa.data.model.CategorySchema
+import app.kasa.data.model.FieldKind
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
@@ -51,6 +59,7 @@ import app.kasa.ui.components.FieldBlock
 import app.kasa.ui.components.KasaBadge
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaIconButton
+import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.ToolbarAction
 import app.kasa.ui.components.TotpDisplay
 import app.kasa.ui.components.WavyProgress
@@ -76,7 +85,16 @@ fun ItemDetailSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var revealed by remember(item.id) { mutableStateOf(false) }
     var confirmDelete by remember(item.id) { mutableStateOf(false) }
+    var pendingExport by remember(item.id) { mutableStateOf<Attachment?>(null) }
     val context = LocalContext.current
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        val attachment = pendingExport
+        pendingExport = null
+        if (uri != null && attachment != null) viewModel.exportAttachment(attachment, uri)
+    }
 
     val tone = toneOf(item)
     val (badgeBackground, badgeForeground) = badgeColors(tone)
@@ -121,7 +139,11 @@ fun ItemDetailSheet(
                     )
                     Spacer(Modifier.height(3.dp))
                     Text(
-                        "${categoryLabel(item.category)} · ${relativeTime(item.passwordChangedAt)}",
+                        buildString {
+                            append(categoryLabel(item.category))
+                            viewModel.folderName(item.folderId)?.let { append(" · ").append(it) }
+                            append(" · ").append(relativeTime(item.passwordChangedAt))
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = KasaTheme.colors.ink3
                     )
@@ -145,6 +167,7 @@ fun ItemDetailSheet(
                 Category.NOTE -> NoteFields(item, viewModel)
                 Category.OTP -> OtpFields(item, viewModel, settings)
                 Category.LOGIN -> LoginFields(item, revealed, { revealed = !revealed }, viewModel, settings)
+                else -> SchemaDetailFields(item, revealed, { revealed = !revealed }, viewModel, settings)
             }
 
             if (item.url.isNotBlank() && item.category != Category.NOTE) {
@@ -238,6 +261,34 @@ fun ItemDetailSheet(
                 }
             }
 
+            // ── ekler ─────────────────────────────────────────────────────
+            if (item.attachments.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                SectionLabel(stringResource(R.string.att_title), count = item.attachments.size)
+                Spacer(Modifier.height(6.dp))
+                item.attachments.forEach { attachment ->
+                    AttachmentRow(attachment = attachment) {
+                        KasaIconButton(
+                            onClick = {
+                                pendingExport = attachment
+                                viewModel.suppressAutoLockForPicker()
+                                exportLauncher.launch(attachment.name)
+                            },
+                            size = 36.dp,
+                            contentDescription = stringResource(R.string.att_export)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Download,
+                                contentDescription = null,
+                                tint = KasaTheme.colors.ink2,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
+            }
+
             // ── araç çubuğu ───────────────────────────────────────────────
             Spacer(Modifier.height(16.dp))
             Row(
@@ -259,13 +310,27 @@ fun ItemDetailSheet(
                         modifier = Modifier.size(21.dp)
                     )
                 }
-                ToolbarAction(onClick = onEdit, contentDescription = stringResource(R.string.edit)) {
-                    Icon(
-                        Icons.Rounded.Edit,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(21.dp)
-                    )
+                if (item.inTrash) {
+                    ToolbarAction(
+                        onClick = { viewModel.restoreFromTrash(item) },
+                        contentDescription = stringResource(R.string.trash_restore)
+                    ) {
+                        Icon(
+                            Icons.Rounded.RestoreFromTrash,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+                } else {
+                    ToolbarAction(onClick = onEdit, contentDescription = stringResource(R.string.edit)) {
+                        Icon(
+                            Icons.Rounded.Edit,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
                 }
                 ToolbarAction(
                     onClick = {
@@ -273,10 +338,12 @@ fun ItemDetailSheet(
                         confirmDelete = true
                     },
                     danger = true,
-                    contentDescription = stringResource(R.string.delete)
+                    contentDescription = stringResource(
+                        if (item.inTrash) R.string.trash_delete_forever else R.string.detail_delete_to_trash
+                    )
                 ) {
                     Icon(
-                        Icons.Rounded.Delete,
+                        if (item.inTrash) Icons.Rounded.DeleteForever else Icons.Rounded.Delete,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(21.dp)
@@ -284,28 +351,45 @@ fun ItemDetailSheet(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
-            KasaButton(
-                text = stringResource(R.string.detail_change_password),
-                onClick = onEdit,
-                tone = ButtonTone.OUTLINED,
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (!item.inTrash) {
+                Spacer(Modifier.height(10.dp))
+                KasaButton(
+                    text = stringResource(R.string.detail_change_password),
+                    onClick = onEdit,
+                    tone = ButtonTone.OUTLINED,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 
     if (confirmDelete) {
-        ConfirmDialog(
-            title = stringResource(R.string.detail_delete_confirm),
-            body = stringResource(R.string.detail_delete_body, item.name),
-            confirmText = stringResource(R.string.delete),
-            destructive = true,
-            onConfirm = {
-                confirmDelete = false
-                viewModel.delete(item)
-            },
-            onDismiss = { confirmDelete = false }
-        )
+        if (item.inTrash) {
+            ConfirmDialog(
+                title = stringResource(R.string.trash_purge_confirm),
+                body = stringResource(R.string.trash_purge_body, item.name),
+                confirmText = stringResource(R.string.trash_delete_forever),
+                destructive = true,
+                onConfirm = {
+                    confirmDelete = false
+                    viewModel.purge(item)
+                },
+                onDismiss = { confirmDelete = false }
+            )
+        } else {
+            // Silme artık geri dönüşü olan bir işlem; onay metni de bunu söylüyor.
+            ConfirmDialog(
+                title = stringResource(R.string.detail_delete_confirm),
+                body = stringResource(R.string.trash_empty_sub),
+                confirmText = stringResource(R.string.detail_delete_to_trash),
+                destructive = true,
+                onConfirm = {
+                    confirmDelete = false
+                    viewModel.moveToTrash(item)
+                },
+                onDismiss = { confirmDelete = false }
+            )
+        }
     }
 }
 
@@ -449,7 +533,8 @@ private fun SecretFieldBlock(
     onCopy: () -> Unit,
     modifier: Modifier = Modifier,
     maskedText: String? = null,
-    compact: Boolean = false
+    compact: Boolean = false,
+    multiline: Boolean = false
 ) {
     val shown = if (revealed) value else maskedText ?: "•".repeat(value.length.coerceAtMost(18))
     val color by animateColorAsState(
@@ -463,7 +548,11 @@ private fun SecretFieldBlock(
                 text = shown,
                 style = KasaTheme.text.mono,
                 color = color,
-                maxLines = if (compact) 1 else 2,
+                maxLines = when {
+                    compact -> 1
+                    multiline -> 8
+                    else -> 2
+                },
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
@@ -508,5 +597,58 @@ private fun openUrl(context: android.content.Context, url: String) {
             android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(normalized))
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         )
+    }
+}
+
+/**
+ * Şema tabanlı türlerin ayrıntı görünümü.
+ *
+ * Gizli alanlar maskeli başlar ve kendi kopyala düğmelerini taşır; gizli
+ * olmayanlar düz metin olarak görünür. Hangi alanın gizli olduğu tek bir
+ * yerde, [CategorySchema] içinde tanımlı.
+ */
+@Composable
+private fun SchemaDetailFields(
+    item: VaultItem,
+    revealed: Boolean,
+    onToggleReveal: () -> Unit,
+    viewModel: VaultViewModel,
+    settings: SettingsStore.Settings
+) {
+    val fields = CategorySchema.fieldsFor(item.category)
+        .filter { item.extras[it.key].isNullOrBlank().not() }
+
+    fields.forEachIndexed { index, def ->
+        if (index > 0) Spacer(Modifier.height(8.dp))
+        val value = item.extras[def.key].orEmpty()
+
+        if (CategorySchema.isSecret(def.kind)) {
+            SecretFieldBlock(
+                label = stringResource(def.labelRes),
+                value = value,
+                revealed = revealed,
+                onToggleReveal = onToggleReveal,
+                onCopy = { viewModel.copySecret(value, settings.clipboardClearSeconds) },
+                multiline = def.kind == FieldKind.SECRET_MULTILINE
+            )
+        } else {
+            FieldBlock(label = stringResource(def.labelRes)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        value,
+                        style = if (def.kind == FieldKind.MULTILINE) KasaTheme.text.mono
+                        else MaterialTheme.typography.bodyLarge,
+                        color = KasaTheme.colors.ink,
+                        maxLines = if (def.kind == FieldKind.MULTILINE) 6 else 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    CopyButton(onClick = { viewModel.copyPlain(value) })
+                }
+            }
+        }
     }
 }

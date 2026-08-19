@@ -1,5 +1,7 @@
 package app.kasa.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,10 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.QrCodeScanner
@@ -33,17 +37,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
 import app.kasa.core.util.PasswordGenerator
 import app.kasa.core.util.PasswordStrength
 import app.kasa.core.util.Totp
 import app.kasa.data.VaultStore
+import app.kasa.data.model.Attachment
 import app.kasa.data.model.Category
+import app.kasa.data.model.CategorySchema
 import app.kasa.data.model.CustomField
+import app.kasa.data.model.FieldKind
+import app.kasa.data.model.Folder
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
@@ -55,6 +66,7 @@ import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.KasaTextField
 import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.WavyProgress
+import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
 /**
@@ -75,6 +87,17 @@ fun ItemEditorScreen(
     var item by remember(initial.id) { mutableStateOf(initial) }
     var revealed by remember(initial.id) { mutableStateOf(initial.password.isEmpty()) }
     var nameTouched by remember(initial.id) { mutableStateOf(false) }
+
+    val folders by viewModel.folders.collectAsStateWithLifecycle()
+    val data by viewModel.data.collectAsStateWithLifecycle()
+
+    // Ekler formda değil, doğrudan kasada tutuluyor: eklenen dosya anında
+    // yazılıyor, formun eski kopyası onu ezmiyor.
+    val stored = data.items.firstOrNull { it.id == item.id }
+
+    val attachLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) viewModel.attachFile(item.id, uri) }
 
     val isNew = !viewModel.isExisting(initial.id)
     val nameError = nameTouched && item.name.isBlank()
@@ -125,9 +148,9 @@ fun ItemEditorScreen(
                 .padding(bottom = 32.dp)
         ) {
             KasaButtonGroup(
-                options = listOf(Category.LOGIN, Category.CARD, Category.NOTE, Category.OTP),
+                options = Category.entries.toList(),
                 selected = item.category,
-                label = { categoryLabel(it) },
+                label = { categoryFilterLabel(it) },
                 onSelect = { item = item.copy(category = it) },
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             )
@@ -227,6 +250,15 @@ fun ItemEditorScreen(
                     Spacer(Modifier.height(8.dp))
                     TotpEditor(item = item, onChange = { item = it }, onScanQr = onScanQr, expanded = true)
                 }
+
+                // Şema tabanlı türler: alanlar CategorySchema'dan geliyor,
+                // burada tür başına ayrı arayüz yazmak gerekmiyor.
+                else -> SchemaFields(
+                    item = item,
+                    revealed = revealed,
+                    onToggleReveal = { revealed = !revealed },
+                    onChange = { item = it }
+                )
             }
 
             if (item.category != Category.NOTE) {
@@ -249,6 +281,26 @@ fun ItemEditorScreen(
                 },
                 label = stringResource(R.string.field_tags),
                 placeholder = stringResource(R.string.editor_tags_hint)
+            )
+
+            Spacer(Modifier.height(8.dp))
+            FolderPicker(
+                folders = folders,
+                selectedId = item.folderId,
+                onSelect = { item = item.copy(folderId = it) },
+                onCreate = { name -> viewModel.createFolder(name) }
+            )
+
+            // ── ekler ─────────────────────────────────────────────────────
+            Spacer(Modifier.height(16.dp))
+            AttachmentEditor(
+                item = stored ?: item,
+                enabled = stored != null,
+                onAdd = {
+                    viewModel.suppressAutoLockForPicker()
+                    attachLauncher.launch(arrayOf("*/*"))
+                },
+                onRemove = { attachmentId -> viewModel.removeAttachment(item.id, attachmentId) }
             )
 
             // ── özel alanlar ──────────────────────────────────────────────
@@ -431,4 +483,234 @@ private fun AddCustomFieldRow(onAdd: (String, Boolean) -> Unit) {
             }
         })
     }
+}
+
+/**
+ * Şema tabanlı türlerin alanları.
+ *
+ * Tek bir tanım listesinden hem klavye türü, hem maskeleme, hem çok satırlılık
+ * çıkıyor. Yeni bir tür eklemek burada hiçbir değişiklik gerektirmiyor.
+ */
+@Composable
+private fun SchemaFields(
+    item: VaultItem,
+    revealed: Boolean,
+    onToggleReveal: () -> Unit,
+    onChange: (VaultItem) -> Unit
+) {
+    val fields = CategorySchema.fieldsFor(item.category)
+
+    fields.forEachIndexed { index, def ->
+        if (index > 0) Spacer(Modifier.height(8.dp))
+        val value = item.extras[def.key].orEmpty()
+        val update: (String) -> Unit = { fresh ->
+            onChange(item.copy(extras = item.extras.toMutableMap().apply { put(def.key, fresh) }))
+        }
+
+        when (def.kind) {
+            FieldKind.SECRET, FieldKind.SECRET_MULTILINE -> KasaPasswordField(
+                value = value,
+                onValueChange = update,
+                label = stringResource(def.labelRes),
+                revealed = revealed,
+                onRevealToggle = onToggleReveal,
+                imeAction = ImeAction.Next
+            )
+
+            FieldKind.MULTILINE -> KasaTextField(
+                value = value,
+                onValueChange = update,
+                label = stringResource(def.labelRes),
+                singleLine = false,
+                minLines = 4,
+                imeAction = ImeAction.Default,
+                textStyle = KasaTheme.text.mono
+            )
+
+            else -> KasaTextField(
+                value = value,
+                onValueChange = update,
+                label = stringResource(def.labelRes),
+                keyboardType = when (def.kind) {
+                    FieldKind.NUMBER -> KeyboardType.Number
+                    FieldKind.EMAIL -> KeyboardType.Email
+                    else -> KeyboardType.Text
+                },
+                textStyle = if (def.kind == FieldKind.NUMBER) KasaTheme.text.mono else null
+            )
+        }
+    }
+}
+
+/**
+ * Klasör seçici.
+ *
+ * "Klasörsüz" ilk seçenek ve varsayılan: kullanıcıyı kayıt eklerken klasör
+ * kurmaya zorlamak, klasörleri hiç kullanmayacak kişiye bedel yüklerdi.
+ * Yeni klasör buradan da açılabiliyor, ayarlara gitmek gerekmiyor.
+ */
+@Composable
+private fun FolderPicker(
+    folders: List<Folder>,
+    selectedId: String?,
+    onSelect: (String?) -> Unit,
+    onCreate: (String) -> Unit
+) {
+    var creating by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.folder_field).uppercase(java.util.Locale("tr", "TR")),
+            style = KasaTheme.text.fieldLabel,
+            color = KasaTheme.colors.ink3,
+            modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
+        )
+        KasaButtonGroup(
+            options = listOf<String?>(null) + folders.map { it.id },
+            selected = selectedId,
+            label = { id ->
+                if (id == null) stringResource(R.string.folder_none)
+                else folders.firstOrNull { it.id == id }?.name.orEmpty()
+            },
+            onSelect = onSelect,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+        if (creating) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(Modifier.weight(1f)) {
+                    KasaTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = stringResource(R.string.folder_name),
+                        imeAction = ImeAction.Done
+                    )
+                }
+                KasaChip(
+                    text = stringResource(R.string.folder_create),
+                    onClick = {
+                        if (newName.isNotBlank()) {
+                            onCreate(newName)
+                            newName = ""
+                            creating = false
+                        }
+                    }
+                )
+            }
+        } else {
+            KasaChip(text = stringResource(R.string.folder_new), onClick = { creating = true })
+        }
+    }
+}
+
+/**
+ * Ek listesi ve ekleme düğmesi.
+ *
+ * Kaydedilmemiş kayda ek eklenemiyor: ek diske hemen yazıldığı için, hiç
+ * kaydedilmeyecek bir kaydın eki sahipsiz kalırdı. Kullanıcıya bunu
+ * söylemek, sessizce devre dışı bir düğme göstermekten iyi.
+ */
+@Composable
+private fun AttachmentEditor(
+    item: VaultItem,
+    enabled: Boolean,
+    onAdd: () -> Unit,
+    onRemove: (String) -> Unit
+) {
+    Column(Modifier.fillMaxWidth()) {
+        SectionLabel(
+            stringResource(R.string.att_title),
+            count = item.attachments.size.takeIf { it > 0 }
+        )
+        Spacer(Modifier.height(6.dp))
+
+        item.attachments.forEach { attachment ->
+            AttachmentRow(
+                attachment = attachment,
+                trailing = {
+                    KasaIconButton(
+                        onClick = { onRemove(attachment.id) },
+                        size = 36.dp,
+                        contentDescription = stringResource(R.string.att_remove)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = null,
+                            tint = KasaTheme.colors.ink3,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
+            )
+            Spacer(Modifier.height(6.dp))
+        }
+
+        if (enabled) {
+            KasaChip(text = stringResource(R.string.att_add), onClick = onAdd)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.att_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3,
+                modifier = Modifier.padding(horizontal = 6.dp)
+            )
+        } else {
+            Text(
+                stringResource(R.string.att_save_first),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3,
+                modifier = Modifier.padding(horizontal = 6.dp)
+            )
+        }
+    }
+}
+
+/** Ek satırı: ad, boyut ve sağda tek bir eylem. */
+@Composable
+fun AttachmentRow(
+    attachment: Attachment,
+    modifier: Modifier = Modifier,
+    trailing: @Composable () -> Unit
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(KasaRadius.m))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            Icons.Rounded.AttachFile,
+            contentDescription = null,
+            tint = KasaTheme.colors.ink3,
+            modifier = Modifier.size(18.dp)
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                attachment.name,
+                style = MaterialTheme.typography.titleSmall,
+                color = KasaTheme.colors.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                formatBytes(attachment.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3
+            )
+        }
+        trailing()
+    }
+}
+
+fun formatBytes(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+    else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
 }

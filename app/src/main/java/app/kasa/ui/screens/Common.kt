@@ -8,10 +8,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.material.icons.rounded.CreditCard
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.Password
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import app.kasa.R
 import app.kasa.core.util.PasswordStrength
 import app.kasa.data.model.Category
+import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.theme.KasaTheme
 
@@ -101,6 +113,51 @@ fun categoryIcon(category: Category): ImageVector = when (category) {
     Category.CARD -> Icons.Rounded.CreditCard
     Category.NOTE -> Icons.Rounded.Notes
     Category.OTP -> Icons.Rounded.Timer
+    Category.IDENTITY -> Icons.Rounded.Badge
+    Category.BANK -> Icons.Rounded.AccountBalance
+    Category.SSH_KEY -> Icons.Rounded.Terminal
+    Category.LICENSE -> Icons.Rounded.Verified
+    Category.WIFI -> Icons.Rounded.Wifi
+}
+
+/** Süzgeç çubuğundaki kısa kategori adı. */
+@Composable
+fun categoryFilterLabel(category: Category?): String = stringResource(
+    when (category) {
+        null -> R.string.cat_all
+        Category.LOGIN -> R.string.cat_login
+        Category.CARD -> R.string.cat_card
+        Category.NOTE -> R.string.cat_note
+        Category.OTP -> R.string.cat_otp
+        Category.IDENTITY -> R.string.cat_identity
+        Category.BANK -> R.string.cat_bank
+        Category.SSH_KEY -> R.string.cat_ssh
+        Category.LICENSE -> R.string.cat_license
+        Category.WIFI -> R.string.cat_wifi
+    }
+)
+
+@Composable
+fun smartFolderLabel(kind: SmartFolder): String = stringResource(
+    when (kind) {
+        SmartFolder.FAVORITES -> R.string.smart_favorites
+        SmartFolder.LEAKED -> R.string.smart_leaked
+        SmartFolder.REUSED -> R.string.smart_reused
+        SmartFolder.WEAK -> R.string.smart_weak
+        SmartFolder.OLD -> R.string.smart_old
+        SmartFolder.NO_2FA -> R.string.smart_no2fa
+        SmartFolder.TRASH -> R.string.smart_trash
+    }
+)
+
+fun smartFolderIcon(kind: SmartFolder): ImageVector = when (kind) {
+    SmartFolder.FAVORITES -> Icons.Rounded.Star
+    SmartFolder.LEAKED -> Icons.Rounded.Warning
+    SmartFolder.REUSED -> Icons.Rounded.Repeat
+    SmartFolder.WEAK -> Icons.Rounded.Warning
+    SmartFolder.OLD -> Icons.Rounded.History
+    SmartFolder.NO_2FA -> Icons.Rounded.Shield
+    SmartFolder.TRASH -> Icons.Rounded.Delete
 }
 
 @Composable
@@ -110,6 +167,11 @@ fun categoryLabel(category: Category): String = stringResource(
         Category.CARD -> R.string.item_card
         Category.NOTE -> R.string.item_note
         Category.OTP -> R.string.item_otp
+        Category.IDENTITY -> R.string.item_identity
+        Category.BANK -> R.string.item_bank
+        Category.SSH_KEY -> R.string.item_ssh
+        Category.LICENSE -> R.string.item_license
+        Category.WIFI -> R.string.item_wifi
     }
 )
 

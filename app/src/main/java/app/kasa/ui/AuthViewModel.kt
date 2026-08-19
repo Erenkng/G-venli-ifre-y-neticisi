@@ -179,6 +179,13 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
                 )
                 tickCooldown()
             }
+            VaultRepository.UnlockOutcome.TooNew -> {
+                container.haptics.play(Haptics.Kind.WARNING)
+                _unlock.value = _unlock.value.copy(
+                    busy = false,
+                    error = app.kasa.R.string.vault_too_new
+                )
+            }
             VaultRepository.UnlockOutcome.Wiped -> {
                 container.haptics.play(Haptics.Kind.WARNING)
                 _unlock.value = UnlockState(wiped = true)

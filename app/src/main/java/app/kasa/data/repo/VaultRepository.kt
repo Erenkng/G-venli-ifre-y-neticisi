@@ -5,10 +5,18 @@ import app.kasa.core.crypto.SecretBytes
 import app.kasa.core.security.SecureClipboard
 import app.kasa.data.SettingsStore
 import app.kasa.data.VaultStore
+import app.kasa.data.VaultTooNewException
+import app.kasa.core.crypto.Crypto
+import app.kasa.data.model.Attachment
 import app.kasa.data.model.Category
+import app.kasa.data.model.CategorySchema
+import app.kasa.data.model.Folder
 import app.kasa.data.model.PasswordHistoryEntry
+import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultData
+import app.kasa.data.model.VaultFilter
 import app.kasa.data.model.VaultItem
+import app.kasa.core.util.PasswordStrength
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -94,6 +102,8 @@ class VaultRepository(
         data object WrongSecret : UnlockOutcome
         class Blocked(val remainingMillis: Long) : UnlockOutcome
         data object Wiped : UnlockOutcome
+        /** Kasa dosyası bu sürümden yeni; açmayı reddettik. */
+        data object TooNew : UnlockOutcome
         class Error(val cause: Throwable) : UnlockOutcome
     }
 
@@ -123,15 +133,30 @@ class VaultRepository(
 
     private fun adopt(result: VaultStore.UnlockResult): UnlockOutcome = when (result) {
         is VaultStore.UnlockResult.Success -> {
-            vaultKey?.wipe()
-            vaultKey = result.vaultKey
-            _data.value = try {
-                store.readVault(result.vaultKey)
-            } catch (t: Throwable) {
-                VaultData()
-            }
-            _lockState.value = LockState.Unlocked
-            UnlockOutcome.Success
+            // Anahtar doğru ama kasa okunamıyorsa kilidi AÇMIYORUZ.
+            //
+            // Eskiden burada boş bir VaultData'ya düşülüyordu; kullanıcı açılmış
+            // ama boş bir kasa görüyor, ilk kayıt eklediğinde de o boş kasa
+            // diske yazılıp gerçek kayıtların üstüne biniyordu. Okuma hatası
+            // veri kaybının değil, açılmamanın sebebi olmalı.
+            val loaded = runCatching { store.readVault(result.vaultKey) }
+            loaded.fold(
+                onSuccess = { data ->
+                    vaultKey?.wipe()
+                    vaultKey = result.vaultKey
+                    _data.value = data
+                    _lockState.value = LockState.Unlocked
+                    // Kasa açılır açılmaz bakım: süresi dolmuş çöp kutusu
+                    // kayıtları ve sahipsiz ek dosyaları temizlenir.
+                    scope.launch { runMaintenance() }
+                    UnlockOutcome.Success
+                },
+                onFailure = { cause ->
+                    result.vaultKey.wipe()
+                    if (cause is VaultTooNewException) UnlockOutcome.TooNew
+                    else UnlockOutcome.Error(cause)
+                }
+            )
         }
         VaultStore.UnlockResult.WrongSecret -> UnlockOutcome.WrongSecret
         is VaultStore.UnlockResult.Blocked -> UnlockOutcome.Blocked(result.remainingMillis)
@@ -194,6 +219,11 @@ class VaultRepository(
                 updatedAt = now,
                 passwordChangedAt = if (passwordChanged) now else existing.passwordChangedAt,
                 lastUsedAt = existing.lastUsedAt,
+                // Ekler ve çöp kutusu durumu düzenleyici formundan gelmez;
+                // ayrı işlemlerle yönetilir. Formun taşıdığı eski kopya bunları
+                // ezmemeli, yoksa düzenleme sırasında eklenen dosya kaybolur.
+                attachments = existing.attachments,
+                deletedAt = existing.deletedAt,
                 history = if (passwordChanged && existing.password.isNotBlank()) {
                     (listOf(PasswordHistoryEntry(existing.password, existing.passwordChangedAt)) + existing.history)
                         .take(MAX_HISTORY)
@@ -209,12 +239,57 @@ class VaultRepository(
         current.copy(items = items)
     }
 
-    suspend fun delete(id: String): Boolean = mutate { current ->
-        current.copy(items = current.items.filterNot { it.id == id })
+    /**
+     * Kaydı çöp kutusuna taşır.
+     *
+     * Kalıcı silme yalnızca [purge] ile ya da 30 gün dolduğunda olur. Kalıcı
+     * silmeyi varsayılan yapmak, yanlışlıkla silinen tek bir kaydın geri
+     * dönüşünü imkânsız kılıyordu; bildirim şeridindeki "geri al" uygulama
+     * kapanınca kayboluyordu.
+     */
+    suspend fun moveToTrash(id: String): Boolean = mutate { current ->
+        val now = System.currentTimeMillis()
+        current.copy(items = current.items.map {
+            if (it.id == id && !it.inTrash) it.copy(deletedAt = now, updatedAt = now) else it
+        })
     }
 
-    suspend fun restore(item: VaultItem): Boolean = mutate { current ->
-        current.copy(items = current.items + item)
+    suspend fun restoreFromTrash(id: String): Boolean = mutate { current ->
+        current.copy(items = current.items.map {
+            if (it.id == id) it.copy(deletedAt = 0L, updatedAt = System.currentTimeMillis()) else it
+        })
+    }
+
+    /** Kaydı ve eklerini geri dönüşsüz siler. */
+    suspend fun purge(id: String): Boolean {
+        val item = byId(id)
+        val ok = mutate { current -> current.copy(items = current.items.filterNot { it.id == id }) }
+        if (ok) item?.attachments?.forEach { store.deleteAttachment(it.id) }
+        return ok
+    }
+
+    suspend fun emptyTrash(): Boolean {
+        val trashed = _data.value.trashedItems
+        val ok = mutate { current -> current.copy(items = current.items.filterNot { it.inTrash }) }
+        if (ok) trashed.flatMap { it.attachments }.forEach { store.deleteAttachment(it.id) }
+        return ok
+    }
+
+    /**
+     * Çöp kutusunda [TRASH_RETENTION_DAYS] günü dolmuş kayıtları siler ve
+     * kasada adı geçmeyen ek dosyalarını temizler.
+     */
+    suspend fun runMaintenance() {
+        val cutoff = System.currentTimeMillis() - TRASH_RETENTION_DAYS * 24L * 60 * 60 * 1000
+        val expired = _data.value.items.filter { it.inTrash && it.deletedAt < cutoff }
+        if (expired.isNotEmpty()) {
+            val ids = expired.map { it.id }.toSet()
+            mutate { current -> current.copy(items = current.items.filterNot { it.id in ids }) }
+            expired.flatMap { it.attachments }.forEach { store.deleteAttachment(it.id) }
+        }
+        withContext(Dispatchers.IO) {
+            store.pruneOrphanAttachments(_data.value.items.flatMap { it.attachments }.map { it.id }.toSet())
+        }
     }
 
     suspend fun toggleFavorite(id: String): Boolean = mutate { current ->
@@ -231,6 +306,97 @@ class VaultRepository(
     }
 
     suspend fun replaceAll(items: List<VaultItem>): Boolean = mutate { it.copy(items = items) }
+
+    // ------------------------------------------------------------- klasörler
+
+    suspend fun createFolder(name: String, parentId: String? = null): String? {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return null
+        val folder = Folder(name = trimmed, parentId = parentId)
+        return if (mutate { it.copy(folders = it.folders + folder) }) folder.id else null
+    }
+
+    suspend fun renameFolder(id: String, name: String): Boolean {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return false
+        return mutate { current ->
+            current.copy(folders = current.folders.map { if (it.id == id) it.copy(name = trimmed) else it })
+        }
+    }
+
+    /**
+     * Klasörü siler; içindeki kayıtlar silinmez, klasörsüz kalır.
+     *
+     * Klasör silmenin kayıt silmesi, kullanıcının beklemediği en pahalı
+     * sürprizlerden biri olurdu.
+     */
+    suspend fun deleteFolder(id: String): Boolean = mutate { current ->
+        val childIds = current.folders.filter { it.parentId == id }.map { it.id }.toSet() + id
+        current.copy(
+            folders = current.folders.filterNot { it.id in childIds },
+            items = current.items.map { if (it.folderId in childIds) it.copy(folderId = null) else it }
+        )
+    }
+
+    suspend fun moveToFolder(itemId: String, folderId: String?): Boolean = mutate { current ->
+        current.copy(items = current.items.map {
+            if (it.id == itemId) it.copy(folderId = folderId, updatedAt = System.currentTimeMillis()) else it
+        })
+    }
+
+    // ----------------------------------------------------------------- ekler
+
+    /** @return eklenen ek, sınır aşıldıysa ya da yazma başarısızsa `null`. */
+    suspend fun addAttachment(itemId: String, name: String, mime: String, content: ByteArray): Attachment? =
+        withContext(Dispatchers.IO) {
+            if (content.size > MAX_ATTACHMENT_BYTES) return@withContext null
+            val key = Crypto.randomBytes(Crypto.KEY_BYTES)
+            val attachment = Attachment(
+                name = name.take(120),
+                mime = mime,
+                size = content.size.toLong(),
+                key = Crypto.hex(key)
+            )
+            val written = runCatching { store.writeAttachment(attachment.id, key, content) }.isSuccess
+            key.fill(0)
+            if (!written) return@withContext null
+
+            val ok = mutate { current ->
+                current.copy(items = current.items.map {
+                    if (it.id == itemId) it.copy(
+                        attachments = it.attachments + attachment,
+                        updatedAt = System.currentTimeMillis()
+                    ) else it
+                })
+            }
+            if (ok) attachment else {
+                store.deleteAttachment(attachment.id)
+                null
+            }
+        }
+
+    suspend fun removeAttachment(itemId: String, attachmentId: String): Boolean {
+        val ok = mutate { current ->
+            current.copy(items = current.items.map {
+                if (it.id == itemId) it.copy(
+                    attachments = it.attachments.filterNot { a -> a.id == attachmentId },
+                    updatedAt = System.currentTimeMillis()
+                ) else it
+            })
+        }
+        if (ok) withContext(Dispatchers.IO) { store.deleteAttachment(attachmentId) }
+        return ok
+    }
+
+    suspend fun readAttachment(attachment: Attachment): ByteArray? = withContext(Dispatchers.IO) {
+        val key = runCatching { hexToBytes(attachment.key) }.getOrNull() ?: return@withContext null
+        val content = store.readAttachment(attachment.id, key)
+        key.fill(0)
+        content
+    }
+
+    private fun hexToBytes(hex: String): ByteArray =
+        ByteArray(hex.length / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
     suspend fun addGeneratorHistory(value: String): Boolean = mutate { current ->
         current.copy(generatorHistory = (listOf(value) + current.generatorHistory).distinct().take(MAX_GENERATOR_HISTORY))
@@ -330,28 +496,87 @@ class VaultRepository(
 
     fun byId(id: String): VaultItem? = _data.value.items.firstOrNull { it.id == id }
 
-    fun filter(category: Category?, query: String): List<VaultItem> {
-        val items = _data.value.items
-        val byCategory = if (category == null) items else items.filter { it.category == category }
+    fun folderById(id: String?): Folder? =
+        id?.let { wanted -> _data.value.folders.firstOrNull { it.id == wanted } }
+
+    /**
+     * Etkin görünüm + kategori + arama metnine göre kayıtları süzer.
+     *
+     * Çöp kutusu ayrı bir görünüm: başka hiçbir süzgeçte silinmiş kayıt
+     * görünmez, çöp kutusunda ise yalnızca onlar görünür.
+     */
+    fun filter(
+        category: Category?,
+        query: String,
+        view: VaultFilter = VaultFilter.All
+    ): List<VaultItem> {
+        val base = if (view.isTrash) _data.value.trashedItems else _data.value.liveItems
+        val scoped = when (view) {
+            VaultFilter.All -> base
+            is VaultFilter.InFolder -> base.filter { it.folderId == view.folderId }
+            is VaultFilter.Smart -> base.filter { matchesSmart(it, view.kind) }
+        }
+        val byCategory = if (category == null) scoped else scoped.filter { it.category == category }
         if (query.isBlank()) return byCategory.sortedBy { it.name.lowercase(TR) }
+
         val q = query.trim().lowercase(TR)
-        return byCategory.filter { item ->
-            item.name.lowercase(TR).contains(q) ||
-                item.username.lowercase(TR).contains(q) ||
-                item.url.lowercase(TR).contains(q) ||
-                item.tags.any { it.lowercase(TR).contains(q) }
-        }.sortedBy { it.name.lowercase(TR) }
+        return byCategory.filter { item -> matchesQuery(item, q) }
+            .sortedBy { it.name.lowercase(TR) }
     }
 
+    private fun matchesQuery(item: VaultItem, q: String): Boolean =
+        item.name.lowercase(TR).contains(q) ||
+            item.username.lowercase(TR).contains(q) ||
+            item.url.lowercase(TR).contains(q) ||
+            item.tags.any { it.lowercase(TR).contains(q) } ||
+            folderById(item.folderId)?.name?.lowercase(TR)?.contains(q) == true ||
+            CategorySchema.searchableValues(item).any { it.lowercase(TR).contains(q) }
+
+    /** Kurallı klasörlerin kuralları. Tek yerde durmaları önemli: güvenlik
+     *  ekranındaki bulgular ve buradaki görünümler aynı tanımı kullanmalı. */
+    private fun matchesSmart(item: VaultItem, kind: SmartFolder): Boolean = when (kind) {
+        SmartFolder.FAVORITES -> item.favorite
+        SmartFolder.LEAKED -> item.breached
+        SmartFolder.REUSED -> item.password.isNotBlank() && reusedPasswords().contains(item.password)
+        SmartFolder.WEAK -> item.primarySecret.isNotBlank() &&
+            PasswordStrength.evaluate(item.primarySecret).tone == PasswordStrength.Tone.WEAK
+        SmartFolder.OLD -> item.password.isNotBlank() &&
+            System.currentTimeMillis() - item.passwordChangedAt > OLD_PASSWORD_MILLIS
+        SmartFolder.NO_2FA -> item.category == Category.LOGIN &&
+            item.password.isNotBlank() && item.totpSecret.isBlank()
+        SmartFolder.TRASH -> item.inTrash
+    }
+
+    private fun reusedPasswords(): Set<String> =
+        _data.value.liveItems
+            .filter { it.password.isNotBlank() }
+            .groupingBy { it.password }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+
+    /** Kurallı klasörlerin rozet sayıları. */
+    fun smartCounts(): Map<SmartFolder, Int> {
+        val live = _data.value.liveItems
+        return SmartFolder.entries.associateWith { kind ->
+            if (kind == SmartFolder.TRASH) _data.value.trashedItems.size
+            else live.count { matchesSmart(it, kind) }
+        }
+    }
+
+    fun folderCounts(): Map<String, Int> =
+        _data.value.liveItems.mapNotNull { it.folderId }.groupingBy { it }.eachCount()
+
     fun recents(limit: Int = 8): List<VaultItem> =
-        _data.value.items
+        _data.value.liveItems
             .filter { it.lastUsedAt > 0 || it.favorite }
             .sortedWith(compareByDescending<VaultItem> { it.favorite }.thenByDescending { it.lastUsedAt })
             .take(limit)
 
     /** Otomatik doldurma için: paket adı ve alan adına göre eşleşen kayıtlar. */
     fun matchesFor(packageName: String?, webDomain: String?): List<VaultItem> {
-        val items = _data.value.items.filter { it.category == Category.LOGIN || it.category == Category.OTP }
+        val items = _data.value.liveItems
+            .filter { it.category == Category.LOGIN || it.category == Category.OTP }
         val domain = webDomain?.lowercase()?.removePrefix("www.")
         val appToken = packageName?.substringAfterLast('.')?.lowercase()
 
@@ -369,9 +594,19 @@ class VaultRepository(
         }.sortedByDescending { it.lastUsedAt }
     }
 
-    private companion object {
+    companion object {
         const val MAX_HISTORY = 10
         const val MAX_GENERATOR_HISTORY = 30
+
+        /** Çöp kutusunda bekleme süresi. */
+        const val TRASH_RETENTION_DAYS = 30
+
+        /** Tek ek için üst sınır: 10 MiB. */
+        const val MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+
+        /** "Bir yıldan eski" eşiği; güvenlik tarayıcısıyla aynı değer. */
+        const val OLD_PASSWORD_MILLIS = 365L * 24 * 60 * 60 * 1000
+
         val TR: java.util.Locale = java.util.Locale("tr", "TR")
     }
 }

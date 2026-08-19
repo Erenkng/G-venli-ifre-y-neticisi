@@ -7,6 +7,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -216,8 +218,10 @@ fun <T> KasaButtonGroup(
 ) {
     var pressedIndex by remember { mutableStateOf<Int?>(null) }
 
+    // Tasarımdaki `.group` yatayda kaydırılabilir; kategori sayısı arttıkça
+    // sığmayan öğeler kesilmek yerine kaydırılıyor.
     Row(
-        modifier = modifier,
+        modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         options.forEachIndexed { index, option ->

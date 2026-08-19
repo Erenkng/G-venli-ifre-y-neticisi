@@ -51,6 +51,8 @@ import app.kasa.R
 import app.kasa.core.util.Haptics
 import app.kasa.data.SettingsStore
 import app.kasa.data.model.Category
+import app.kasa.data.model.SmartFolder
+import app.kasa.data.model.VaultFilter
 import app.kasa.ui.components.FabAction
 import app.kasa.ui.components.FabMenu
 import app.kasa.ui.components.KasaNavBar
@@ -110,6 +112,7 @@ fun MainScaffold(
 
     val selectedItem by vaultViewModel.selectedItem.collectAsStateWithLifecycle()
     val editing by vaultViewModel.editing.collectAsStateWithLifecycle()
+    val vaultView by vaultViewModel.view.collectAsStateWithLifecycle()
 
     // Kısayol ve döşemeden gelen eylemler.
     LaunchedEffect(startAction) {
@@ -153,6 +156,12 @@ fun MainScaffold(
         enabled = qrTarget == null && editing == null && selectedItem == null &&
             !searchOpen && !fabExpanded && tab != TAB_VAULT
     ) { tab = TAB_VAULT }
+    // Kasa sekmesindeyken bir koleksiyonun içindeysek geri tuşu önce
+    // "Tümü" görünümüne döner; uygulamadan çıkmaz.
+    BackHandler(
+        enabled = qrTarget == null && editing == null && selectedItem == null &&
+            !searchOpen && !fabExpanded && tab == TAB_VAULT && vaultView != VaultFilter.All
+    ) { vaultViewModel.setView(VaultFilter.All) }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -176,11 +185,21 @@ fun MainScaffold(
 
                     TAB_SECURITY -> SecurityScreen(
                         viewModel = securityViewModel,
-                        vaultViewModel = vaultViewModel,
-                        settings = settings
+                        settings = settings,
+                        onOpenCollection = { kind ->
+                            vaultViewModel.setView(VaultFilter.Smart(kind))
+                            tab = TAB_VAULT
+                        }
                     )
 
-                    TAB_SETTINGS -> SettingsScreen(viewModel = settingsViewModel)
+                    TAB_SETTINGS -> SettingsScreen(
+                        viewModel = settingsViewModel,
+                        vaultViewModel = vaultViewModel,
+                        onOpenTrash = {
+                            vaultViewModel.setView(VaultFilter.Smart(SmartFolder.TRASH))
+                            tab = TAB_VAULT
+                        }
+                    )
                 }
             }
 
@@ -203,7 +222,8 @@ fun MainScaffold(
         )
 
         AnimatedVisibility(
-            visible = tab == TAB_VAULT,
+            // Çöp kutusundayken yeni kayıt eklemek anlamsız.
+            visible = tab == TAB_VAULT && !vaultView.isTrash,
             enter = fadeIn() + scaleIn(initialScale = 0.7f),
             exit = fadeOut() + scaleOut(targetScale = 0.7f),
             modifier = Modifier

@@ -21,8 +21,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Upload
@@ -48,8 +51,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.BuildConfig
 import app.kasa.R
 import app.kasa.data.ThemeMode
+import app.kasa.data.model.Folder
 import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.SettingsViewModel
+import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.GroupPosition
 import app.kasa.ui.components.KasaBadge
@@ -71,6 +76,8 @@ import app.kasa.ui.theme.KasaTheme
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    vaultViewModel: VaultViewModel,
+    onOpenTrash: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -85,6 +92,10 @@ fun SettingsScreen(
     var showExport by remember { mutableStateOf(false) }
     var showImport by remember { mutableStateOf(false) }
     var showWipe by remember { mutableStateOf(false) }
+    var showFolders by remember { mutableStateOf(false) }
+
+    val folders by vaultViewModel.folders.collectAsStateWithLifecycle()
+    val vaultData by vaultViewModel.data.collectAsStateWithLifecycle()
     var pendingExportPassword by remember { mutableStateOf<CharArray?>(null) }
     var pendingImportPassword by remember { mutableStateOf<CharArray?>(null) }
 
@@ -121,6 +132,20 @@ fun SettingsScreen(
             background = KasaTheme.colors.badgeMidBg,
             foreground = KasaTheme.colors.badgeMidFg
         ) { viewModel.regenerateRecoveryKey() },
+        VaultAction(
+            icon = Icons.Rounded.Folder,
+            title = stringResource(R.string.set_folders),
+            subtitle = stringResource(R.string.set_folders_sub, folders.size),
+            background = KasaTheme.colors.badgeBlueBg,
+            foreground = KasaTheme.colors.badgeBlueFg
+        ) { showFolders = true },
+        VaultAction(
+            icon = Icons.Rounded.Delete,
+            title = stringResource(R.string.trash_title),
+            subtitle = stringResource(R.string.set_trash_sub, vaultData.trashedItems.size),
+            background = KasaTheme.colors.badgeMidBg,
+            foreground = KasaTheme.colors.badgeMidFg
+        ) { onOpenTrash() },
         VaultAction(
             icon = Icons.Rounded.Download,
             title = stringResource(R.string.set_export),
@@ -454,6 +479,17 @@ fun SettingsScreen(
         )
     }
 
+    if (showFolders) {
+        FolderManagerDialog(
+            folders = folders,
+            counts = vaultViewModel.folderCounts.collectAsStateWithLifecycle().value,
+            onCreate = { name -> vaultViewModel.createFolder(name) },
+            onRename = { id, name -> vaultViewModel.renameFolder(id, name) },
+            onDelete = { id -> vaultViewModel.deleteFolder(id) },
+            onDismiss = { showFolders = false }
+        )
+    }
+
     if (showWipe) {
         TypeToConfirmDialog(
             title = stringResource(R.string.wipe_title),
@@ -650,5 +686,170 @@ private fun openAutofillSettings(context: android.content.Context) {
                 Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         }
+    }
+}
+
+/**
+ * Klasör yöneticisi.
+ *
+ * Klasör silmek kayıtları silmiyor; onay metni bunu açıkça söylüyor, çünkü
+ * kullanıcının burada bekleyeceği en kötü sürpriz budur.
+ */
+@Composable
+private fun FolderManagerDialog(
+    folders: List<Folder>,
+    counts: Map<String, Int>,
+    onCreate: (String) -> Unit,
+    onRename: (String, String) -> Unit,
+    onDelete: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var newName by remember { mutableStateOf("") }
+    var renaming by remember { mutableStateOf<String?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    var deleting by remember { mutableStateOf<Folder?>(null) }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .padding(24.dp)
+        ) {
+            Text(
+                stringResource(R.string.set_folders),
+                style = MaterialTheme.typography.titleLarge,
+                color = KasaTheme.colors.ink
+            )
+            Spacer(Modifier.height(16.dp))
+
+            if (folders.isEmpty()) {
+                Text(
+                    stringResource(R.string.folders_empty_sub),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = KasaTheme.colors.ink3
+                )
+                Spacer(Modifier.height(16.dp))
+            }
+
+            folders.forEach { folder ->
+                if (renaming == folder.id) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            app.kasa.ui.components.KasaTextField(
+                                value = renameText,
+                                onValueChange = { renameText = it },
+                                label = stringResource(R.string.folder_name)
+                            )
+                        }
+                        app.kasa.ui.components.KasaChip(
+                            text = stringResource(R.string.save),
+                            onClick = {
+                                onRename(folder.id, renameText)
+                                renaming = null
+                            }
+                        )
+                    }
+                } else {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Folder,
+                            contentDescription = null,
+                            tint = KasaTheme.colors.ink3,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                folder.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = KasaTheme.colors.ink
+                            )
+                            Text(
+                                stringResource(R.string.set_folders_sub, counts[folder.id] ?: 0),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KasaTheme.colors.ink3
+                            )
+                        }
+                        app.kasa.ui.components.KasaIconButton(
+                            onClick = {
+                                renaming = folder.id
+                                renameText = folder.name
+                            },
+                            size = 36.dp,
+                            contentDescription = stringResource(R.string.folder_rename)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Edit,
+                                contentDescription = null,
+                                tint = KasaTheme.colors.ink2,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        app.kasa.ui.components.KasaIconButton(
+                            onClick = { deleting = folder },
+                            size = 36.dp,
+                            contentDescription = stringResource(R.string.delete)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(Modifier.weight(1f)) {
+                    app.kasa.ui.components.KasaTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = stringResource(R.string.folder_new)
+                    )
+                }
+                app.kasa.ui.components.KasaChip(
+                    text = stringResource(R.string.folder_create),
+                    onClick = {
+                        if (newName.isNotBlank()) {
+                            onCreate(newName)
+                            newName = ""
+                        }
+                    }
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                KasaButton(text = stringResource(R.string.close), onClick = onDismiss, height = 46.dp)
+            }
+        }
+    }
+
+    deleting?.let { folder ->
+        ConfirmDialog(
+            title = stringResource(R.string.folder_delete_confirm),
+            body = stringResource(R.string.folder_delete_body, folder.name),
+            confirmText = stringResource(R.string.delete),
+            destructive = true,
+            onConfirm = {
+                onDelete(folder.id)
+                deleting = null
+            },
+            onDismiss = { deleting = null }
+        )
     }
 }

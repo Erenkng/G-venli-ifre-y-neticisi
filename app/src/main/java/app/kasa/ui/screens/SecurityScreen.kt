@@ -41,8 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
 import app.kasa.data.SettingsStore
 import app.kasa.data.repo.SecurityAnalyzer
+import app.kasa.data.model.SmartFolder
 import app.kasa.ui.SecurityViewModel
-import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.GroupPosition
 import app.kasa.ui.components.KasaButton
@@ -65,8 +65,8 @@ import app.kasa.ui.theme.KasaTheme
 @Composable
 fun SecurityScreen(
     viewModel: SecurityViewModel,
-    vaultViewModel: VaultViewModel,
     settings: SettingsStore.Settings,
+    onOpenCollection: (SmartFolder) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -203,12 +203,13 @@ fun SecurityScreen(
             }
         } else {
             items(findings.size) { index ->
+                val finding = findings[index]
                 FindingRow(
-                    finding = findings[index],
+                    finding = finding,
                     position = groupPositionOf(index, findings.size),
-                    onAction = {
-                        findings[index].itemIds.firstOrNull()?.let(vaultViewModel::select)
-                    }
+                    // Bulgu artık bir sayı değil: dokununca o kurala uyan
+                    // kayıtların listesine götürüyor.
+                    onAction = { onOpenCollection(finding.type.asSmartFolder()) }
                 )
             }
         }
@@ -305,4 +306,13 @@ private fun FindingIcon(icon: ImageVector, background: Color, foreground: Color)
     ) {
         Icon(icon, contentDescription = null, tint = foreground, modifier = Modifier.size(20.dp))
     }
+}
+
+/** Bulgu türünün karşılık geldiği kurallı klasör. */
+private fun SecurityAnalyzer.FindingType.asSmartFolder(): SmartFolder = when (this) {
+    SecurityAnalyzer.FindingType.LEAKED -> SmartFolder.LEAKED
+    SecurityAnalyzer.FindingType.REUSED -> SmartFolder.REUSED
+    SecurityAnalyzer.FindingType.WEAK -> SmartFolder.WEAK
+    SecurityAnalyzer.FindingType.OLD -> SmartFolder.OLD
+    SecurityAnalyzer.FindingType.NO_2FA -> SmartFolder.NO_2FA
 }

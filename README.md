@@ -16,7 +16,19 @@ uçtan uca şifreli bir yerel kasa.
 ./gradlew assembleRelease        # R8 + kaynak küçültme ile sürüm derlemesi
 ```
 
-Gereksinimler: JDK 17, Android SDK 35, minimum Android 8.0 (API 26).
+Gereksinimler: JDK 17, Android SDK 36.
+
+**Kasa yalnızca Android 16 (API 36) ve üstünde çalışır.** `minSdk = targetSdk =
+compileSdk = 36`. Android 17'de çalışmak için yükseltme gerekmez — Android
+sürümleri geriye dönük uyumludur; `targetSdk` yalnızca hangi davranış
+değişikliklerine katıldığını belirler. API 37 SDK'sı kurulduğunda
+`app/build.gradle.kts` içindeki iki sayıyı değiştirmek yeterli, çünkü kodda
+başka hiçbir yerde sürüm dalı yok.
+
+Tek hedefe inmenin somut karşılığı: Keystore, titreşim, pano, döşeme,
+bildirim ve dinamik renk yollarındaki tüm `Build.VERSION` kontrolleri
+kaldırıldı. Argon2Kt 1.6.0'ın dört ABI'sinin de 16 KB sayfa hizalı olduğu
+ELF program başlıklarından doğrulandı; 32 bit ABI'ler paketlenmiyor.
 
 > **Not:** Bu depo, Android SDK'sına erişimi olmayan bir ortamda yazıldı;
 > Gradle derlemesi henüz çalıştırılmadı. Bağımlılık sürümleri ve API
@@ -76,7 +88,13 @@ biyometri ──Keystore/StrongBox──────────┘    KASA ANAH
 ## Özellikler
 
 **Kasa**
-- Giriş, kart, güvenli not ve 2FA kayıtları
+- Dokuz kayıt türü: giriş, kart, güvenli not, 2FA, kimlik, banka hesabı,
+  SSH/API anahtarı, yazılım lisansı, Wi-Fi ağı — yeni türler `CategorySchema`
+  içinde veri olarak tanımlı, arayüz kodu gerektirmiyor
+- Klasörler ve kurala göre kendini dolduran koleksiyonlar (sızmış, tekrar
+  kullanılan, zayıf, bir yıldan eski, 2FA'sız, sık kullanılan)
+- 30 günlük çöp kutusu; süresi dolan kayıtlar kendiliğinden siliniyor
+- Kayıt başına şifreli ek dosyaları (her ek kendi anahtarıyla, ayrı dosyada)
 - Kategori süzgeci, tam ekran arama, son kullanılanlar şeridi, sık kullanılanlar
 - Kayıt ayrıntısı: maskeli parola, ayrı göster/kopyala eylemleri, güç göstergesi
 - Parola geçmişi (son 10 parola), özel alanlar, etiketler, silmeyi geri alma
@@ -145,6 +163,7 @@ daha değerli.
 
 | Dosya | İçerik |
 |---|---|
+| `kasa/att/<id>.bin` | `KASAATT1` + AES-GCM(ek dosyası), eke özel anahtarla |
 | `kasa/master.key` | `KASAMST1` + KDF parametreleri + AES-GCM(kasa anahtarı) |
 | `kasa/recovery.key` | `KASAREC1` + KDF parametreleri + AES-GCM(kasa anahtarı) |
 | `kasa/biometric.key` | `KASABIO1` + IV + Keystore-GCM(kasa anahtarı) |
@@ -154,3 +173,17 @@ daha değerli.
 
 Ana parola değiştiğinde kasa yeniden şifrelenmez; yalnızca sarmalayıcı yenilenir.
 Bu hem hızlıdır hem de değişiklik sırasında veri kaybı penceresi bırakmaz.
+
+### Şema göçü
+
+Kasa JSON'u bir `schema` sürümü taşır ve `VaultMigrations` adım adım yükseltir.
+İki yön de kapalı:
+
+- **Eski dosya, yeni uygulama** → zincir sırayla çalışır.
+- **Yeni dosya, eski uygulama** → açılmayı reddeder. Bu ikincisi daha önemli:
+  `ignoreUnknownKeys` açık olduğu için eski sürüm yeni alanları tanımaz, okur
+  gibi yapar ve ilk kaydetmede kalıcı olarak siler.
+
+Aynı gerekçeyle, kasa **herhangi bir nedenle** okunamıyorsa kilit hiç açılmaz.
+Boş bir kasayla açılıp ilk yazmada gerçek kayıtların üstüne binmek, okuma
+hatasının verebileceği en pahalı sonuçtu.
