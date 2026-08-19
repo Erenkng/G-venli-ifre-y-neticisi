@@ -120,7 +120,7 @@ biyometri ──Keystore/StrongBox──────────┘    KASA ANAH
 
 **Görünüm**
 - Açık ve karanlık tema, sistem takibi, AMOLED tam siyah
-- Material You dinamik renk (Android 12+) — güç renkleri sabit kalır
+- Material You dinamik renk — güç renkleri sabit kalır (zayıf her zaman kırmızı)
 - Roboto Flex değişken yazı tipi (wght/wdth/GRAD eksenleri)
 - Tasarımın imza hareketleri: güce göre biçim değiştiren kadran, dalgalı ilerleme
   çubukları, basınca sıkışan liste satırları, komşusuna tepki veren düğme grubu
