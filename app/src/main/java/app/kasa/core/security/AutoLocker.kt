@@ -39,6 +39,20 @@ class AutoLocker(
     private var pendingLock: Job? = null
     private var registered = false
 
+    /**
+     * Sistem seçicileri (dosya seçme, izin isteği) uygulamayı kısa süreliğine
+     * arka plana alır. Bunu "kullanıcı uygulamadan çıktı" saymak, dışa aktarma
+     * gibi işleri ortasından kesiyordu: kasa kilitlenince çözülmüş kayıtlar
+     * bellekten düşüyor ve seçiciden dönüldüğünde yazacak veri kalmıyordu.
+     *
+     * Bu yüzden çağıran taraf, seçiciyi açmadan hemen önce [suppressNextBackground]
+     * diyerek **tek bir** arka plana geçişi affettirebilir. Af yalnızca kısa bir
+     * pencere için geçerlidir; kullanıcı gerçekten uygulamadan çıkarsa süre
+     * dolmuş olur ve kilit normal şekilde işler. Ekran kapanması hiçbir koşulda
+     * affedilmez.
+     */
+    private var suppressUntil = 0L
+
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) lockNow()
@@ -59,8 +73,16 @@ class AutoLocker(
         pendingLock = null
     }
 
+    fun suppressNextBackground() {
+        suppressUntil = System.currentTimeMillis() + SUPPRESS_WINDOW_MILLIS
+    }
+
     override fun onStop(owner: LifecycleOwner) {
         if (!repository.isUnlocked) return
+        if (System.currentTimeMillis() < suppressUntil) {
+            suppressUntil = 0L
+            return
+        }
         val seconds = autoLockSeconds
         if (seconds <= 0) {
             lockNow()
@@ -76,6 +98,11 @@ class AutoLocker(
     fun lockNow() {
         pendingLock?.cancel()
         pendingLock = null
+        suppressUntil = 0L
         if (repository.isUnlocked) repository.lock()
+    }
+
+    private companion object {
+        const val SUPPRESS_WINDOW_MILLIS = 30_000L
     }
 }

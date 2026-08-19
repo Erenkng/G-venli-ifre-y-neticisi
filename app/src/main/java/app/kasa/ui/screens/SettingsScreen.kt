@@ -435,6 +435,7 @@ fun SettingsScreen(
             onConfirm = { password ->
                 showExport = false
                 pendingExportPassword = password
+                viewModel.suppressAutoLockForPicker()
                 exportLauncher.launch("kasa-yedek.kasa")
             },
             onDismiss = { showExport = false }
@@ -450,6 +451,7 @@ fun SettingsScreen(
             onConfirm = { password ->
                 showImport = false
                 pendingImportPassword = password
+                viewModel.suppressAutoLockForPicker()
                 importLauncher.launch(arrayOf("*/*"))
             },
             onDismiss = { showImport = false }

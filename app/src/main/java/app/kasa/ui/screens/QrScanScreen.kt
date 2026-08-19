@@ -49,6 +49,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.kasa.R
+import app.kasa.ui.rememberAppContainer
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaIconButton
@@ -85,12 +86,20 @@ fun QrScanScreen(
         )
     }
 
+    val container = rememberAppContainer()
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasPermission = granted }
 
+    // İzin penceresi de uygulamayı arka plana alır; bunu "kullanıcı çıktı"
+    // sayıp kasayı kilitlemek, karekod okumayı ortasından keserdi.
+    fun requestCamera() {
+        container.autoLocker.suppressNextBackground()
+        permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
     LaunchedEffect(Unit) {
-        if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
+        if (!hasPermission) requestCamera()
     }
 
     Box(
@@ -118,7 +127,7 @@ fun QrScanScreen(
                 Spacer(Modifier.height(20.dp))
                 KasaButton(
                     text = stringResource(R.string.qr_grant),
-                    onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }
+                    onClick = { requestCamera() }
                 )
                 Spacer(Modifier.height(8.dp))
                 KasaButton(

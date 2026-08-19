@@ -196,4 +196,13 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun lockNow() {
         container.autoLocker.lockNow()
     }
+
+    /**
+     * Dosya seçici açılmadan hemen önce çağrılır: seçicinin uygulamayı arka
+     * plana alması otomatik kilidi tetiklememeli, yoksa seçiciden dönüldüğünde
+     * yazacak kasa kalmaz.
+     */
+    fun suppressAutoLockForPicker() {
+        container.autoLocker.suppressNextBackground()
+    }
 }
