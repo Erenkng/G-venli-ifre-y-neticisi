@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Düz metin HTTP hiçbir yerde kabul edilmez. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Yalnızca sistem CA'ları: kullanıcı tarafından kurulan sertifikalar
+                 (araya girme vekilleri) güvenilmez sayılır. -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Sızıntı denetiminin gittiği tek uç nokta. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.pwnedpasswords.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

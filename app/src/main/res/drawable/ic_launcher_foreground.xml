@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- kasa gövdesi -->
+    <path android:fillColor="#A6F0DE"
+        android:pathData="M32,48 h44 a9,9 0 0 1 9,9 v22 a9,9 0 0 1 -9,9 h-44 a9,9 0 0 1 -9,-9 v-22 a9,9 0 0 1 9,-9 Z"/>
+    <!-- kilit kolu -->
+    <path android:strokeColor="#A6F0DE" android:strokeWidth="7" android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:pathData="M38,48 v-9 a16,16 0 0 1 32,0 v9"/>
+    <!-- anahtar deliği -->
+    <path android:fillColor="#00695C"
+        android:pathData="M54,62 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0 Z"/>
+    <path android:fillColor="#00695C"
+        android:pathData="M51.5,66 h5 l1.5,11 h-8 Z"/>
+</vector>

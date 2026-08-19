@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kasa</string>
+    <string name="tile_label">Kasa</string>
+
+    <!-- Genel -->
+    <string name="ok">Tamam</string>
+    <string name="cancel">Vazgeç</string>
+    <string name="save">Kaydet</string>
+    <string name="delete">Sil</string>
+    <string name="edit">Düzenle</string>
+    <string name="share">Paylaş</string>
+    <string name="copy">Kopyala</string>
+    <string name="back">Geri</string>
+    <string name="close">Kapat</string>
+    <string name="continue_">Devam</string>
+    <string name="retry">Yeniden dene</string>
+    <string name="show">Göster</string>
+    <string name="hide">Gizle</string>
+
+    <!-- Alt gezinme -->
+    <string name="nav_vault">Kasa</string>
+    <string name="nav_generate">Üret</string>
+    <string name="nav_security">Güvenlik</string>
+    <string name="nav_settings">Ayarlar</string>
+
+    <!-- Karşılama / kurulum -->
+    <string name="onb_title">Kasa</string>
+    <string name="onb_sub">Parolaların yalnızca bu cihazda, ana parolandan türetilen anahtarla şifreli durur.</string>
+    <string name="onb_master">Ana parola</string>
+    <string name="onb_master_again">Ana parolayı yinele</string>
+    <string name="onb_master_hint">En az 12 karakter. Bunu unutursan kurtarma anahtarı tek yoldur.</string>
+    <string name="onb_mismatch">Parolalar aynı değil</string>
+    <string name="onb_too_short">Ana parola en az 12 karakter olmalı</string>
+    <string name="onb_too_weak">Bu parola çok tahmin edilebilir. Daha uzun ve özgün bir şey seç.</string>
+    <string name="onb_create">Kasayı oluştur</string>
+    <string name="onb_creating">Anahtar türetiliyor…</string>
+    <string name="onb_recovery_title">Kurtarma anahtarın</string>
+    <string name="onb_recovery_sub">Bu anahtar bir daha gösterilmeyecek. Kâğıda yaz ya da güvenli bir yere kopyala. Ana parolanı unutursan kasayı yalnızca bununla açabilirsin.</string>
+    <string name="onb_recovery_saved">Kurtarma anahtarını güvenli bir yere kaydettim</string>
+    <string name="onb_biometric_title">Parmak izi ile aç</string>
+    <string name="onb_biometric_sub">Ana parolan cihazın donanım destekli anahtar deposunda korunur; her açılışta yeniden yazmana gerek kalmaz.</string>
+    <string name="onb_biometric_enable">Biyometriği aç</string>
+    <string name="onb_skip">Şimdilik geç</string>
+
+    <!-- Kilit ekranı -->
+    <string name="lock_title">Kasa kilitli</string>
+    <string name="lock_master">Ana parola</string>
+    <string name="lock_unlock">Kilidi aç</string>
+    <string name="lock_unlocking">Doğrulanıyor…</string>
+    <string name="lock_wrong">Ana parola yanlış</string>
+    <string name="lock_use_biometric">Parmak izi ile aç</string>
+    <string name="lock_use_recovery">Kurtarma anahtarı ile gir</string>
+    <string name="lock_recovery_hint">24 karakterlik kurtarma anahtarını yaz</string>
+    <string name="lock_attempts_left">%1$d deneme hakkın kaldı</string>
+    <string name="lock_cooldown">Çok fazla deneme. %1$s sonra yeniden dene.</string>
+    <string name="lock_wipe_warning">Bir sonraki hatalı denemede kasa kalıcı olarak silinecek.</string>
+    <string name="biometric_prompt_title">Kasayı aç</string>
+    <string name="biometric_prompt_sub">Parmak izin ya da yüzünle doğrula</string>
+    <string name="biometric_prompt_negative">Ana parolayı kullan</string>
+
+    <!-- Kasa ekranı -->
+    <string name="vault_title">Kasa</string>
+    <string name="vault_search">Kasada ara</string>
+    <string name="vault_search_hint">Site, kullanıcı adı veya etiket</string>
+    <string name="vault_recent">Son kullanılan</string>
+    <string name="vault_all">Tüm kayıtlar</string>
+    <string name="vault_empty_title">Kasan henüz boş</string>
+    <string name="vault_empty_sub">Sağ alttaki artı ile ilk kaydını ekle.</string>
+    <string name="vault_no_match_title">Eşleşen kayıt yok</string>
+    <string name="vault_no_match_sub">Farklı bir ad ya da kullanıcı adı dene.</string>
+    <string name="vault_subtitle">%1$d kayıt · %2$s</string>
+    <string name="vault_never_synced">yalnızca bu cihazda</string>
+
+    <string name="cat_all">Tümü</string>
+    <string name="cat_login">Girişler</string>
+    <string name="cat_card">Kartlar</string>
+    <string name="cat_note">Notlar</string>
+    <string name="cat_otp">2FA</string>
+
+    <string name="add_login">Giriş ekle</string>
+    <string name="add_card">Kart ekle</string>
+    <string name="add_note">Not ekle</string>
+    <string name="add_otp">2FA ekle</string>
+    <string name="add_new">Yeni kayıt ekle</string>
+
+    <!-- Kayıt ayrıntısı -->
+    <string name="item_login">Giriş bilgisi</string>
+    <string name="item_card">Ödeme kartı</string>
+    <string name="item_note">Güvenli not</string>
+    <string name="item_otp">Doğrulama kodu</string>
+    <string name="field_username">Kullanıcı adı</string>
+    <string name="field_password">Parola</string>
+    <string name="field_url">Adres</string>
+    <string name="field_notes">Not</string>
+    <string name="field_card_number">Kart numarası</string>
+    <string name="field_card_holder">Kart sahibi</string>
+    <string name="field_card_expiry">Son kullanma</string>
+    <string name="field_card_cvv">CVV</string>
+    <string name="field_totp">Doğrulama kodu</string>
+    <string name="field_tags">Etiketler</string>
+    <string name="field_strength">Parola gücü — %1$s</string>
+    <string name="detail_change_password">Parolayı değiştir</string>
+    <string name="detail_open_site">Siteye git</string>
+    <string name="detail_delete_confirm">Bu kayıt silinsin mi?</string>
+    <string name="detail_delete_body">%1$s kasadan kalıcı olarak silinecek. Bu işlem geri alınamaz.</string>
+    <string name="detail_deleted">%1$s silindi</string>
+    <string name="detail_undo">Geri al</string>
+    <string name="detail_favorite">Sık kullanılan</string>
+    <string name="detail_updated">%1$s güncellendi</string>
+    <string name="detail_created">%1$s eklendi</string>
+    <string name="detail_history">Parola geçmişi</string>
+    <string name="detail_history_count">%1$d eski parola</string>
+    <string name="detail_leak_warning">Bu parola bilinen bir sızıntıda geçiyor. Bugün değiştir.</string>
+    <string name="detail_mid_warning">Fena değil ama kısa. Uzunluğu 16 karakterin üstüne çıkar.</string>
+    <string name="detail_ok_note">İyi görünüyor. 12 ayda bir yenilemen yeterli.</string>
+    <string name="detail_reused_warning">Aynı parolayı %1$d kayıtta daha kullanıyorsun.</string>
+
+    <!-- Kayıt düzenleyici -->
+    <string name="editor_new_title">Yeni kayıt</string>
+    <string name="editor_edit_title">Kaydı düzenle</string>
+    <string name="editor_name">Ad</string>
+    <string name="editor_name_required">Ada bir şey yaz</string>
+    <string name="editor_generate">Üret</string>
+    <string name="editor_scan_qr">QR kodu tara</string>
+    <string name="editor_totp_secret">TOTP gizli anahtarı</string>
+    <string name="editor_totp_invalid">Bu anahtar geçerli bir Base32 değeri değil</string>
+    <string name="editor_expiry_hint">AA/YY</string>
+
+    <!-- Üretici -->
+    <string name="gen_title">Üret</string>
+    <string name="gen_sub">Şekil, parolanın gücüne göre yumuşar</string>
+    <string name="gen_regen">Yeniden üret</string>
+    <string name="gen_copy">Parolayı kopyala</string>
+    <string name="gen_length">Uzunluk</string>
+    <string name="gen_words">Sözcük sayısı</string>
+    <string name="gen_mode_password">Parola</string>
+    <string name="gen_mode_passphrase">Sözcük dizisi</string>
+    <string name="gen_upper">Büyük harf</string>
+    <string name="gen_upper_sub">A–Z</string>
+    <string name="gen_num">Rakam</string>
+    <string name="gen_num_sub">0–9</string>
+    <string name="gen_sym">Sembol</string>
+    <string name="gen_sym_sub">!#$%%&amp;*</string>
+    <string name="gen_clear">Karışan harfleri ele</string>
+    <string name="gen_clear_sub">0/O ve 1/l/I kullanılmaz</string>
+    <string name="gen_separator">Ayraç</string>
+    <string name="gen_capitalize">Sözcükleri büyük harfle başlat</string>
+    <string name="gen_history">Üretilenler</string>
+    <string name="gen_history_empty">Henüz bir şey üretmedin.</string>
+    <string name="gen_entropy">%1$d bit entropi</string>
+    <string name="gen_crack">Kaba kuvvetle kırma süresi: %1$s</string>
+
+    <string name="strength_very_weak">ÇOK ZAYIF</string>
+    <string name="strength_weak">ZAYIF</string>
+    <string name="strength_fair">ORTA</string>
+    <string name="strength_strong">GÜÇLÜ</string>
+    <string name="strength_very_strong">ÇOK GÜÇLÜ</string>
+    <string name="tone_weak">Zayıf</string>
+    <string name="tone_mid">Orta</string>
+    <string name="tone_strong">Güçlü</string>
+
+    <!-- Güvenlik ekranı -->
+    <string name="sec_title">Güvenlik</string>
+    <string name="sec_last_scan">Son tarama: %1$s</string>
+    <string name="sec_never_scanned">Henüz taranmadı</string>
+    <string name="sec_score">Kasa puanı</string>
+    <string name="sec_scan">Yeniden tara</string>
+    <string name="sec_scanning">Taranıyor…</string>
+    <string name="sec_scan_done">Tarama bitti · %1$d bulgu var</string>
+    <string name="sec_scan_clean">Tarama bitti · her şey yolunda</string>
+    <string name="sec_findings">Bulgular</string>
+    <string name="sec_no_findings_title">Bulgu yok</string>
+    <string name="sec_no_findings_sub">Kasadaki her parola güçlü, özgün ve güncel.</string>
+    <string name="sec_note">%1$d kayıt dikkat istiyor. Zayıf olanları düzeltmek puanı yukarı çeker.</string>
+    <string name="sec_note_clean">Kasan temiz görünüyor. Bu böyle devam etsin.</string>
+    <string name="sec_online_check">Sızıntı denetimi</string>
+    <string name="sec_online_check_sub">Parolanın kendisi hiçbir zaman gönderilmez; yalnızca SHA-1 özetinin ilk 5 hanesi sorulur.</string>
+
+    <string name="finding_leaked_title">%1$d parola sızıntıda görüldü</string>
+    <string name="finding_leaked_desc">Bu parolalar herkese açık veri sızıntılarında eşleşti. Hemen değiştir.</string>
+    <string name="finding_reused_title">%1$d parola tekrar kullanılmış</string>
+    <string name="finding_reused_desc">Aynı parola birden çok kayıtta kullanılıyor. Biri ele geçerse hepsi birden açılır.</string>
+    <string name="finding_weak_title">%1$d parola zayıf</string>
+    <string name="finding_weak_desc">Kısa ya da tahmin edilebilir parolalar saniyeler içinde kırılabilir.</string>
+    <string name="finding_old_title">%1$d parola bir yıldan eski</string>
+    <string name="finding_old_desc">Bu kayıtlar uzun süredir değişmedi. Yılda bir yenilemek iyi bir alışkanlık.</string>
+    <string name="finding_no2fa_title">%1$d kayıtta 2FA yok</string>
+    <string name="finding_no2fa_desc">İki adımlı doğrulama, parolan sızsa bile hesabı kapalı tutar.</string>
+    <string name="finding_action_fix">Sırayla düzelt</string>
+    <string name="finding_action_view">Kayıtları gör</string>
+    <string name="finding_action_remind">Hatırlatıcı kur</string>
+
+    <!-- Ayarlar -->
+    <string name="set_title">Ayarlar</string>
+    <string name="set_sub">%1$s · yerel kasa</string>
+    <string name="set_group_device">Cihaz</string>
+    <string name="set_group_appearance">Görünüm</string>
+    <string name="set_group_security">Güvenlik</string>
+    <string name="set_group_vault">Kasa</string>
+    <string name="set_group_about">Hakkında</string>
+
+    <string name="set_haptic">Dokunsal geri bildirim</string>
+    <string name="set_haptic_sub">Her etkileşimde kısa titreşim</string>
+    <string name="set_bio">Biyometrik kilit</string>
+    <string name="set_bio_sub">Parmak izi ile aç</string>
+    <string name="set_bio_unavailable">Bu cihazda kayıtlı biyometri yok</string>
+    <string name="set_fill">Otomatik doldurma</string>
+    <string name="set_fill_sub">Uygulama ve tarayıcılarda</string>
+    <string name="set_fill_enabled">Kasa etkin doldurma servisi</string>
+    <string name="set_clip">Panoyu %1$d sn\'de temizle</string>
+    <string name="set_clip_sub">Kopyalanan parola panoda kalmaz</string>
+    <string name="set_screenshot">Ekran görüntüsünü engelle</string>
+    <string name="set_screenshot_sub">Son uygulamalar önizlemesi de gizlenir</string>
+    <string name="set_autolock">Otomatik kilit</string>
+    <string name="set_autolock_sub">Uygulamadan çıkınca %1$s sonra kilitlenir</string>
+    <string name="set_lock_now">Şimdi kilitle</string>
+    <string name="set_wipe_attempts">%1$d hatalı denemeden sonra sil</string>
+    <string name="set_wipe_attempts_sub">Kaba kuvvet denemesine karşı son çare</string>
+    <string name="set_online">Çevrimiçi sızıntı denetimi</string>
+    <string name="set_online_sub">Yalnızca özet ön eki gönderilir</string>
+
+    <string name="set_theme">Tema</string>
+    <string name="set_theme_system">Sistem</string>
+    <string name="set_theme_light">Açık</string>
+    <string name="set_theme_dark">Karanlık</string>
+    <string name="set_dynamic">Duvar kâğıdı renkleri</string>
+    <string name="set_dynamic_sub">Material You ile cihaz renklerini kullan</string>
+    <string name="set_amoled">Tam siyah</string>
+    <string name="set_amoled_sub">AMOLED ekranlarda karanlık modu daha koyu yapar</string>
+
+    <string name="set_change_master">Ana parolayı değiştir</string>
+    <string name="set_change_master_sub">%1$s güncellendi</string>
+    <string name="set_export">Kasayı dışa aktar</string>
+    <string name="set_export_sub">Şifreli .kasa dosyası</string>
+    <string name="set_import">Kasaya içe aktar</string>
+    <string name="set_import_sub">Şifreli .kasa dosyasından geri yükle</string>
+    <string name="set_recovery">Kurtarma anahtarı</string>
+    <string name="set_recovery_sub">Ana parolayı unutursan tek yol bu</string>
+    <string name="set_wipe">Kasayı sil</string>
+    <string name="set_wipe_sub">Tüm kayıtlar ve anahtarlar kalıcı olarak silinir</string>
+    <string name="set_version">Kasa %1$s · Material 3 Expressive</string>
+    <string name="set_crypto_line">%1$s · AES-256-GCM · %2$s</string>
+    <string name="set_hardware_key">donanım destekli anahtar</string>
+    <string name="set_software_key">yazılım anahtarı</string>
+
+    <!-- Ana parola değiştirme -->
+    <string name="chg_title">Ana parolayı değiştir</string>
+    <string name="chg_current">Şu anki ana parola</string>
+    <string name="chg_new">Yeni ana parola</string>
+    <string name="chg_new_again">Yeni ana parolayı yinele</string>
+    <string name="chg_working">Kasa yeniden şifreleniyor…</string>
+    <string name="chg_done">Ana parola değişti</string>
+    <string name="chg_wrong_current">Şu anki ana parola yanlış</string>
+
+    <!-- Dışa/içe aktarma -->
+    <string name="exp_title">Kasayı dışa aktar</string>
+    <string name="exp_sub">Dosya, seçtiğin dışa aktarma parolasıyla Argon2id + AES-256-GCM ile şifrelenir. Düz metin dışa aktarma yoktur.</string>
+    <string name="exp_password">Dışa aktarma parolası</string>
+    <string name="exp_password_again">Parolayı yinele</string>
+    <string name="exp_create">Dosyayı oluştur</string>
+    <string name="exp_done">%1$d kayıt dışa aktarıldı</string>
+    <string name="imp_title">Kasaya içe aktar</string>
+    <string name="imp_sub">Dosyanın şifresi çözülüp kayıtlar mevcut kasaya eklenir. Aynı ada sahip kayıtlar korunur.</string>
+    <string name="imp_password">Dosya parolası</string>
+    <string name="imp_pick">Dosya seç</string>
+    <string name="imp_done">%1$d kayıt içe aktarıldı</string>
+    <string name="imp_failed">Dosya çözülemedi. Parola yanlış ya da dosya bozuk.</string>
+
+    <!-- Kasayı silme -->
+    <string name="wipe_title">Kasayı silmek üzeresin</string>
+    <string name="wipe_body">Tüm kayıtlar, anahtarlar ve kurtarma bilgisi bu cihazdan kalıcı olarak silinecek. Yedeğin yoksa geri dönüş yok.</string>
+    <string name="wipe_confirm_hint">Onaylamak için SİL yaz</string>
+    <string name="wipe_confirm_word">SİL</string>
+    <string name="wipe_done">Kasa silindi</string>
+
+    <!-- QR tarayıcı -->
+    <string name="qr_title">QR kodu tara</string>
+    <string name="qr_hint">2FA kurulum karekodunu çerçeveye al</string>
+    <string name="qr_permission">Karekod okumak için kamera izni gerekiyor</string>
+    <string name="qr_grant">İzin ver</string>
+    <string name="qr_invalid">Bu karekod bir otpauth bağlantısı değil</string>
+
+    <!-- Pano / bildirim -->
+    <string name="copied_clip">Panoya kopyalandı · %1$d sn sonra silinecek</string>
+    <string name="copied">Panoya kopyalandı</string>
+    <string name="clipboard_cleared">Pano temizlendi</string>
+    <string name="notif_channel_security">Güvenlik uyarıları</string>
+    <string name="notif_channel_security_desc">Sızıntı ve parola yaşı bildirimleri</string>
+    <string name="notif_leak_title">Kasa · sızıntı uyarısı</string>
+    <string name="notif_leak_body">%1$d parolan bilinen bir sızıntıda görüldü. Değiştirmek için dokun.</string>
+    <string name="notif_old_title">Kasa · parola yenileme</string>
+    <string name="notif_old_body">%1$d parolan bir yıldan eski.</string>
+
+    <!-- Güvenlik uyarıları -->
+    <string name="warn_root_title">Cihaz bütünlüğü uyarısı</string>
+    <string name="warn_root_body">Bu cihazda root ya da hata ayıklama izleri görünüyor. Kasa çalışmaya devam eder ama böyle bir cihazda hiçbir uygulama parolalarını tam koruyamaz.</string>
+    <string name="warn_understood">Anladım</string>
+    <string name="warn_screenshot_blocked">Bu ekranın görüntüsü alınamaz</string>
+
+    <!-- Otomatik doldurma -->
+    <string name="af_unlock_title">Kasayı aç</string>
+    <string name="af_unlock_prompt">Doldurmak için kasanın kilidini aç</string>
+    <string name="af_locked_entry">Kasa kilitli · açmak için dokun</string>
+    <string name="af_no_match">Bu uygulama için kayıt yok</string>
+    <string name="af_new_entry">Kasaya yeni kayıt olarak ekle</string>
+    <string name="af_save_title">Kasaya kaydedilsin mi?</string>
+
+    <!-- Süre birimleri -->
+    <string name="dur_seconds">%1$d saniye</string>
+    <string name="dur_minute">1 dakika</string>
+    <string name="dur_minutes">%1$d dakika</string>
+    <string name="dur_immediately">hemen</string>
+    <string name="dur_never">hiç</string>
+    <string name="ago_now">az önce</string>
+    <string name="ago_minutes">%1$d dk önce</string>
+    <string name="ago_hours">%1$d sa önce</string>
+    <string name="ago_days">%1$d gün önce</string>
+    <string name="ago_months">%1$d ay önce</string>
+    <string name="ago_years">%1$d yıl önce</string>
+
+    <string name="crack_instant">anında</string>
+    <string name="crack_seconds">saniyeler</string>
+    <string name="crack_minutes">dakikalar</string>
+    <string name="crack_hours">saatler</string>
+    <string name="crack_days">günler</string>
+    <string name="crack_months">aylar</string>
+    <string name="crack_years">%1$s yıl</string>
+    <string name="crack_centuries">yüzyıllar</string>
+</resources>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kasa hiçbir koşulda yedeklenmez.
+  Şifreli kasa dosyası bile buluta ya da başka bir cihaza kopyalanmaz;
+  anahtar sarmalayıcı zaten cihazın anahtar deposuna bağlı olduğu için
+  taşınan bir kopya açılamaz ve yalnızca saldırı yüzeyi büyütür.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>
