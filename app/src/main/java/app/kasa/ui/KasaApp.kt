@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -38,13 +39,19 @@ fun KasaApp(
     val lockState by authViewModel.lockState.collectAsStateWithLifecycle()
 
     KasaBackground(modifier = Modifier.fillMaxSize()) {
+        // transitionSpec @Composable değil; belirteçler beste içinde okunup
+        // lambdaya hazır değer olarak giriyor.
+        val enterFade: FiniteAnimationSpec<Float> = KasaMotion.enter()
+        val enterScale: FiniteAnimationSpec<Float> = KasaMotion.large()
+        val exitFade: FiniteAnimationSpec<Float> = KasaMotion.exit()
+
         AnimatedContent(
             targetState = lockState,
             transitionSpec = {
-                (fadeIn(KasaMotion.enter()) + scaleIn(
+                (fadeIn(enterFade) + scaleIn(
                     initialScale = 0.98f,
-                    animationSpec = KasaMotion.large()
-                )) togetherWith fadeOut(KasaMotion.exit())
+                    animationSpec = enterScale
+                )) togetherWith fadeOut(exitFade)
             },
             label = "lockState"
         ) { state ->

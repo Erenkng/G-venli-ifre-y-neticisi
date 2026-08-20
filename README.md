@@ -182,6 +182,41 @@ Bir güvenlik iddiası, sınırı söylenmediği sürece eksiktir:
 - Roboto Flex değişken yazı tipi (wght/wdth/GRAD eksenleri)
 - Tasarımın imza hareketleri: güce göre biçim değiştiren kadran, dalgalı ilerleme
   çubukları, basınca sıkışan liste satırları, komşusuna tepki veren düğme grubu
+- Dikeyde alt gezinti çubuğu, yatayda yan ray: yan çevrildiğinde dikey alan zaten
+  yarıya iniyor, oraya bir de alt çubuk koymak içeriği okunamaz hâle getiriyordu
+- Gezinti çubuğu içeriğin üzerinde duruyor ve altındaki içerik yavaşça
+  bulanıklaşıyor — bulanıklık kendi katmanında maskelendiği için keskin bir
+  başlangıç çizgisi oluşmuyor
+
+### Hareket sözlüğü
+
+Bütün animasyonlar `ui/theme/Motion.kt` içindeki tek bir sözlükten geliyor.
+Öncesinde beş ayrı sönümleme oranı ve altı ayrı süre vardı; her biri yazıldığı
+anda o ekrana iyi gelen bir sayıydı ve hiçbiri ötekine bakılarak seçilmemişti.
+
+Ayrım **alınan yola** göre yapılıyor. Yaylı bir animasyonun algılanan süresi
+yalnızca sertliğe bağlı, yola değil; aynı sertlik uzun bir yolda kırbaç gibi,
+kısa bir yolda uyuşuk görünür. Mesafeye göre ayırınca ekrandaki her hareket
+kabaca aynı hızda oluyor ve göz bunu tek bir sistem olarak okuyor.
+
+| Belirteç | Yol | Nerede |
+|---|---|---|
+| `small` | ~40dp altı | basış durumu, köşe yarıçapı, anahtar başlığı |
+| `medium` | bileşen boyu | gezinti göstergesi, eylem menüsü, satır yer değişimi |
+| `large` | ekran boyu | sekme geçişi, alt sayfa, güç kadranı |
+| `effect` | hareket yok | saydamlık, renk — aşma olmaz, yoksa titrer |
+| `stagger` | sıralı | eylem menüsünün öğeleri, 26 ms aralıkla |
+
+Giriş 240 ms, çıkış 160 ms: gelen yüzey dikkati üstüne çeker, gidenin
+oyalanmaya hakkı yoktur.
+
+Sekmeler arası geçiş yönlü — gezinti çubuğunda sağa gidildiğinde içerik de
+sağdan gelir. Yön burada süs değil bilgi: dört sekmenin sırası zihinde bir
+şerit olarak kalıyor.
+
+Sistemde animasyonlar kapalıysa (`ANIMATOR_DURATION_SCALE = 0`) sözlüğün
+tamamı anlık geçişe düşüyor; bu tek bir `CompositionLocal` üzerinden aşağıya
+iniyor, her bileşenin ayrıca sorması gerekmiyor.
 
 ---
 
@@ -200,7 +235,7 @@ app/src/main/java/app/kasa/
 │   ├── net/           BreachChecker (HIBP k-anonimlik)
 │   └── repo/          VaultRepository (tek doğruluk kaynağı), SecurityAnalyzer
 ├── ui/
-│   ├── theme/       renkler, Roboto Flex tipografi, şekiller
+│   ├── theme/       renkler, Roboto Flex tipografi, şekiller, hareket sözlüğü
 │   ├── components/  tasarımdan birebir bileşenler
 │   ├── screens/     kasa, üret, güvenlik, ayarlar, kurulum, kilit, düzenleyici, QR
 │   └── *ViewModel   ekran durumları

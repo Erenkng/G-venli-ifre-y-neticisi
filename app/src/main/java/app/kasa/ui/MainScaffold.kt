@@ -4,7 +4,6 @@ import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -14,7 +13,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.using
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -50,6 +49,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -210,20 +210,26 @@ fun MainScaffold(
             // Kayma mesafesi genişliğin altıda biri: tam genişlik kaydırmak
             // sekme değişimini sayfa değişimi gibi gösterirdi, oysa dördü de
             // aynı düzeyde duruyor.
+            //
+            // transitionSpec bir @Composable lambda değil; belirteçler bu yüzden
+            // burada, beste içinde okunuyor ve lambdaya hazır değer olarak
+            // giriyor. (KasaMotion sistem ayarını CompositionLocal'dan okuduğu
+            // için yalnızca beste içinde çağrılabiliyor.)
+            val tabSlideIn: FiniteAnimationSpec<IntOffset> = KasaMotion.large()
+            val tabSlideOut: FiniteAnimationSpec<IntOffset> = KasaMotion.exit()
+            val tabFadeIn: FiniteAnimationSpec<Float> = KasaMotion.enter()
+            val tabFadeOut: FiniteAnimationSpec<Float> = KasaMotion.exit()
+
             AnimatedContent(
                 targetState = tab,
                 transitionSpec = {
                     val forward = destinations.indexOfFirst { it.key == targetState } >=
                         destinations.indexOfFirst { it.key == initialState }
                     val direction = if (forward) 1 else -1
-                    (slideInHorizontally(KasaMotion.large()) { direction * it / 6 } +
-                        fadeIn(KasaMotion.enter())) togetherWith
-                        (slideOutHorizontally(KasaMotion.exit()) { -direction * it / 6 } +
-                            fadeOut(KasaMotion.exit())) using
-                        // Dört ekran da tüm alanı kaplıyor, boyutları eşit;
-                        // kırpmayı kapatmak kayan içeriğin kenarda kesilmesini
-                        // önlüyor.
-                        SizeTransform(clip = false)
+                    (slideInHorizontally(tabSlideIn) { direction * it / 6 } +
+                        fadeIn(tabFadeIn)) togetherWith
+                        (slideOutHorizontally(tabSlideOut) { -direction * it / 6 } +
+                            fadeOut(tabFadeOut))
                 },
                 label = "tab",
                 modifier = Modifier.fillMaxSize()
