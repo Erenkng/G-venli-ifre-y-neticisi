@@ -246,7 +246,6 @@ fun SecurityScreen(
                                 findingChipLabel(finding.type),
                                 finding.count
                             ),
-                            selected = false,
                             onClick = { onOpenCollection(finding.type.asSmartFolder()) }
                         )
                     }

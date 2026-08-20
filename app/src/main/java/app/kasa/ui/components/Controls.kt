@@ -2,6 +2,7 @@ package app.kasa.ui.components
 
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -479,27 +480,61 @@ private val TRACK_HEIGHT = 16.dp
 /** Tutamakla rayın arasındaki nefes payı. */
 private val HANDLE_GAP = 5.dp
 
-/** Küçük, ana hat çizgili eylem çipi. */
+/**
+ * Küçük, ana hat çizgili çip.
+ *
+ * ### Seçili durum neden dolgu, çerçeve değil
+ *
+ * Seçimi çerçeve kalınlığıyla göstermek en ucuz yol ama yan yana altı çipte
+ * hangisinin kalın olduğu ancak karşılaştırarak anlaşılıyor. Dolgulu bir çip
+ * ise tek başına da "bu seçili" diyor: göz taramayı yarıda kesebiliyor.
+ *
+ * [selected] verilmediğinde çip eskisi gibi bir eylem düğmesi — durum
+ * taşımayan yerlerde (bir kaydın etiketleri gibi) seçili görünüm yanlış
+ * olurdu.
+ */
 @Composable
 fun KasaChip(
     text: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selected: Boolean = false
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.92f else 1f, KasaMotion.small(), label = "chipScale")
+
+    // Renkler yumuşak geçiyor: bir yongadan ötekine atlarken iki çipin de
+    // aynı anda değişmesi, seçimin kullanıcıdan geldiğini hissettiriyor.
+    val background by animateColorAsState(
+        targetValue = when {
+            selected -> MaterialTheme.colorScheme.secondaryContainer
+            pressed -> MaterialTheme.colorScheme.surfaceContainer
+            else -> Color.Transparent
+        },
+        animationSpec = KasaMotion.effect(),
+        label = "chipBackground"
+    )
+    val border by animateColorAsState(
+        targetValue = if (selected) Color.Transparent
+        else KasaTheme.colors.ink3.copy(alpha = 0.45f),
+        animationSpec = KasaMotion.effect(),
+        label = "chipBorder"
+    )
+    val ink by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+        else KasaTheme.colors.ink2,
+        animationSpec = KasaMotion.effect(),
+        label = "chipInk"
+    )
 
     Box(
         modifier = modifier
             .height(34.dp)
             .scale(scale)
             .clip(RoundedCornerShape(KasaRadius.full))
-            .background(
-                if (pressed) MaterialTheme.colorScheme.surfaceContainer
-                else Color.Transparent
-            )
-            .border(1.5.dp, KasaTheme.colors.ink3.copy(alpha = 0.45f), RoundedCornerShape(KasaRadius.full))
+            .background(background)
+            .border(1.5.dp, border, RoundedCornerShape(KasaRadius.full))
             .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
@@ -507,7 +542,7 @@ fun KasaChip(
         Text(
             text,
             style = MaterialTheme.typography.labelMedium,
-            color = KasaTheme.colors.ink2,
+            color = ink,
             maxLines = 1
         )
     }
