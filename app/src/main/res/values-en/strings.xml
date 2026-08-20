@@ -611,4 +611,10 @@
     <string name="gradient_jade">Jade</string>
     <string name="gradient_sunset">Sunset</string>
     <string name="gradient_deep">Deep</string>
+    <string name="sec_chip_leaked">Leaked %d</string>
+    <string name="sec_chip_reused">Reused %d</string>
+    <string name="sec_chip_weak">Weak %d</string>
+    <string name="sec_chip_old">Old %d</string>
+    <string name="sec_chip_no_2fa">No 2FA %d</string>
+    <string name="sec_chip_renew">Renew %d</string>
 </resources>

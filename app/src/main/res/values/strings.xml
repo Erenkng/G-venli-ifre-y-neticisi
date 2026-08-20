@@ -629,4 +629,10 @@
     <string name="gradient_jade">Jade</string>
     <string name="gradient_sunset">Gün batımı</string>
     <string name="gradient_deep">Derin</string>
+    <string name="sec_chip_leaked">Sızmış %d</string>
+    <string name="sec_chip_reused">Tekrar %d</string>
+    <string name="sec_chip_weak">Zayıf %d</string>
+    <string name="sec_chip_old">Eski %d</string>
+    <string name="sec_chip_no_2fa">2FA yok %d</string>
+    <string name="sec_chip_renew">Yenile %d</string>
 </resources>
