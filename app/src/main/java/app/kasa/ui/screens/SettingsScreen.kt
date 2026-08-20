@@ -1,5 +1,27 @@
 package app.kasa.ui.screens
 
+import app.kasa.data.GradientTheme
+import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.runtime.rememberSaveable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.IntOffset
+import app.kasa.ui.components.KasaIconButton
+import app.kasa.ui.components.clickableNoRipple
+import app.kasa.ui.theme.KasaMotion
+import app.kasa.ui.theme.KasaRadius
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -222,6 +244,42 @@ fun SettingsScreen(
         ) { showWipe = true }
     )
 
+    // ── kategoriler ───────────────────────────────────────────────────────
+    //
+    // Ayarlar ekranı yetmiş satırlık tek bir listeydi. Her yeni anahtar onu
+    // biraz daha uzatıyordu ve bir noktada "otomatik kilit süresi nerede"
+    // sorusunun cevabı "kaydır ve ara" oldu. Uzun bir listede arama, göz
+    // taramasıyla yapılıyor ve göz ancak ekranda duran kadarını tarayabiliyor.
+    //
+    // Şimdi altı kategori var ve her biri kendi ekranını açıyor. Bölünme
+    // rastgele değil: kullanıcının bir ayarı ararken kendine sorduğu soruya
+    // göre — "nasıl görünüyor", "nasıl kilitleniyor", "neyi koruyor",
+    // "nasıl şifreleniyor", "kayıtlarım", "bu uygulama ne".
+    //
+    // Durum ve pencereler tek bir yerde kalıyor. Bölümleri ayrı dosyalara
+    // taşımak, on beş parça yerel durumu ve on pencereyi yukarı taşımak
+    // demekti; kazanılan şey dosya boyu, kaybedilen şey ise her ayarın hangi
+    // pencereyi açtığını tek bakışta görebilmek olurdu.
+    var section by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
+
+    BackHandler(enabled = section != null) { section = null }
+
+    val enterSpec = KasaMotion.enter<Float>()
+    val exitSpec = KasaMotion.exit<Float>()
+    val slideSpec = KasaMotion.large<IntOffset>()
+
+    AnimatedContent(
+        targetState = section,
+        transitionSpec = {
+            // Kategoriye girerken içerik sağdan, çıkarken soldan: yön,
+            // kullanıcının gezinme ağacında nereye gittiğini söylüyor.
+            val forward = targetState != null
+            val direction = if (forward) 1 else -1
+            (fadeIn(enterSpec) + slideInHorizontally(slideSpec) { direction * it / 5 })
+                .togetherWith(fadeOut(exitSpec) + slideOutHorizontally(slideSpec) { -direction * it / 6 })
+        },
+        label = "settingsSection"
+    ) { current ->
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -229,6 +287,7 @@ fun SettingsScreen(
         contentPadding = listContentPadding(),
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
+        if (current == null) {
         item(key = "hero") {
             HeroHeader(
                 title = stringResource(R.string.set_title),
@@ -239,7 +298,21 @@ fun SettingsScreen(
             )
         }
 
-        // ── görünüm ───────────────────────────────────────────────────────
+        items(SettingsSection.entries.size, key = { "sec-" + it }) { index ->
+            val entry = SettingsSection.entries[index]
+            SettingsCategoryRow(
+                section = entry,
+                position = groupPositionOf(index, SettingsSection.entries.size),
+                onClick = { section = entry }
+            )
+        }
+        } else {
+            item(key = "section-top") {
+                SettingsSectionTopBar(section = current, onBack = { section = null })
+            }
+        }
+
+        if (current == SettingsSection.APPEARANCE) {
         item(key = "appearance") {
             KasaCard {
                 Text(
@@ -277,10 +350,46 @@ fun SettingsScreen(
                     checked = settings.pureBlack,
                     onCheckedChange = viewModel::setPureBlack
                 )
+
+                // ── gradyan ailesi ────────────────────────────────────────
+                //
+                // Renk şemasından ayrı bir ayar. İkisini birleştirmek, karanlık
+                // tema isteyen kullanıcıya aynı anda bir renk kimliği dayatmak
+                // olurdu. Tam siyah açıkken bu seçim etkisiz: o kip zaten
+                // "hiç ışık olmasın" demek ve pikselleri söndürmenin kazancı
+                // oradan geliyor.
+                Spacer(Modifier.height(16.dp))
+                SectionLabel(stringResource(R.string.set_group_gradient))
+                Spacer(Modifier.height(8.dp))
+                KasaButtonGroup(
+                    options = GradientTheme.entries.toList(),
+                    selected = settings.gradientTheme,
+                    label = {
+                        stringResource(
+                            when (it) {
+                                GradientTheme.JADE -> R.string.gradient_jade
+                                GradientTheme.SUNSET -> R.string.gradient_sunset
+                                GradientTheme.DEEP -> R.string.gradient_deep
+                            }
+                        )
+                    },
+                    onSelect = viewModel::setGradientTheme,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(6.dp))
+                ToggleRow(
+                    title = stringResource(R.string.set_gradient_time),
+                    subtitle = stringResource(R.string.set_gradient_time_sub),
+                    checked = settings.gradientFollowsTime,
+                    onCheckedChange = viewModel::setGradientFollowsTime,
+                    first = true
+                )
             }
         }
 
-        // ── cihaz ─────────────────────────────────────────────────────────
+        }
+
+        if (current == SettingsSection.DEVICE) {
         item(key = "device") {
             Spacer(Modifier.height(14.dp))
             KasaCard {
@@ -362,7 +471,9 @@ fun SettingsScreen(
             }
         }
 
-        // ── güvenlik ──────────────────────────────────────────────────────
+        }
+
+        if (current == SettingsSection.SECURITY) {
         item(key = "security") {
             Spacer(Modifier.height(14.dp))
             KasaCard {
@@ -513,7 +624,9 @@ fun SettingsScreen(
             }
         }
 
-        // ── kriptografi ───────────────────────────────────────────────────
+        }
+
+        if (current == SettingsSection.CRYPTO) {
         item(key = "crypto") {
             Spacer(Modifier.height(14.dp))
             KasaCard {
@@ -567,7 +680,9 @@ fun SettingsScreen(
             }
         }
 
-        // ── kasa işlemleri ────────────────────────────────────────────────
+        }
+
+        if (current == SettingsSection.VAULT) {
         item(key = "vault-label") {
             Spacer(Modifier.height(20.dp))
             SectionLabel(stringResource(R.string.set_group_vault))
@@ -584,7 +699,9 @@ fun SettingsScreen(
         // her şey kart içindeyken alt kısım ortalanmış çıplak metindi ve
         // ekranın bittiği yer bir kart değil, havada asılı iki satır gibi
         // duruyordu. Aynı döşemenin içine alındı; içerik değişmedi, dili
-        // değişti.
+        // değişti.        }
+
+        if (current == SettingsSection.ABOUT) {
         item(key = "about") {
             Spacer(Modifier.height(26.dp))
             SectionLabel(stringResource(R.string.set_group_about))
@@ -644,7 +761,10 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
             )
         }
+        }
     }
+    }
+
 
     // ── pencereler ────────────────────────────────────────────────────────
 
@@ -1377,5 +1497,130 @@ private fun DuressDialog(
                 )
             }
         }
+    }
+}
+
+/**
+ * Ayarların kategorileri.
+ *
+ * Sıra kullanım sıklığına göre: görünüm en sık dokunulan, "hakkında" en az.
+ * Alfabetik ya da "önem" sırası, kullanıcının aradığı şeyin nerede olduğunu
+ * tahmin etmesini zorlaştırırdı.
+ */
+enum class SettingsSection(
+    @StringRes val titleRes: Int,
+    @StringRes val summaryRes: Int,
+    val icon: ImageVector
+) {
+    APPEARANCE(R.string.set_group_appearance, R.string.set_cat_appearance_sub, Icons.Rounded.Palette),
+    DEVICE(R.string.set_group_device, R.string.set_cat_device_sub, Icons.Rounded.PhoneAndroid),
+    SECURITY(R.string.set_group_security, R.string.set_cat_security_sub, Icons.Rounded.Shield),
+    CRYPTO(R.string.set_group_crypto, R.string.set_cat_crypto_sub, Icons.Rounded.Lock),
+    VAULT(R.string.set_group_vault, R.string.set_cat_vault_sub, Icons.Rounded.Inventory2),
+    ABOUT(R.string.set_group_about, R.string.set_cat_about_sub, Icons.Rounded.Info)
+}
+
+/**
+ * Hub'daki kategori satırı.
+ *
+ * Alt başlık kategorinin içindekileri **sayarak** değil örnekleyerek anlatıyor:
+ * "4 ayar" hiçbir şey söylemiyor, "tema, renk, yazı tipi" ise kullanıcının
+ * aradığı şeyin burada olup olmadığını okumadan anlamasını sağlıyor.
+ */
+@Composable
+private fun SettingsCategoryRow(
+    section: SettingsSection,
+    position: GroupPosition,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(categoryShape(position))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickableNoRipple(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                section.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(section.titleRes),
+                style = MaterialTheme.typography.titleMedium,
+                color = KasaTheme.colors.ink
+            )
+            Text(
+                stringResource(section.summaryRes),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = KasaTheme.colors.ink3,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+/** Kategori ekranının üst çubuğu: geri ve başlık. */
+@Composable
+private fun SettingsSectionTopBar(section: SettingsSection, onBack: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        KasaIconButton(onClick = onBack, contentDescription = stringResource(R.string.back)) {
+            Icon(
+                Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = null,
+                tint = KasaTheme.colors.ink2,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Text(
+            stringResource(section.titleRes),
+            style = KasaTheme.text.hero,
+            color = KasaTheme.colors.ink
+        )
+    }
+}
+
+/**
+ * Kategori satırının köşeleri.
+ *
+ * [app.kasa.ui.components] içindeki karşılığı özel (private) ve üç
+ * parametreli; buradaki iki yarıçap ayarlar hub'ına özel olduğu için
+ * kopyalamak yerine kendi ölçüsüyle yazıldı. Grubun dış köşeleri geniş, iç
+ * köşeleri dar: satırlar tek bir blok gibi okunuyor ama sınırları belli.
+ */
+private fun categoryShape(position: GroupPosition): androidx.compose.ui.graphics.Shape {
+    val loose = KasaRadius.l
+    val tight = 6.dp
+    return when (position) {
+        GroupPosition.ONLY -> RoundedCornerShape(loose)
+        GroupPosition.FIRST -> RoundedCornerShape(
+            topStart = loose, topEnd = loose, bottomStart = tight, bottomEnd = tight
+        )
+        GroupPosition.LAST -> RoundedCornerShape(
+            topStart = tight, topEnd = tight, bottomStart = loose, bottomEnd = loose
+        )
+        GroupPosition.MIDDLE -> RoundedCornerShape(tight)
     }
 }

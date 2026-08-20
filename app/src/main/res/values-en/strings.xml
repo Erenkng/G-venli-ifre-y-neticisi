@@ -599,4 +599,16 @@
     <string name="gen_length_from_target">Length follows the strength target.</string>
     <string name="gen_batch">Generate several</string>
     <string name="gen_batch_sub">Several options at once — tap the one you like.</string>
+    <string name="set_cat_appearance_sub">Theme, color, gradient, typeface</string>
+    <string name="set_cat_device_sub">Lock, biometrics, PIN, clipboard</string>
+    <string name="set_cat_security_sub">Duress password, breach check, autofill</string>
+    <string name="set_cat_crypto_sub">Master password, recovery key, key derivation</string>
+    <string name="set_cat_vault_sub">Folders, trash, import and export</string>
+    <string name="set_cat_about_sub">Version, methods used, limits</string>
+    <string name="set_group_gradient">Gradient theme</string>
+    <string name="set_gradient_time">Follow the time of day</string>
+    <string name="set_gradient_time_sub">The background drifts slowly from morning to night.</string>
+    <string name="gradient_jade">Jade</string>
+    <string name="gradient_sunset">Sunset</string>
+    <string name="gradient_deep">Deep</string>
 </resources>

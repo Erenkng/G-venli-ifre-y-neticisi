@@ -10,6 +10,7 @@ import app.kasa.core.security.TrustedNetwork
 import app.kasa.core.security.SecureClipboard
 import app.kasa.core.util.Haptics
 import app.kasa.data.CsvImport
+import app.kasa.data.GradientTheme
 import app.kasa.data.SettingsStore
 import app.kasa.data.ThemeMode
 import app.kasa.data.repo.VaultRepository
@@ -58,6 +59,8 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setTheme(mode: ThemeMode) = launchSetting { settingsStore.setTheme(mode) }
     fun setDynamicColor(value: Boolean) = launchSetting { settingsStore.setDynamicColor(value) }
     fun setPureBlack(value: Boolean) = launchSetting { settingsStore.setPureBlack(value) }
+    fun setGradientTheme(value: GradientTheme) = launchSetting { settingsStore.setGradientTheme(value) }
+    fun setGradientFollowsTime(value: Boolean) = launchSetting { settingsStore.setGradientFollowsTime(value) }
     fun setHaptics(value: Boolean) = launchSetting {
         settingsStore.setHaptics(value)
         container.haptics.enabled = value

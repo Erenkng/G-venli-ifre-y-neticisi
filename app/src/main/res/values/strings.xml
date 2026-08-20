@@ -617,4 +617,16 @@
     <string name="gen_length_from_target">Uzunluk hedeflenen güce göre belirleniyor.</string>
     <string name="gen_batch">Toplu üretim</string>
     <string name="gen_batch_sub">Birden çok seçenek aynı anda; beğendiğine dokun.</string>
+    <string name="set_cat_appearance_sub">Tema, renk, gradyan, yazı tipi</string>
+    <string name="set_cat_device_sub">Kilit, biyometri, PIN, pano</string>
+    <string name="set_cat_security_sub">Zorlama parolası, sızıntı denetimi, otomatik doldurma</string>
+    <string name="set_cat_crypto_sub">Ana parola, kurtarma anahtarı, anahtar türetme</string>
+    <string name="set_cat_vault_sub">Klasörler, çöp kutusu, içe/dışa aktarma</string>
+    <string name="set_cat_about_sub">Sürüm, kullanılan yöntemler, sınırlar</string>
+    <string name="set_group_gradient">Gradyan teması</string>
+    <string name="set_gradient_time">Günün saatine göre</string>
+    <string name="set_gradient_time_sub">Zemin sabahtan geceye doğru yavaşça kayıyor.</string>
+    <string name="gradient_jade">Jade</string>
+    <string name="gradient_sunset">Gün batımı</string>
+    <string name="gradient_deep">Derin</string>
 </resources>
