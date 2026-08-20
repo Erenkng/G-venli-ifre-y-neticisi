@@ -587,4 +587,16 @@
     <string name="intro_skip">Skip</string>
     <string name="card_expired">This card has expired</string>
     <string name="otp_empty_hint">Scan the QR code or enter the key by hand. The code starts running here as soon as a key is in.</string>
+    <string name="gen_mode_pin">PIN</string>
+    <string name="gen_mode_username">Username</string>
+    <string name="gen_mode_hex">Key</string>
+    <string name="gen_pin_length">Digits</string>
+    <string name="gen_pin_hint">Card PIN, door code, phone lock. Repeats and runs are not filtered out — filtering them shrinks the search space.</string>
+    <string name="gen_username_hint">A different username per site makes it harder to link a leaked account to your others.</string>
+    <string name="gen_hex_bits">Key size</string>
+    <string name="gen_entropy_target">Strength target</string>
+    <string name="gen_entropy_off">Off</string>
+    <string name="gen_length_from_target">Length follows the strength target.</string>
+    <string name="gen_batch">Generate several</string>
+    <string name="gen_batch_sub">Several options at once — tap the one you like.</string>
 </resources>

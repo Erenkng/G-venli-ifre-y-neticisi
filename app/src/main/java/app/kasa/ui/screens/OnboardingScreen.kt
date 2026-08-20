@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
@@ -93,14 +94,19 @@ fun OnboardingScreen(
         // Tanıtımdan kuruluma geçiş de bir hareket: sayfalar sola çıkıyor,
         // parola adımı alttan yükseliyor. Sert bir takas, tanıtımın sonunda
         // "başka bir uygulamaya düştüm" hissi veriyordu.
-        val enter = KasaMotion.enter()
-        val exit = KasaMotion.exit()
+        //
+        // Belirteçler çağrıdan **önce** çözülüyor: `transitionSpec` bloğu
+        // @Composable değil, yani KasaMotion'ın içinden okuduğu
+        // CompositionLocal'a orada erişilemiyor.
+        val fadeInSpec = KasaMotion.enter<Float>()
+        val fadeOutSpec = KasaMotion.exit<Float>()
+        val slideSpec = KasaMotion.large<IntOffset>()
 
         AnimatedContent(
             targetState = introDone,
             transitionSpec = {
-                (fadeIn(enter) + slideInVertically(KasaMotion.large()) { it / 8 })
-                    .togetherWith(fadeOut(exit) + slideOutHorizontally(KasaMotion.large()) { -it / 6 })
+                (fadeIn(fadeInSpec) + slideInVertically(slideSpec) { it / 8 })
+                    .togetherWith(fadeOut(fadeOutSpec) + slideOutHorizontally(slideSpec) { -it / 6 })
             },
             label = "onboardingStage"
         ) { done ->

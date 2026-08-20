@@ -38,6 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -77,7 +81,16 @@ fun SearchBarButton(
      * Verildiğinde sıralama ve yoğunluk menüsünü açıyor; verilmediğinde
      * noktalar hiç çizilmiyor.
      */
-    onMenuClick: (() -> Unit)? = null
+    onMenuClick: (() -> Unit)? = null,
+    /**
+     * Çubuğun kök koordinatlardaki yeri ve köşe yarıçapı.
+     *
+     * Arama ekranı buradan büyüyerek açılıyor ve büyümenin başlangıç
+     * dikdörtgenini bilmesi gerekiyor. Ölçüyü çubuğun kendisi bildiriyor:
+     * konumu dışarıdan hesaplamaya çalışmak, çubuğun bulunduğu her düzen
+     * değiştiğinde sessizce yanlış bir yerden açılmaya yol açardı.
+     */
+    onBoundsChanged: ((Rect, Float) -> Unit)? = null
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -86,10 +99,19 @@ fun SearchBarButton(
     // negatif yarıçapa iniyordu ve gölgesi olan bu bileşende çökme yapıyordu.
     val radius = animatedCorner(if (pressed) 22.dp else SEARCH_HEIGHT / 2, label = "searchRadius")
 
+    val density = LocalDensity.current
+    val restingCornerPx = remember(density) { with(density) { (SEARCH_HEIGHT / 2).toPx() } }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(SEARCH_HEIGHT)
+            .then(
+                if (onBoundsChanged == null) Modifier
+                else Modifier.onGloballyPositioned {
+                    onBoundsChanged(it.boundsInRoot(), restingCornerPx)
+                }
+            )
             .scale(scale)
             .shadow(1.dp, RoundedCornerShape(radius), clip = false)
             .clip(RoundedCornerShape(radius))

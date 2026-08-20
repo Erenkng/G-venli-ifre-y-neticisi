@@ -76,6 +76,8 @@ fun VaultScreen(
     viewModel: VaultViewModel,
     settings: SettingsStore.Settings,
     onOpenSearch: () -> Unit,
+    /** Arama çubuğunun kök koordinatlardaki yeri; açılış oradan büyüyor. */
+    onSearchBounds: ((androidx.compose.ui.geometry.Rect, Float) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val data by viewModel.data.collectAsStateWithLifecycle()
@@ -128,6 +130,7 @@ fun VaultScreen(
                 placeholder = stringResource(R.string.vault_search),
                 onClick = onOpenSearch,
                 onMenuClick = { listMenuOpen = true },
+                onBoundsChanged = onSearchBounds,
                 modifier = Modifier.padding(bottom = 18.dp)
             )
         }

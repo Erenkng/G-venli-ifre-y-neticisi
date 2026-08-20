@@ -3,6 +3,7 @@ package app.kasa.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -38,11 +39,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -72,6 +77,8 @@ import app.kasa.ui.screens.ItemDetailSheet
 import app.kasa.ui.screens.ItemEditorScreen
 import app.kasa.ui.screens.QrScanScreen
 import app.kasa.ui.screens.SearchOverlay
+import app.kasa.ui.components.contentRevealFraction
+import app.kasa.ui.components.ExpandingSurface
 import app.kasa.ui.screens.SecurityScreen
 import app.kasa.ui.screens.SettingsScreen
 import app.kasa.ui.screens.TrashScreen
@@ -116,6 +123,11 @@ fun MainScaffold(
     var typePickerOpen by rememberSaveable { mutableStateOf(false) }
     var fabExpanded by remember { mutableStateOf(false) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
+    // Arama çubuğunun ekrandaki yeri. Kaydedilmiyor: yeniden oluşturulduğunda
+    // çubuk kendini yeniden ölçüp bildiriyor ve o ana kadar açılış tam ekran
+    // beliriyor — yanlış bir yerden büyümektense hiç büyümemek doğru.
+    var searchOrigin by remember { mutableStateOf<Rect?>(null) }
+    var searchOriginCorner by remember { mutableFloatStateOf(0f) }
     var qrTarget by remember { mutableStateOf<((String) -> Unit)?>(null) }
 
     // Root / hata ayıklayıcı uyarısı yalnızca bir kez gösterilir; kullanıcıyı
@@ -269,7 +281,11 @@ fun MainScaffold(
                         TAB_VAULT -> VaultScreen(
                             viewModel = vaultViewModel,
                             settings = settings,
-                            onOpenSearch = { searchOpen = true }
+                            onOpenSearch = { searchOpen = true },
+                            onSearchBounds = { rect, corner ->
+                                searchOrigin = rect
+                                searchOriginCorner = corner
+                            }
                         )
 
                         TAB_GENERATE -> GeneratorScreen(
@@ -368,22 +384,35 @@ fun MainScaffold(
 
         // ── üst katmanlar ──────────────────────────────────────────────────
 
-        AnimatedVisibility(
-            visible = searchOpen,
-            enter = fadeIn(KasaMotion.enter()) + scaleIn(
-                initialScale = 0.96f,
-                animationSpec = KasaMotion.large()
-            ),
-            exit = fadeOut(KasaMotion.exit()) + scaleOut(
-                targetScale = 0.96f,
-                animationSpec = KasaMotion.exit()
+        // ── arama: çubuğun yerinden büyüyerek açılıyor ─────────────────────
+        //
+        // Önceden ekran %96'dan tam boya solarak geliyordu ve dokunulan çubukla
+        // açılan ekran arasında hiçbir görsel bağ yoktu: kullanıcı bir şeye
+        // dokunuyor, başka bir şey beliriyordu. Şimdi açılan yüzey tam olarak
+        // çubuğun bulunduğu yerden ve boyundan büyüyor, geri gidince oraya
+        // dönüyor. Tekniğin gerekçesi ExpandingSurface üzerinde yazılı.
+        val searchExpand by animateFloatAsState(
+            targetValue = if (searchOpen) 1f else 0f,
+            animationSpec = KasaMotion.large(),
+            label = "searchExpand"
+        )
+        if (searchExpand > 0.002f) {
+            ExpandingSurface(
+                progress = searchExpand,
+                origin = searchOrigin,
+                color = MaterialTheme.colorScheme.surface,
+                originCornerPx = searchOriginCorner
             )
-        ) {
-            SearchOverlay(
-                viewModel = vaultViewModel,
-                settings = settings,
-                onClose = { searchOpen = false }
-            )
+            val contentAlpha = contentRevealFraction(searchExpand, opening = searchOpen)
+            if (contentAlpha > 0.002f) {
+                Box(Modifier.alpha(contentAlpha)) {
+                    SearchOverlay(
+                        viewModel = vaultViewModel,
+                        settings = settings,
+                        onClose = { searchOpen = false }
+                    )
+                }
+            }
         }
 
         selectedItem?.let { item ->

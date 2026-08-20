@@ -8,6 +8,7 @@ import app.kasa.core.security.SecureClipboard
 import app.kasa.core.util.Haptics
 import app.kasa.core.util.PasswordGenerator
 import app.kasa.core.util.PasswordStrength
+import app.kasa.data.GeneratorMode
 import app.kasa.data.SettingsStore
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,16 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
     data class State(
         val value: String = "",
         val entropyBits: Double = 0.0,
+        /**
+         * Toplu üretimdeki öteki seçenekler.
+         *
+         * Boş liste = toplu üretim kapalı. [value] her zaman "seçili olan";
+         * toplu kipte listenin ilk öğesiyle aynı, kullanıcı bir seçenek
+         * seçtiğinde onunla değişiyor. İki ayrı "şu an geçerli değer"
+         * kaynağı tutmak, kopyalanan şeyle ekranda vurgulanan şeyin
+         * ayrışmasına açık kapı bırakırdı.
+         */
+        val alternatives: List<String> = emptyList(),
         val settings: SettingsStore.Settings = SettingsStore.Settings()
     ) {
         /** 0..1 arası, kadranın biçimini belirleyen güç. */
@@ -70,13 +81,38 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
 
     fun regenerate() {
         val settings = _state.value.settings
-        val generated = if (settings.generatorPronounceable) {
-            PasswordGenerator.generatePronounceable(
+        val generated = generateOnce(settings)
+
+        // Toplu üretim: aynı ayarlarla birkaç seçenek birden.
+        //
+        // Tek öneriyi beğenmeyen kullanıcı düğmeye basıp yeniden üretiyordu ve
+        // beğendiği bir önceki geri gelmiyordu. Seçenekler aynı anda durunca
+        // karşılaştırılabiliyor. Entropileri eşit olduğu için ilkinin değeri
+        // hepsi için geçerli.
+        val extras = if (!settings.generatorBatch) emptyList()
+        else List(PasswordGenerator.BATCH_SIZE - 1) { generateOnce(settings).value }
+
+        _state.value = _state.value.copy(
+            value = generated.value,
+            entropyBits = generated.entropyBits,
+            alternatives = if (settings.generatorBatch) listOf(generated.value) + extras else emptyList()
+        )
+    }
+
+    /**
+     * Kipe karşılık gelen üretici.
+     *
+     * Kip artık tek bir numaralandırma; öncesinde iki boole ve örtük bir
+     * "hiçbiri" durumu vardı ve hangisinin kazandığı okuma sırasına bağlıydı.
+     */
+    private fun generateOnce(settings: SettingsStore.Settings): PasswordGenerator.Generated =
+        when (settings.generatorMode) {
+            GeneratorMode.PRONOUNCEABLE -> PasswordGenerator.generatePronounceable(
                 syllables = settings.generatorSyllables,
                 appendDigits = settings.generatorDigits
             )
-        } else if (settings.generatorPassphrase) {
-            PasswordGenerator.generatePassphrase(
+
+            GeneratorMode.PASSPHRASE -> PasswordGenerator.generatePassphrase(
                 words = PasswordGenerator.words(container.appContext),
                 options = PasswordGenerator.PassphraseOptions(
                     words = settings.generatorWordCount,
@@ -85,18 +121,41 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
                     appendNumber = settings.generatorDigits
                 )
             )
-        } else {
-            PasswordGenerator.generate(
-                PasswordGenerator.Options(
+
+            GeneratorMode.PIN -> PasswordGenerator.generatePin(settings.generatorPinLength)
+
+            GeneratorMode.HEX -> PasswordGenerator.generateHexKey(settings.generatorHexBits)
+
+            GeneratorMode.USERNAME -> PasswordGenerator.generateUsername(
+                PasswordGenerator.words(container.appContext)
+            )
+
+            GeneratorMode.PASSWORD -> {
+                val options = PasswordGenerator.Options(
                     length = settings.generatorLength,
                     upper = settings.generatorUpper,
                     digits = settings.generatorDigits,
                     symbols = settings.generatorSymbols,
                     avoidLookalikes = settings.generatorAvoidLookalikes
                 )
-            )
+                // Entropi hedefi açıksa uzunluk kullanıcıdan değil hedeften
+                // geliyor: "20 karakter" seçilen kümelere göre 94 bit de
+                // olabiliyor 68 bit de, ve kullanıcı bunu görmüyordu.
+                PasswordGenerator.generate(
+                    options.copy(
+                        length = PasswordGenerator.lengthForEntropy(
+                            settings.generatorEntropyTarget,
+                            options
+                        )
+                    )
+                )
+            }
         }
-        _state.value = _state.value.copy(value = generated.value, entropyBits = generated.entropyBits)
+
+    /** Toplu üretimde bir seçeneği geçerli değer yapar. */
+    fun selectAlternative(value: String) {
+        if (value !in _state.value.alternatives) return
+        _state.value = _state.value.copy(value = value)
     }
 
     private fun update(transform: SettingsStore.Settings.() -> SettingsStore.Settings, persist: suspend () -> Unit) {
@@ -130,22 +189,31 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /**
-     * Üç mod birbirini dışlıyor: parola dizesi, sözcük dizisi, telaffuz
-     * edilebilir. Biri açılınca öteki kapanıyor — üçünün aynı anda açık olduğu
-     * bir durumun anlamı yok ve hangisinin kazandığını kullanıcının tahmin
-     * etmesi gerekirdi.
+     * Üretilecek şeyin türü.
+     *
+     * Kipler birbirini dışlıyor ve bu artık tür sisteminde: iki boole yerine
+     * tek bir numaralandırma. Geçersiz bileşim (hem sözcük dizisi hem PIN)
+     * artık temsil bile edilemiyor.
      */
-    fun setPassphrase(value: Boolean) =
-        update({ copy(generatorPassphrase = value, generatorPronounceable = false) }) {
-            settingsStore.setGeneratorPassphrase(value)
-            if (value) settingsStore.setGeneratorPronounceable(false)
-        }
+    fun setMode(value: GeneratorMode) = update({ copy(generatorMode = value) }) {
+        settingsStore.setGeneratorMode(value)
+    }
 
-    fun setPronounceable(value: Boolean) =
-        update({ copy(generatorPronounceable = value, generatorPassphrase = false) }) {
-            settingsStore.setGeneratorPronounceable(value)
-            if (value) settingsStore.setGeneratorPassphrase(false)
-        }
+    fun setPinLength(value: Int) = update({ copy(generatorPinLength = value) }) {
+        settingsStore.setGeneratorPinLength(value)
+    }
+
+    fun setHexBits(value: Int) = update({ copy(generatorHexBits = value) }) {
+        settingsStore.setGeneratorHexBits(value)
+    }
+
+    fun setBatch(value: Boolean) = update({ copy(generatorBatch = value) }) {
+        settingsStore.setGeneratorBatch(value)
+    }
+
+    fun setEntropyTarget(value: Int) = update({ copy(generatorEntropyTarget = value) }) {
+        settingsStore.setGeneratorEntropyTarget(value)
+    }
 
     fun setSyllables(value: Int) = update({ copy(generatorSyllables = value) }) {
         settingsStore.setGeneratorSyllables(value)

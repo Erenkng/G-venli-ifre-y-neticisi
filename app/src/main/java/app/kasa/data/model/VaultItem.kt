@@ -36,12 +36,12 @@ enum class Category {
         /**
          * Eylem düğmesinin menüsünde duran türler.
          *
-         * Dokuz türün hepsini menüye koymak, menüyü ekranın yarısına yayıp asıl
-         * işi — "yeni bir giriş ekle" — öteki sekizin arasında kaybediyordu.
-         * Buradaki beşi bir parola yöneticisinin günlük gövdesi; banka hesabı
+         * Sekiz türün hepsini menüye koymak, menüyü ekranın yarısına yayıp asıl
+         * işi — "yeni bir giriş ekle" — öteki yedinin arasında kaybediyordu.
+         * Buradaki dördü bir parola yöneticisinin günlük gövdesi; banka hesabı
          * da Türkiye'de IBAN yüzünden sık aranan bir kayıt.
          */
-        val primary: List<Category> = listOf(LOGIN, CARD, OTP, NOTE, BANK)
+        val primary: List<Category> = listOf(LOGIN, CARD, OTP, BANK, IDENTITY)
 
         /** "Diğer" listesinde açılanlar: ayda bir kullanılan türler. */
         val secondary: List<Category> = entries.filterNot { it in primary }

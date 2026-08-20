@@ -605,4 +605,16 @@
     <string name="intro_skip">Atla</string>
     <string name="card_expired">Son kullanma tarihi geçmiş</string>
     <string name="otp_empty_hint">Karekodu okutun ya da anahtarı elle girin. Kod, anahtar girildiği anda burada dönmeye başlar.</string>
+    <string name="gen_mode_pin">PIN</string>
+    <string name="gen_mode_username">Kullanıcı adı</string>
+    <string name="gen_mode_hex">Anahtar</string>
+    <string name="gen_pin_length">Hane</string>
+    <string name="gen_pin_hint">Kart PIN\'i, kapı kodu, telefon kilidi. Tekrar ve sıra elenmiyor: elemek arama uzayını küçültür.</string>
+    <string name="gen_username_hint">Her sitede farklı bir kullanıcı adı, sızan bir veritabanındaki hesabı ötekilerle eşleştirmeyi zorlaştırıyor.</string>
+    <string name="gen_hex_bits">Anahtar boyu</string>
+    <string name="gen_entropy_target">Güç hedefi</string>
+    <string name="gen_entropy_off">Kapalı</string>
+    <string name="gen_length_from_target">Uzunluk hedeflenen güce göre belirleniyor.</string>
+    <string name="gen_batch">Toplu üretim</string>
+    <string name="gen_batch_sub">Birden çok seçenek aynı anda; beğendiğine dokun.</string>
 </resources>
