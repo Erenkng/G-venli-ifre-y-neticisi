@@ -247,7 +247,14 @@ fun VaultScreen(
                 )
             }
         } else {
-            itemsIndexed(items = sorted, key = { _, entry -> entry.id }) { index, entry ->
+            itemsIndexed(
+                items = sorted,
+                key = { _, entry -> entry.id },
+                // Bütün satırlar aynı türde; bunu söylemek Compose'un satır
+                // bestesini yeniden kurmak yerine yeniden kullanmasını
+                // sağlıyor ve kaydırmada beste maliyetini düşürüyor.
+                contentType = { _, _ -> "vaultRow" }
+            ) { index, entry ->
                 // Silinen kayıt yerinden kaybolmuyor, kalanlar boşluğu
                 // kayarak kapatıyor. Anlık atlamada kullanıcı hangi satırın
                 // gittiğini göremiyor ve "yanlış olanı mı sildim" sorusu
@@ -383,12 +390,25 @@ private fun sortItems(items: List<VaultItem>, order: SettingsStore.SortOrder): L
             items.sortedWith(compareByDescending<VaultItem> { it.lastUsedAt }.thenBy { it.name.lowercase() })
         SettingsStore.SortOrder.NAME -> items.sortedBy { it.name.lowercase() }
         SettingsStore.SortOrder.NEWEST -> items.sortedByDescending { it.createdAt }
-        SettingsStore.SortOrder.WEAKEST ->
+        SettingsStore.SortOrder.WEAKEST -> {
+            // Güç ölçümü kayıt başına **bir kez** yapılıyor.
+            //
+            // Karşılaştırıcının içinde çağrılsaydı her karşılaştırmada bir kez
+            // çalışırdı: 500 kayıtta yaklaşık 4500 ölçüm ve her biri ayrıca
+            // parolayı String'e açıyor. Sıralamanın kendisi O(n log n), ölçümün
+            // de öyle olması gerekmiyor.
+            val scores = items.associate { item ->
+                item.id to if (item.category == Category.LOGIN && item.password.isNotBlank()) {
+                    PasswordStrength.evaluate(item.password.reveal()).score
+                } else {
+                    Float.MAX_VALUE
+                }
+            }
             items.sortedWith(
-                compareBy<VaultItem> { it.category != Category.LOGIN }
-                    .thenBy { PasswordStrength.evaluate(it.password.reveal()).score }
+                compareBy<VaultItem> { scores[it.id] ?: Float.MAX_VALUE }
                     .thenBy { it.name.lowercase() }
             )
+        }
     }
 
 /**

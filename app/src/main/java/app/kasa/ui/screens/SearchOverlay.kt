@@ -107,7 +107,11 @@ fun SearchOverlay(
                     )
                 }
             } else {
-                itemsIndexed(items = results, key = { _, item -> item.id }) { index, item ->
+                itemsIndexed(
+                    items = results,
+                    key = { _, item -> item.id },
+                    contentType = { _, _ -> "vaultRow" }
+                ) { index, item ->
                     // Her harfte sonuç kümesi değişiyor; satırların yer
                     // değiştirmesi kayarak olursa göz aradığı kaydı takip
                     // edebiliyor, anlık yeniden dizilimde kaybediyor.

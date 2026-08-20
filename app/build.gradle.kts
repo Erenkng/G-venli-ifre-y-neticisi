@@ -132,6 +132,10 @@ dependencies {
     implementation(libs.androidx.biometric)
     // Klavye şeridindeki satır içi öneriler için (InlineSuggestionUi).
     implementation(libs.androidx.autofill)
+    // Temel profili (src/main/baseline-prof.txt) kurulumda uygular; profil
+    // olmadan APK'daki kod ilk çalıştırmada yorumlanıyor ve ısınma süresi tam
+    // da kullanıcının ilk kaydırdığı ana denk geliyor.
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.work.runtime.ktx)
 

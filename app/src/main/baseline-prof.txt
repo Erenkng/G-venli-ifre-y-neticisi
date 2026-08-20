@@ -1,0 +1,86 @@
+# Kasa · temel profil (baseline profile)
+#
+# ### Ne işe yarıyor
+#
+# APK'daki kod ilk çalıştırmada yorumlanıyor; sık çalışan yerler ancak bir süre
+# sonra JIT tarafından derleniyor. Bu "ısınma" süresi kullanıcının uygulamayı
+# ilk açtığı ve ilk kez kaydırdığı ana denk geliyor — yani takılmanın en çok
+# göze battığı yere. Temel profil, kurulum sırasında bu yolların önceden
+# derlenmesini (AOT) sağlıyor.
+#
+# Ölçülen etkisi Compose uygulamalarında açılışta %20-30, ilk kaydırmada
+# kare atlamalarında belirgin bir düşüş.
+#
+# ### Neden elle yazıldı
+#
+# Doğrusu, uygulamayı gerçek bir cihazda Macrobenchmark ile çalıştırıp
+# gerçekten çalışan yolları toplamak. Bu depo yazılırken cihaz erişimi yoktu,
+# bu yüzden kurallar elle ve joker karakterlerle yazıldı: sınıf düzeyinde
+# kapsayıcı, yöntem düzeyinde gevşek.
+#
+# Bunun bedeli var ve söylenmeli: joker kurallar gereğinden fazla kod derliyor,
+# yani kurulum biraz uzuyor ve profil dosyası büyüyor. Ölçülmüş bir profil
+# daha küçük ve daha isabetli olurdu. Yine de hiç profil olmamasından iyi:
+# buradaki sınıfların hepsi açılış ve ilk kaydırma yolunda gerçekten çalışıyor.
+#
+# ### Biçim
+#
+# H = "hot" (sık çalışıyor), S = "startup" (açılışta çalışıyor),
+# P = "post-startup". Satır başındaki L bir sınıf tanımlayıcısı.
+
+# ── uygulama giriş noktaları ──────────────────────────────────────────────
+Lapp/kasa/KasaApplication;
+HSPLapp/kasa/KasaApplication;->**(**)**
+Lapp/kasa/AppContainer;
+HSPLapp/kasa/AppContainer;->**(**)**
+Lapp/kasa/MainActivity;
+HSPLapp/kasa/MainActivity;->**(**)**
+
+# ── kasa dosyası ve kripto: açılışın en pahalı kısmı ─────────────────────
+Lapp/kasa/data/VaultStore;
+HSPLapp/kasa/data/VaultStore;->**(**)**
+Lapp/kasa/data/VaultMigrations;
+HSPLapp/kasa/data/VaultMigrations;->**(**)**
+Lapp/kasa/data/repo/VaultRepository;
+HSPLapp/kasa/data/repo/VaultRepository;->**(**)**
+Lapp/kasa/core/crypto/**;
+HSPLapp/kasa/core/crypto/**->**(**)**
+Lapp/kasa/core/util/**;
+HSPLapp/kasa/core/util/**->**(**)**
+
+# ── veri modeli: liste çizerken her satırda okunuyor ─────────────────────
+Lapp/kasa/data/model/**;
+HSPLapp/kasa/data/model/**->**(**)**
+Lapp/kasa/data/SettingsStore;
+HSPLapp/kasa/data/SettingsStore;->**(**)**
+Lapp/kasa/data/SettingsStore$Settings;
+HSPLapp/kasa/data/SettingsStore$Settings;->**(**)**
+
+# ── arayüz: kaydırma sırasında her karede çalışan yerler ─────────────────
+Lapp/kasa/ui/**;
+HSPLapp/kasa/ui/**->**(**)**
+Lapp/kasa/ui/components/**;
+HSPLapp/kasa/ui/components/**->**(**)**
+Lapp/kasa/ui/screens/**;
+HSPLapp/kasa/ui/screens/**->**(**)**
+Lapp/kasa/ui/theme/**;
+HSPLapp/kasa/ui/theme/**->**(**)**
+
+# ── Compose çalışma zamanı ve çizim ──────────────────────────────────────
+#
+# Compose'un kendi kitaplığı da profil taşıyor ama uygulamanın gerçekten
+# kullandığı yollar (Lazy listeler, çizim kapsamı, katmanlar) burada ayrıca
+# işaretleniyor: kaydırma takılmasının kaynağı neredeyse her zaman bunlar.
+HSPLandroidx/compose/runtime/**->**(**)**
+HSPLandroidx/compose/ui/graphics/**->**(**)**
+HSPLandroidx/compose/ui/layout/**->**(**)**
+HSPLandroidx/compose/ui/node/**->**(**)**
+HSPLandroidx/compose/ui/draw/**->**(**)**
+HSPLandroidx/compose/foundation/lazy/**->**(**)**
+HSPLandroidx/compose/foundation/gestures/**->**(**)**
+HSPLandroidx/compose/animation/core/**->**(**)**
+HSPLandroidx/compose/material3/**->**(**)**
+
+# ── serileştirme: kasa açılırken tüm kayıtlar bundan geçiyor ─────────────
+HSPLkotlinx/serialization/json/**->**(**)**
+HSPLkotlinx/coroutines/flow/**->**(**)**

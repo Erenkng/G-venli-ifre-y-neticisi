@@ -1,5 +1,6 @@
 package app.kasa.data.repo
 
+import androidx.compose.runtime.Immutable
 import app.kasa.core.util.PasswordStrength
 import app.kasa.data.model.Category
 import app.kasa.data.model.VaultItem
@@ -20,12 +21,14 @@ class SecurityAnalyzer(private val breachChecker: BreachChecker) {
 
     enum class FindingType { LEAKED, REUSED, WEAK, OLD, NO_2FA, RENEW_DUE }
 
+    @Immutable
     data class Finding(
         val type: FindingType,
         val count: Int,
         val itemIds: List<String>
     )
 
+    @Immutable
     data class Report(
         val score: Int,
         val findings: List<Finding>,

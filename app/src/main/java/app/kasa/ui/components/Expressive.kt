@@ -128,28 +128,66 @@ fun buildMorphPath(
     spike: Float,
     round: Float,
     rotation: Float
-): Path {
+): Path = Path().also {
+    buildMorphPathInto(it, centerX, centerY, radius, points, spike, round, rotation)
+}
+
+/**
+ * Aynı biçimi **var olan** bir yola çizer.
+ *
+ * ### Neden ayrı bir işlev
+ *
+ * Bu şekil her karede yeniden hesaplanıyor ve kadranda kenar çözülmesi
+ * yüzünden kare başına dört kez çiziliyor. Her çağrıda yeni bir `Path` ve
+ * köşeleri tutan kutulanmış bir dizi ayırmak, 120 Hz'de saniyede binlerce
+ * nesne demek; çöp toplayıcı bunu er geç bir karenin ortasında topluyor ve
+ * o kare atlıyor.
+ *
+ * Burada yol `rewind()` ile yeniden kullanılıyor ve köşeler kutulanmış
+ * `Offset` dizisi yerine düz bir `FloatArray` içinde tutuluyor. Görüntü aynı;
+ * değişen tek şey, çizim yolunda hiçbir şeyin ayrılmaması.
+ *
+ * @param path çağıranın sakladığı ve yeniden kullandığı yol
+ * @param vertices en az `points * 4` uzunluğunda çalışma tamponu; `null` ise
+ *        burada bir kez ayrılıyor (tek seferlik çizimler için)
+ */
+fun buildMorphPathInto(
+    path: Path,
+    centerX: Float,
+    centerY: Float,
+    radius: Float,
+    points: Int,
+    spike: Float,
+    round: Float,
+    rotation: Float,
+    vertices: FloatArray? = null
+) {
     val total = points * 2
-    val vertices = Array(total) { i ->
+    val xy = vertices ?: FloatArray(total * 2)
+
+    for (i in 0 until total) {
         val angle = rotation + i * PI.toFloat() / points
         val r = radius * if (i % 2 == 0) 1f else (1f - spike)
-        Offset(centerX + cos(angle) * r, centerY + sin(angle) * r)
+        xy[i * 2] = centerX + cos(angle) * r
+        xy[i * 2 + 1] = centerY + sin(angle) * r
     }
 
-    fun lerp(a: Offset, b: Offset, t: Float) = Offset(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
-
-    val path = Path()
+    path.rewind()
     for (i in 0 until total) {
-        val current = vertices[i]
-        val previous = vertices[(i - 1 + total) % total]
-        val next = vertices[(i + 1) % total]
-        val from = lerp(current, previous, round)
-        val to = lerp(current, next, round)
-        if (i == 0) path.moveTo(from.x, from.y) else path.lineTo(from.x, from.y)
-        path.quadraticBezierTo(current.x, current.y, to.x, to.y)
+        val cx = xy[i * 2]
+        val cy = xy[i * 2 + 1]
+        val p = (i - 1 + total) % total
+        val n = (i + 1) % total
+
+        val fromX = cx + (xy[p * 2] - cx) * round
+        val fromY = cy + (xy[p * 2 + 1] - cy) * round
+        val toX = cx + (xy[n * 2] - cx) * round
+        val toY = cy + (xy[n * 2 + 1] - cy) * round
+
+        if (i == 0) path.moveTo(fromX, fromY) else path.lineTo(fromX, fromY)
+        path.quadraticBezierTo(cx, cy, toX, toY)
     }
     path.close()
-    return path
 }
 
 /**
@@ -192,29 +230,38 @@ fun MorphDial(
     // veriyor.
     val glowLayers = if (reduced) 0 else GLOW_LAYERS
 
+    // Çizim yolunda hiçbir şey ayrılmasın diye yol ve köşe tamponu bir kez
+    // kuruluyor ve her karede yeniden kullanılıyor.
+    val scratchPath = remember { Path() }
+    val scratchVertices = remember(points) { FloatArray(points * 4) }
+
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2f, size.height / 2f)
         val radius = min(size.width, size.height) / 2f * 0.88f
 
-        fun path(scale: Float) = buildMorphPath(
-            centerX = center.x,
-            centerY = center.y,
-            radius = radius * scale,
-            points = points,
-            spike = 0.30f * (1f - strength),
-            round = 0.14f + 0.36f * strength,
-            rotation = angle
-        )
+        fun fill(scale: Float, paint: Color) {
+            buildMorphPathInto(
+                path = scratchPath,
+                centerX = center.x,
+                centerY = center.y,
+                radius = radius * scale,
+                points = points,
+                spike = 0.30f * (1f - strength),
+                round = 0.14f + 0.36f * strength,
+                rotation = angle,
+                vertices = scratchVertices
+            )
+            drawPath(scratchPath, paint)
+        }
 
-        // Dıştan içe: en dıştaki halka en saydam.
+        // Dıştan içe: en dıştaki halka en saydam. Tek bir yol nesnesi
+        // yeniden kullanılıyor; her halka için yenisini ayırmak kare başına
+        // dört ayırma demekti.
         for (layer in glowLayers downTo 1) {
             val t = layer.toFloat() / glowLayers
-            drawPath(
-                path = path(1f + GLOW_SPREAD * t),
-                color = color.copy(alpha = 0.16f * (1f - t) + 0.04f)
-            )
+            fill(1f + GLOW_SPREAD * t, color.copy(alpha = 0.16f * (1f - t) + 0.04f))
         }
-        drawPath(path(1f), color)
+        fill(1f, color)
     }
 }
 

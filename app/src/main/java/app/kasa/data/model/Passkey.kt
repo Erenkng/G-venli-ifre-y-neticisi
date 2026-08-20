@@ -1,6 +1,7 @@
 package app.kasa.data.model
 
 import app.kasa.core.crypto.SecretText
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,6 +25,7 @@ import kotlinx.serialization.Serializable
  * @param publicKeySpki X.509/SPKI kodlu açık anahtar, onaltılık. Gizli değil;
  *        kayıt cevabında sitenin istediği biçim bu.
  */
+@Immutable
 @Serializable
 data class Passkey(
     val credentialId: String,

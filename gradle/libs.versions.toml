@@ -13,6 +13,7 @@ camerax = "1.4.2"
 zxing = "3.5.3"
 okhttp = "4.12.0"
 androidxAutofill = "1.1.0"
+profileinstaller = "1.4.1"
 serialization = "1.8.0"
 argon2 = "1.6.0"
 junit = "4.13.2"
@@ -50,6 +51,7 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 androidx-autofill = { group = "androidx.autofill", name = "autofill", version.ref = "androidxAutofill" }
+androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 argon2kt = { group = "com.lambdapioneer.argon2kt", name = "argon2kt", version.ref = "argon2" }
 

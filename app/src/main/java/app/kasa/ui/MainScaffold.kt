@@ -204,19 +204,32 @@ fun MainScaffold(
         // gezinti çubuğunun altına giriyor. Eskiden çubuk bir `Column` içinde
         // içeriğin yanında duruyordu; içerik alanı orada bittiği için son
         // kayıtlar bir geçiş olmadan kesiliyordu.
+        // Ekran içeriği gezinti çubuğunun bulanıklaştıracağı katmana
+        // kaydediliyor. Kayıt **bedava değil**: her karede tam ekran boyutunda
+        // bir arabelleğe çiziliyor ve sonra ekrana kopyalanıyor. 120 Hz'de bu
+        // kopya kare bütçesinin görünür bir kısmını yiyor.
+        //
+        // Bu yüzden yalnızca bulanıklık gerçekten çizilecekse kaydediliyor;
+        // altında içerik yokken (boş kasa) ya da hareket kapalıyken içerik
+        // doğrudan ekrana gidiyor ve ara katman hiç kurulmuyor.
+        val needsBackdrop = vaultData.liveItems.isNotEmpty()
+
         Box(
             Modifier
                 .fillMaxSize()
-                .drawWithContent {
-                    // Katman kaydı başarısız olursa (örneğin beste dağıtılırken
-                    // katman serbest bırakılmışsa) içerik doğrudan çiziliyor:
-                    // bulanıklık kaybolur, ekran kaybolmaz.
-                    val recorded = runCatching {
-                        backdrop.record { this@drawWithContent.drawContent() }
-                        drawLayer(backdrop)
-                    }.isSuccess
-                    if (!recorded) drawContent()
-                }
+                .then(
+                    if (!needsBackdrop) Modifier else Modifier.drawWithContent {
+                        // Katman kaydı başarısız olursa (örneğin beste
+                        // dağıtılırken katman serbest bırakılmışsa) içerik
+                        // doğrudan çiziliyor: bulanıklık kaybolur, ekran
+                        // kaybolmaz.
+                        val recorded = runCatching {
+                            backdrop.record { this@drawWithContent.drawContent() }
+                            drawLayer(backdrop)
+                        }.isSuccess
+                        if (!recorded) drawContent()
+                    }
+                )
         ) {
             // Sekme geçişi yönlü: gezinti çubuğunda sağa gidildiğinde içerik de
             // sağdan geliyor. Yön burada süs değil bilgi — kullanıcı hangi
@@ -299,7 +312,7 @@ fun MainScaffold(
 
         // Boş kasada çubuğun altında bulanıklaştırılacak içerik yok; tam
         // güçte bir buzlu cam orada yalnızca zemini bulandırıyor.
-        val contentBehind = vaultData.liveItems.isNotEmpty()
+        val contentBehind = needsBackdrop
 
         KasaNavBar(
             destinations = destinations,

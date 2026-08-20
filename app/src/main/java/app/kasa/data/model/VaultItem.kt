@@ -3,6 +3,7 @@ package app.kasa.data.model
 import app.kasa.core.crypto.Crypto
 import app.kasa.core.crypto.SecretText
 import app.kasa.data.VaultMigrations
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -48,6 +49,21 @@ enum class Category {
     }
 }
 
+/**
+ * ### Neden [@Immutable]
+ *
+ * Compose, bir parametrenin değişip değişmediğini anlayamıyorsa o bileşeni
+ * **atlayamıyor** ve her bestede yeniden çalıştırıyor. `List` bir arayüz;
+ * derleyici içeriğinin değişmeyeceğini bilemediği için bu sınıfları kararsız
+ * sayıyordu. Sonucu şuydu: listedeki tek bir kaydın değişmesi, ekrandaki
+ * **bütün satırların** yeniden bestelenmesine yol açıyordu — yüz kayıtlık bir
+ * kasada her dokunuşta yüz satır.
+ *
+ * İşaret bir söz: bu nesnelerin içeriği kurulduktan sonra değişmiyor.
+ * Söz tutuluyor — her değişiklik `copy()` ile yeni bir nesne üretiyor, hiçbir
+ * yerde listeye ekleme ya da alan atama yok.
+ */
+@Immutable
 @Serializable
 data class CustomField(
     val key: String,
@@ -55,6 +71,7 @@ data class CustomField(
     val secret: Boolean = false
 )
 
+@Immutable
 @Serializable
 data class PasswordHistoryEntry(
     val password: SecretText,
@@ -73,6 +90,7 @@ data class PasswordHistoryEntry(
  * bir eki paylaşmak ya da anahtarını döndürmek gerektiğinde kasanın tamamına
  * dokunmak gerekmesin diye.
  */
+@Immutable
 @Serializable
 data class Attachment(
     val id: String = Crypto.hex(Crypto.randomBytes(16)),
@@ -85,6 +103,7 @@ data class Attachment(
 )
 
 /** Kullanıcının kendi kurduğu klasör. */
+@Immutable
 @Serializable
 data class Folder(
     val id: String = Crypto.hex(Crypto.randomBytes(8)),
@@ -120,6 +139,7 @@ sealed interface VaultFilter {
  * böylece kaç kayıt olduğu, adları ve kategorileri gibi meta veriler de
  * diskte görünmez.
  */
+@Immutable
 @Serializable
 data class VaultItem(
     val id: String = randomId(),
@@ -239,6 +259,7 @@ data class VaultItem(
 }
 
 /** Kasanın diske yazılan tüm içeriği. */
+@Immutable
 @Serializable
 data class VaultData(
     val schema: Int = SCHEMA,

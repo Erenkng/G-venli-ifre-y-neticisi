@@ -3,6 +3,7 @@ package app.kasa.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.compose.runtime.Immutable
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -44,6 +45,13 @@ class SettingsStore(private val context: Context) {
      */
     enum class ListDensity { COMFORTABLE, COMPACT }
 
+    /**
+     * Ayarların hepsi ilkel değer ve numaralandırma; yine de işaret açıkça
+     * konuyor. Bileşen imzalarında en sık geçen tür bu ve kararlılığının
+     * derleyicinin çıkarımına bırakılması, ileride bir liste alanı
+     * eklendiğinde sessizce her ekranı yeniden bestelemeye başlardı.
+     */
+    @Immutable
     data class Settings(
         val theme: ThemeMode = ThemeMode.SYSTEM,
         val dynamicColor: Boolean = false,
