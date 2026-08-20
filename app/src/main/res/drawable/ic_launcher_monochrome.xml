@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Temalı (monokrom) simge katmanı.
+
+    Ön plandan ayrı bir dosya olması şart. Monokrom katmanda sistem bütün
+    yolları **tek renge** boyuyor ve yalnızca alfa kanalını kullanıyor; eski
+    sürümde ön plan dosyası olduğu gibi yeniden kullanılıyordu ve farklı renkli
+    anahtar deliği ile gövde aynı tona düştüğü için simge dolu bir lekeye
+    dönüşüyordu.
+
+    Burada mil deliği hiç çizilmiyor: silueti tanımlayan şey çember, üç kol ve
+    göbek. Delik zaten temalı simgede görünmezdi, çizilmemesi dosyayı da
+    dürüst kılıyor.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="8"
+        android:fillColor="#00000000"
+        android:pathData="M26,54 A28,28 0 0,1 82,54 A28,28 0 0,1 26,54 Z" />
+
+    <group android:pivotX="54" android:pivotY="54" android:rotation="30">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+    </group>
+    <group android:pivotX="54" android:pivotY="54" android:rotation="150">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+    </group>
+    <group android:pivotX="54" android:pivotY="54" android:rotation="270">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+    </group>
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z" />
+</vector>
