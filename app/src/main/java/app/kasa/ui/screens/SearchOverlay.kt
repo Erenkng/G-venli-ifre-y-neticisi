@@ -30,6 +30,7 @@ import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.SearchTopBar
+import app.kasa.ui.components.KasaReveal
 import app.kasa.ui.components.groupPositionOf
 import kotlinx.coroutines.delay
 
@@ -78,6 +79,21 @@ fun SearchOverlay(
                 .height(1.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant)
         )
+        // Sonuç listesi arama çubuğundan sonra çözülüyor.
+        //
+        // Eskiden ekran tek karede yerini alıyordu: kasa listesi gidip arama
+        // ekranı geliyor, arada bir hareket yok. İki ekran birbirine çok
+        // benzediği için (aynı satırlar, aynı rozetler) geçişin olmaması
+        // "hiçbir şey olmadı" gibi okunuyordu; kullanıcı arama kutusuna
+        // dokunduğuna emin olamıyordu. Şimdi çubuk önce, liste onun ardından
+        // geliyor ve sıra kendiliğinden anlaşılıyor.
+        KasaReveal(
+            visible = true,
+            delayMillis = RESULTS_DELAY_MILLIS,
+            blurRadius = 12.dp,
+            lift = 10.dp,
+            modifier = Modifier.fillMaxSize()
+        ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 40.dp),
@@ -112,5 +128,14 @@ fun SearchOverlay(
                 }
             }
         }
+        }
     }
 }
+
+/**
+ * Arama çubuğu belirdikten sonra listenin gelmesi için beklenen süre.
+ *
+ * Klavye odağı da 260 ms sonra isteniyor; ikisinin aynı ana denk gelmesi
+ * listeyi klavye açılırken kaydırıyordu.
+ */
+private const val RESULTS_DELAY_MILLIS = 90

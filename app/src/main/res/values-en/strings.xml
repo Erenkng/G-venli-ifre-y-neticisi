@@ -550,4 +550,10 @@
     <string name="sort_weakest">Weakest first</string>
     <string name="density_comfortable">Comfortable</string>
     <string name="density_compact">Compact</string>
+    <string name="csv_title">Import from another manager</string>
+    <string name="csv_sub">Chrome, Firefox, Bitwarden, 1Password, LastPass CSV file</string>
+    <string name="csv_done">Imported %1$d entries. Remember to delete the file — the passwords in it are in the clear.</string>
+    <string name="csv_none">No new entries to import.</string>
+    <string name="csv_failed">Could not read the file. Make sure it is a password export.</string>
+    <string name="set_offline_note">The vault never leaves the device. No server, no account, no sync.</string>
 </resources>

@@ -102,9 +102,16 @@ fun KasaNavBar(
     selected: String,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
-    backdrop: GraphicsLayer? = null
+    backdrop: GraphicsLayer? = null,
+    /** Altında içerik var mı; camın gücünü bu belirliyor. */
+    contentBehind: Boolean = true
 ) {
     val colors = KasaTheme.colors
+    val strength by animateFloatAsState(
+        if (contentBehind) 1f else 0f,
+        KasaMotion.effect(),
+        label = "navBlur"
+    )
 
     Box(
         modifier = modifier
@@ -122,7 +129,8 @@ fun KasaNavBar(
             backdrop = backdrop,
             modifier = Modifier.matchParentSize(),
             gradientStart = { Offset(0f, 0f) },
-            gradientEnd = { Offset(0f, it.height) }
+            gradientEnd = { Offset(0f, it.height) },
+            strength = strength
         )
 
         Row(
@@ -161,9 +169,15 @@ fun KasaNavRail(
     selected: String,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
-    backdrop: GraphicsLayer? = null
+    backdrop: GraphicsLayer? = null,
+    contentBehind: Boolean = true
 ) {
     val colors = KasaTheme.colors
+    val strength by animateFloatAsState(
+        if (contentBehind) 1f else 0f,
+        KasaMotion.effect(),
+        label = "railBlur"
+    )
 
     Box(
         modifier = modifier
@@ -182,7 +196,8 @@ fun KasaNavRail(
             modifier = Modifier.matchParentSize(),
             // Ray solda: bulanıklık solda tam, sağa doğru siliniyor.
             gradientStart = { Offset(it.width, 0f) },
-            gradientEnd = { Offset(0f, 0f) }
+            gradientEnd = { Offset(0f, 0f) },
+            strength = strength
         )
 
         Column(
@@ -240,16 +255,18 @@ private fun Backdrop(
     backdrop: GraphicsLayer?,
     modifier: Modifier,
     gradientStart: (Size) -> Offset,
-    gradientEnd: (Size) -> Offset
+    gradientEnd: (Size) -> Offset,
+    strength: Float = 1f
 ) {
     if (backdrop == null) return
+    if (strength <= 0.01f) return
 
     Box(modifier) {
         // Sıra önemli: kalın olan altta, ince olan üstünde. Üstteki kenara
         // yakın yerde opak olduğu için orada ince bulanıklık görünüyor;
         // saydamlaştığı yerde alttaki kalın bulanıklık ortaya çıkıyor.
-        BlurBand(backdrop, Modifier.matchParentSize(), BLUR_FAR, FAR_STOPS, gradientStart, gradientEnd)
-        BlurBand(backdrop, Modifier.matchParentSize(), BLUR_NEAR, NEAR_STOPS, gradientStart, gradientEnd)
+        BlurBand(backdrop, Modifier.matchParentSize(), BLUR_FAR, FAR_STOPS, gradientStart, gradientEnd, strength)
+        BlurBand(backdrop, Modifier.matchParentSize(), BLUR_NEAR, NEAR_STOPS, gradientStart, gradientEnd, strength)
     }
 }
 
@@ -276,12 +293,23 @@ private fun BlurBand(
     radius: Dp,
     stops: List<Pair<Float, Float>>,
     gradientStart: (Size) -> Offset,
-    gradientEnd: (Size) -> Offset
+    gradientEnd: (Size) -> Offset,
+    /**
+     * Bulanıklığın gücü (0-1).
+     *
+     * Altında hiçbir şey yokken cam da olmamalı: boş bir listede çubuğun
+     * altında bulanıklaştırılacak bir içerik yok ve tam güçte bir buzlu cam
+     * orada yalnızca zeminin kendisini bulandırıyor, yani gereksiz bir katman
+     * çiziliyor. Değer animasyonlu geldiği için kullanıcı kaydırmaya
+     * başladığında cam da yavaşça yerleşiyor.
+     */
+    strength: Float
 ) {
     val blurLayer = rememberGraphicsLayer()
-    val blurRadius = with(LocalDensity.current) { radius.toPx() }
-    val colorStops = remember(stops) {
-        stops.map { (position, alpha) -> position to Color.Black.copy(alpha = alpha) }.toTypedArray()
+    val blurRadius = with(LocalDensity.current) { radius.toPx() } * strength.coerceIn(0f, 1f)
+    val colorStops = remember(stops, strength) {
+        stops.map { (position, alpha) -> position to Color.Black.copy(alpha = alpha * strength) }
+            .toTypedArray()
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
 

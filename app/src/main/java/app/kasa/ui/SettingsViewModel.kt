@@ -9,6 +9,7 @@ import app.kasa.core.crypto.KeystoreKeys
 import app.kasa.core.security.TrustedNetwork
 import app.kasa.core.security.SecureClipboard
 import app.kasa.core.util.Haptics
+import app.kasa.data.CsvImport
 import app.kasa.data.SettingsStore
 import app.kasa.data.ThemeMode
 import app.kasa.data.repo.VaultRepository
@@ -348,6 +349,45 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
             messages.send(
                 if (added == null) UiMessage(R.string.imp_failed)
                 else UiMessage(R.string.imp_done, listOf(added))
+            )
+        }
+    }
+
+    /**
+     * CSV içe aktarma (Chrome, Firefox, Bitwarden, 1Password, LastPass…).
+     *
+     * Dosya parolaları **açık metin** taşıyor — dışa aktarmanın doğası bu. Bu
+     * yüzden okunduktan sonra tampon sıfırlanıyor ve kullanıcıya dosyayı
+     * silmesi söyleniyor: telefonun indirilenler klasöründe duran açık bir
+     * parola listesi, kasanın koruduğu her şeyi anlamsız kılar.
+     */
+    fun importCsv(uri: Uri) {
+        viewModelScope.launch {
+            _busy.value = true
+            val parsed = withContext(Dispatchers.IO) {
+                val bytes = runCatching {
+                    container.appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+                if (bytes == null) null
+                else try {
+                    CsvImport.parse(String(bytes, Charsets.UTF_8))
+                } finally {
+                    bytes.fill(0)
+                }
+            }
+
+            val added = if (parsed == null) null else repository.importItems(parsed.items)
+            // Ayrıştırılan kayıtlar depoya kopyalandı; buradaki gizli metinler
+            // artık gereksiz ve silinebilir.
+            parsed?.items?.forEach { it.password.wipe() }
+
+            _busy.value = false
+            messages.send(
+                when {
+                    added == null -> UiMessage(R.string.csv_failed)
+                    added == 0 -> UiMessage(R.string.csv_none)
+                    else -> UiMessage(R.string.csv_done, listOf(added))
+                }
             )
         }
     }

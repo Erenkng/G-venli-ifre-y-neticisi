@@ -568,4 +568,10 @@
     <string name="sort_weakest">En zayıf önce</string>
     <string name="density_comfortable">Rahat</string>
     <string name="density_compact">Sıkışık</string>
+    <string name="csv_title">Başka yöneticiden aktar</string>
+    <string name="csv_sub">Chrome, Firefox, Bitwarden, 1Password, LastPass CSV dosyası</string>
+    <string name="csv_done">%1$d kayıt aktarıldı. Dosyayı silmeyi unutma — içindeki parolalar açık.</string>
+    <string name="csv_none">Aktarılacak yeni kayıt bulunamadı.</string>
+    <string name="csv_failed">Dosya okunamadı. Parola dışa aktarımı olduğundan emin ol.</string>
+    <string name="set_offline_note">Kasa cihazdan çıkmaz. Sunucu yok, hesap yok, senkronizasyon yok.</string>
 </resources>

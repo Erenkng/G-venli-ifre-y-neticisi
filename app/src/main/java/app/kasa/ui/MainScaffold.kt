@@ -132,6 +132,7 @@ fun MainScaffold(
     val selectedItem by vaultViewModel.selectedItem.collectAsStateWithLifecycle()
     val editing by vaultViewModel.editing.collectAsStateWithLifecycle()
     val vaultView by vaultViewModel.view.collectAsStateWithLifecycle()
+    val vaultData by vaultViewModel.data.collectAsStateWithLifecycle()
 
     // Kısayol ve döşemeden gelen eylemler.
     LaunchedEffect(startAction) {
@@ -293,12 +294,17 @@ fun MainScaffold(
             fabExpanded = false
         }
 
+        // Boş kasada çubuğun altında bulanıklaştırılacak içerik yok; tam
+        // güçte bir buzlu cam orada yalnızca zemini bulandırıyor.
+        val contentBehind = vaultData.liveItems.isNotEmpty()
+
         if (landscape) {
             KasaNavRail(
                 destinations = destinations,
                 selected = tab,
                 onSelect = onNavigate,
                 backdrop = backdrop,
+                contentBehind = contentBehind,
                 modifier = Modifier.align(Alignment.CenterStart)
             )
         } else {
@@ -307,6 +313,7 @@ fun MainScaffold(
                 selected = tab,
                 onSelect = onNavigate,
                 backdrop = backdrop,
+                contentBehind = contentBehind,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

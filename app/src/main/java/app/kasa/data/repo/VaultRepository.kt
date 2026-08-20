@@ -1063,6 +1063,41 @@ class VaultRepository(
      * altına aldığını sandığı parolayı en geniş kapıdan vermek olurdu. Kayıt
      * uygulamanın içinden, doğrulamanın ardından kopyalanabiliyor.
      */
+    /**
+     * Başka bir yöneticiden gelen kayıtları kasaya ekler.
+     *
+     * ### Neden var olanın üzerine yazılmıyor
+     *
+     * İçe aktarma birleştirme değil **ekleme**. Aynı siteye ait bir kayıt zaten
+     * varsa ikisi de duruyor. Sebep: dışa aktarılan dosyanın hangisinin daha
+     * güncel olduğunu söyleyen bir bilgisi yok ve yanlış yönde birleştirmek,
+     * kullanıcının kasadaki güncel parolasını eski bir kopyayla ezmek olurdu.
+     * İki kayıt gören kullanıcı birini siler; ezilen parolayı ise geri
+     * getiremez.
+     *
+     * Bire bir aynı olanlar (aynı ad, aynı kullanıcı adı, aynı parola) yine de
+     * atlanıyor: aynı dosyayı iki kez aktarmak yinelenen kayıt üretmemeli.
+     *
+     * @return eklenen kayıt sayısı
+     */
+    suspend fun importItems(incoming: List<VaultItem>): Int {
+        if (incoming.isEmpty()) return 0
+        var added = 0
+        mutate { current ->
+            val existing = current.items
+            val fresh = incoming.filterNot { candidate ->
+                existing.any {
+                    it.name.equals(candidate.name, ignoreCase = true) &&
+                        it.username.equals(candidate.username, ignoreCase = true) &&
+                        it.password == candidate.password
+                }
+            }
+            added = fresh.size
+            if (fresh.isEmpty()) current else current.copy(items = existing + fresh)
+        }
+        return added
+    }
+
     // ── otomatik doldurma ────────────────────────────────────────────────
 
     /**

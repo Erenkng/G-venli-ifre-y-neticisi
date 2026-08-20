@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -134,6 +136,12 @@ fun SettingsScreen(
         else password?.fill('\u0000')
     }
 
+    // Chrome ve öteki yöneticilerin CSV dışa aktarımı. Ayrı bir seçici,
+    // çünkü bu dosya şifreli değil ve parola sormanın anlamı yok.
+    val csvLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) viewModel.importCsv(uri) }
+
     val actions = listOf(
         VaultAction(
             icon = Icons.Rounded.Lock,
@@ -177,6 +185,20 @@ fun SettingsScreen(
             background = KasaTheme.colors.badgeBlueBg,
             foreground = KasaTheme.colors.badgeBlueFg
         ) { showImport = true },
+        VaultAction(
+            icon = Icons.Rounded.SwapHoriz,
+            title = stringResource(R.string.csv_title),
+            subtitle = stringResource(R.string.csv_sub),
+            background = KasaTheme.colors.badgeBlueBg,
+            foreground = KasaTheme.colors.badgeBlueFg
+        ) {
+            // text/csv her cihazda tanınmıyor; text/comma-separated-values ve
+            // düz metin de kabul ediliyor, yoksa dosya seçicide dosya gri
+            // görünüyor ve kullanıcı seçemiyor.
+            csvLauncher.launch(
+                arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")
+            )
+        },
         VaultAction(
             icon = Icons.Rounded.Autorenew,
             title = stringResource(R.string.rotate_title),
@@ -551,33 +573,70 @@ fun SettingsScreen(
         }
 
         // ── hakkında ──────────────────────────────────────────────────────
+        //
+        // Buradaki bilgi ekranın geri kalanıyla aynı dile ait değildi: yukarıda
+        // her şey kart içindeyken alt kısım ortalanmış çıplak metindi ve
+        // ekranın bittiği yer bir kart değil, havada asılı iki satır gibi
+        // duruyordu. Aynı döşemenin içine alındı; içerik değişmedi, dili
+        // değişti.
         item(key = "about") {
             Spacer(Modifier.height(26.dp))
-            Column(
-                Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    stringResource(R.string.set_version, BuildConfig.VERSION_NAME),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KasaTheme.colors.ink3,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    stringResource(
-                        R.string.set_crypto_line,
-                        if (viewModel.argon2Available) "Argon2id" else "PBKDF2-SHA512",
-                        stringResource(
-                            if (viewModel.hardwareBackedKey) R.string.set_hardware_key
-                            else R.string.set_software_key
-                        )
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KasaTheme.colors.ink3,
-                    textAlign = TextAlign.Center
-                )
+            SectionLabel(stringResource(R.string.set_group_about))
+        }
+        item(key = "about_card") {
+            KasaTile(position = GroupPosition.ONLY, onClick = {}) {
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(KasaTheme.colors.badgeStrongBg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_launcher_monochrome),
+                        contentDescription = null,
+                        tint = KasaTheme.colors.badgeStrongFg,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.app_name),
+                        style = KasaTheme.text.tileName,
+                        color = KasaTheme.colors.ink
+                    )
+                    Text(
+                        stringResource(R.string.set_version, BuildConfig.VERSION_NAME),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KasaTheme.colors.ink2
+                    )
+                }
             }
+        }
+        item(key = "about_crypto") {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(
+                    R.string.set_crypto_line,
+                    if (viewModel.argon2Available) "Argon2id" else "PBKDF2-SHA512",
+                    stringResource(
+                        if (viewModel.hardwareBackedKey) R.string.set_hardware_key
+                        else R.string.set_software_key
+                    )
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.set_offline_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+            )
         }
     }
 
