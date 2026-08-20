@@ -1,9 +1,7 @@
 package app.kasa.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +48,7 @@ import app.kasa.ui.components.KasaSwitch
 import app.kasa.ui.components.MorphDial
 import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.SplitButton
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaTheme
 
 private enum class GeneratorMode { PASSWORD, PASSPHRASE }
@@ -75,7 +74,7 @@ fun GeneratorScreen(
     val passphrase = state.settings.generatorPassphrase
     val strength by animateFloatAsState(
         targetValue = state.strength,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
+        animationSpec = KasaMotion.large(),
         label = "genStrength"
     )
 

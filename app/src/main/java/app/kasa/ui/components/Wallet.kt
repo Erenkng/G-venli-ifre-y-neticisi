@@ -1,6 +1,5 @@
 package app.kasa.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -280,7 +278,6 @@ fun CategoryHeroBand(
     height: Dp = 96.dp,
     content: @Composable () -> Unit
 ) {
-    val tint by animateFloatAsState(1f, label = "heroTint")
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -289,8 +286,8 @@ fun CategoryHeroBand(
             .background(
                 Brush.linearGradient(
                     listOf(
-                        background.copy(alpha = 0.95f * tint),
-                        background.copy(alpha = 0.62f * tint)
+                        background.copy(alpha = 0.95f),
+                        background.copy(alpha = 0.62f)
                     )
                 )
             ),

@@ -1,8 +1,6 @@
 package app.kasa.ui.screens
 
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -62,6 +60,7 @@ import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.StrengthDot
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.components.groupPositionOf
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
@@ -234,11 +233,20 @@ fun VaultScreen(
             }
         } else {
             itemsIndexed(items = items, key = { _, entry -> entry.id }) { index, entry ->
+                // Silinen kayıt yerinden kaybolmuyor, kalanlar boşluğu
+                // kayarak kapatıyor. Anlık atlamada kullanıcı hangi satırın
+                // gittiğini göremiyor ve "yanlış olanı mı sildim" sorusu
+                // kalıyordu; geri alma şeridi de bu yüzden geç fark ediliyordu.
                 VaultRow(
                     item = entry,
                     position = groupPositionOf(index, items.size),
                     folderName = viewModel.folderName(entry.folderId),
-                    onClick = { viewModel.select(entry.id) }
+                    onClick = { viewModel.select(entry.id) },
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = KasaMotion.effect(),
+                        placementSpec = KasaMotion.medium(),
+                        fadeOutSpec = KasaMotion.exit()
+                    )
                 )
             }
         }
@@ -323,7 +331,7 @@ private fun CollectionChip(
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
         if (pressed) 0.93f else 1f,
-        spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow),
+        KasaMotion.small(),
         label = "collectionChip"
     )
 

@@ -1,8 +1,6 @@
 package app.kasa.ui.screens
 
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +44,7 @@ import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.MorphDial
 import app.kasa.ui.components.WavyProgress
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
@@ -89,7 +88,7 @@ private fun SetupStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState)
     val evaluation = if (password.isEmpty()) null else PasswordStrength.evaluate(password)
     val strength by animateFloatAsState(
         evaluation?.score ?: 0f,
-        spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
+        KasaMotion.large(),
         label = "setupStrength"
     )
 

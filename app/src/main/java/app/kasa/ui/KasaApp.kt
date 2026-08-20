@@ -1,9 +1,6 @@
 package app.kasa.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -20,6 +17,7 @@ import app.kasa.data.repo.VaultRepository
 import app.kasa.ui.components.KasaBackground
 import app.kasa.ui.screens.OnboardingScreen
 import app.kasa.ui.screens.UnlockScreen
+import app.kasa.ui.theme.KasaMotion
 
 /**
  * Uygulamanın kökü: kasa durumu neyse onu gösterir.
@@ -43,10 +41,10 @@ fun KasaApp(
         AnimatedContent(
             targetState = lockState,
             transitionSpec = {
-                (fadeIn(tween(220)) + scaleIn(
+                (fadeIn(KasaMotion.enter()) + scaleIn(
                     initialScale = 0.98f,
-                    animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
-                )) togetherWith fadeOut(tween(160))
+                    animationSpec = KasaMotion.large()
+                )) togetherWith fadeOut(KasaMotion.exit())
             },
             label = "lockState"
         ) { state ->

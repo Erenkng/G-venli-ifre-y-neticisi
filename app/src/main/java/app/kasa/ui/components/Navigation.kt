@@ -1,10 +1,7 @@
 package app.kasa.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -62,6 +59,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
@@ -287,12 +285,12 @@ private fun NavItem(
     val pressed by interaction.collectIsPressedAsState()
     val pillScaleX by animateFloatAsState(
         if (selected) 1f else 0.42f,
-        spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow),
+        KasaMotion.medium(),
         label = "pillScale"
     )
-    val pillAlpha by animateFloatAsState(if (selected) 1f else 0f, label = "pillAlpha")
-    val iconScale by animateFloatAsState(if (selected) 1.06f else 1f, label = "iconScale")
-    val slotScale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "slotScale")
+    val pillAlpha by animateFloatAsState(if (selected) 1f else 0f, KasaMotion.effect(), label = "pillAlpha")
+    val iconScale by animateFloatAsState(if (selected) 1.06f else 1f, KasaMotion.small(), label = "iconScale")
+    val slotScale by animateFloatAsState(if (pressed) 0.9f else 1f, KasaMotion.small(), label = "slotScale")
 
     Column(
         modifier = modifier
@@ -353,7 +351,7 @@ fun FabMenu(
 ) {
     val rotation by animateFloatAsState(
         if (expanded) 135f else 0f,
-        spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow),
+        KasaMotion.medium(),
         label = "fabRotation"
     )
     // Tam yuvarlak = düğmenin yarısı (66/2). Eskiden hedef KasaRadius.full
@@ -366,7 +364,7 @@ fun FabMenu(
     )
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "fabScale")
+    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, KasaMotion.small(), label = "fabScale")
 
     Column(
         modifier = modifier,
@@ -374,14 +372,22 @@ fun FabMenu(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         actions.forEachIndexed { index, action ->
+            // Menü aşağıdan yukarı açılıyor: düğmeye en yakın eylem önce
+            // beliriyor. Dördü aynı anda gelseydi tek bir blok olarak okunur,
+            // sıra bilgisi kaybolurdu. Kapanışta gecikme yok — kullanıcı kararı
+            // vermiş, menünün oyalanmaya hakkı yok.
+            val step = actions.size - 1 - index
             AnimatedVisibility(
                 visible = expanded,
-                enter = fadeIn() + scaleIn(
+                enter = fadeIn(KasaMotion.stagger(step, KasaMotion.EXIT_MILLIS)) + scaleIn(
                     initialScale = 0.7f,
                     transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0.5f),
-                    animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow)
+                    animationSpec = KasaMotion.stagger(step)
                 ),
-                exit = fadeOut() + scaleOut(targetScale = 0.7f)
+                exit = fadeOut(KasaMotion.exit()) + scaleOut(
+                    targetScale = 0.7f,
+                    animationSpec = KasaMotion.exit()
+                )
             ) {
                 FabMenuItem(action = action)
             }

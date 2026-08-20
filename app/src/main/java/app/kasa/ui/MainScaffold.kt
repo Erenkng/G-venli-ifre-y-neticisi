@@ -2,16 +2,19 @@ package app.kasa.ui
 
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.using
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -74,6 +77,7 @@ import app.kasa.ui.screens.SearchOverlay
 import app.kasa.ui.screens.SecurityScreen
 import app.kasa.ui.screens.SettingsScreen
 import app.kasa.ui.screens.VaultScreen
+import app.kasa.ui.theme.KasaMotion
 
 private const val TAB_VAULT = "vault"
 private const val TAB_GENERATE = "generate"
@@ -197,44 +201,72 @@ fun MainScaffold(
                     if (!recorded) drawContent()
                 }
         ) {
-            Box(Modifier.fillMaxSize()) {
-                when (tab) {
-                    TAB_VAULT -> VaultScreen(
-                        viewModel = vaultViewModel,
-                        settings = settings,
-                        onOpenSearch = { searchOpen = true }
-                    )
+            // Sekme geçişi yönlü: gezinti çubuğunda sağa gidildiğinde içerik de
+            // sağdan geliyor. Yön burada süs değil bilgi — kullanıcı hangi
+            // yönde ilerlediğini geçişin kendisinden okuyor ve dört sekmenin
+            // sırası zihinde bir şerit olarak kalıyor. Ani takas (eski hâl) bu
+            // sırayı hiç kurmuyordu; her sekme öncekiyle ilgisiz görünüyordu.
+            //
+            // Kayma mesafesi genişliğin altıda biri: tam genişlik kaydırmak
+            // sekme değişimini sayfa değişimi gibi gösterirdi, oysa dördü de
+            // aynı düzeyde duruyor.
+            AnimatedContent(
+                targetState = tab,
+                transitionSpec = {
+                    val forward = destinations.indexOfFirst { it.key == targetState } >=
+                        destinations.indexOfFirst { it.key == initialState }
+                    val direction = if (forward) 1 else -1
+                    (slideInHorizontally(KasaMotion.large()) { direction * it / 6 } +
+                        fadeIn(KasaMotion.enter())) togetherWith
+                        (slideOutHorizontally(KasaMotion.exit()) { -direction * it / 6 } +
+                            fadeOut(KasaMotion.exit())) using
+                        // Dört ekran da tüm alanı kaplıyor, boyutları eşit;
+                        // kırpmayı kapatmak kayan içeriğin kenarda kesilmesini
+                        // önlüyor.
+                        SizeTransform(clip = false)
+                },
+                label = "tab",
+                modifier = Modifier.fillMaxSize()
+            ) { current ->
+                Box(Modifier.fillMaxSize()) {
+                    when (current) {
+                        TAB_VAULT -> VaultScreen(
+                            viewModel = vaultViewModel,
+                            settings = settings,
+                            onOpenSearch = { searchOpen = true }
+                        )
 
-                    TAB_GENERATE -> GeneratorScreen(
-                        viewModel = generatorViewModel,
-                        settings = settings,
-                        onUseForNewEntry = { generated ->
-                            vaultViewModel.startEdit(
-                                app.kasa.data.model.VaultItem(
-                                    name = "",
-                                    password = app.kasa.core.crypto.SecretText.of(generated)
+                        TAB_GENERATE -> GeneratorScreen(
+                            viewModel = generatorViewModel,
+                            settings = settings,
+                            onUseForNewEntry = { generated ->
+                                vaultViewModel.startEdit(
+                                    app.kasa.data.model.VaultItem(
+                                        name = "",
+                                        password = app.kasa.core.crypto.SecretText.of(generated)
+                                    )
                                 )
-                            )
-                        }
-                    )
+                            }
+                        )
 
-                    TAB_SECURITY -> SecurityScreen(
-                        viewModel = securityViewModel,
-                        settings = settings,
-                        onOpenCollection = { kind ->
-                            vaultViewModel.setView(VaultFilter.Smart(kind))
-                            tab = TAB_VAULT
-                        }
-                    )
+                        TAB_SECURITY -> SecurityScreen(
+                            viewModel = securityViewModel,
+                            settings = settings,
+                            onOpenCollection = { kind ->
+                                vaultViewModel.setView(VaultFilter.Smart(kind))
+                                tab = TAB_VAULT
+                            }
+                        )
 
-                    TAB_SETTINGS -> SettingsScreen(
-                        viewModel = settingsViewModel,
-                        vaultViewModel = vaultViewModel,
-                        onOpenTrash = {
-                            vaultViewModel.setView(VaultFilter.Smart(SmartFolder.TRASH))
-                            tab = TAB_VAULT
-                        }
-                    )
+                        TAB_SETTINGS -> SettingsScreen(
+                            viewModel = settingsViewModel,
+                            vaultViewModel = vaultViewModel,
+                            onOpenTrash = {
+                                vaultViewModel.setView(VaultFilter.Smart(SmartFolder.TRASH))
+                                tab = TAB_VAULT
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -275,8 +307,14 @@ fun MainScaffold(
         AnimatedVisibility(
             // Çöp kutusundayken yeni kayıt eklemek anlamsız.
             visible = tab == TAB_VAULT && !vaultView.isTrash,
-            enter = fadeIn() + scaleIn(initialScale = 0.7f),
-            exit = fadeOut() + scaleOut(targetScale = 0.7f),
+            enter = fadeIn(KasaMotion.effect()) + scaleIn(
+                initialScale = 0.7f,
+                animationSpec = KasaMotion.medium()
+            ),
+            exit = fadeOut(KasaMotion.exit()) + scaleOut(
+                targetScale = 0.7f,
+                animationSpec = KasaMotion.exit()
+            ),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.navigationBars)
@@ -315,8 +353,14 @@ fun MainScaffold(
 
         AnimatedVisibility(
             visible = searchOpen,
-            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.96f),
-            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f)
+            enter = fadeIn(KasaMotion.enter()) + scaleIn(
+                initialScale = 0.96f,
+                animationSpec = KasaMotion.large()
+            ),
+            exit = fadeOut(KasaMotion.exit()) + scaleOut(
+                targetScale = 0.96f,
+                animationSpec = KasaMotion.exit()
+            )
         ) {
             SearchOverlay(
                 viewModel = vaultViewModel,
@@ -342,9 +386,12 @@ fun MainScaffold(
             visible = editing != null,
             enter = slideInVertically(
                 initialOffsetY = { it / 4 },
-                animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
-            ) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it / 4 }) + fadeOut()
+                animationSpec = KasaMotion.large()
+            ) + fadeIn(KasaMotion.enter()),
+            exit = slideOutVertically(
+                targetOffsetY = { it / 4 },
+                animationSpec = KasaMotion.exit()
+            ) + fadeOut(KasaMotion.exit())
         ) {
             editing?.let { item ->
                 ItemEditorScreen(
@@ -358,8 +405,8 @@ fun MainScaffold(
 
         AnimatedVisibility(
             visible = qrTarget != null,
-            enter = fadeIn(),
-            exit = fadeOut()
+            enter = fadeIn(KasaMotion.enter()),
+            exit = fadeOut(KasaMotion.exit())
         ) {
             QrScanScreen(
                 onResult = { value ->

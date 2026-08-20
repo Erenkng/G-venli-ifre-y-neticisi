@@ -1,8 +1,6 @@
 package app.kasa.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -24,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
@@ -85,9 +84,12 @@ fun SpringSlideIn(
         modifier = modifier,
         enter = slideInVertically(
             initialOffsetY = { it / 3 },
-            animationSpec = spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessMediumLow)
-        ) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { it / 3 }) + fadeOut(),
+            animationSpec = KasaMotion.medium()
+        ) + fadeIn(KasaMotion.effect()),
+        exit = slideOutVertically(
+            targetOffsetY = { it / 3 },
+            animationSpec = KasaMotion.exit()
+        ) + fadeOut(KasaMotion.exit()),
         content = { content() }
     )
 }

@@ -1,9 +1,6 @@
 package app.kasa.ui.components
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -39,11 +36,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.kasa.core.util.PasswordStrength
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
-
-private val SpatialSpring = spring<Float>(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow)
-private val SpatialDpSpring = spring<Dp>(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow)
 
 /** Gruplanmış listede bir öğenin konumu; köşe yarıçapını bu belirler. */
 enum class GroupPosition { FIRST, MIDDLE, LAST, ONLY }
@@ -78,12 +73,12 @@ fun KasaTile(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.965f else 1f, SpatialSpring, label = "tileScale")
+    val scale by animateFloatAsState(if (pressed) 0.965f else 1f, KasaMotion.small(), label = "tileScale")
     // Yarıçap animasyonları [animatedCorner] üzerinden: yaylı hareket hedefi
     // aşıyor ve gölgenin kullandığı platform Outline'ı negatif yarıçapta
     // istisna atıyor.
-    val loose = animatedCorner(KasaRadius.l, SpatialDpSpring, label = "tileLoose")
-    val tight = animatedCorner(if (pressed) KasaRadius.l else KasaRadius.xs, SpatialDpSpring, label = "tileTight")
+    val loose = animatedCorner(KasaRadius.l, label = "tileLoose")
+    val tight = animatedCorner(if (pressed) KasaRadius.l else KasaRadius.xs, label = "tileTight")
 
     Row(
         modifier = modifier
@@ -235,8 +230,8 @@ fun RecentCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, SpatialSpring, label = "recentScale")
-    val radius = animatedCorner(if (pressed) KasaRadius.l else KasaRadius.m, SpatialDpSpring, label = "recentRadius")
+    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "recentScale")
+    val radius = animatedCorner(if (pressed) KasaRadius.l else KasaRadius.m, label = "recentRadius")
 
     Column(
         modifier = modifier

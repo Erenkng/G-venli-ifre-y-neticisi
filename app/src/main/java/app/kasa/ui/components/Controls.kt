@@ -1,10 +1,8 @@
 package app.kasa.ui.components
 
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -44,20 +42,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 import kotlin.math.roundToInt
-
-/** Basıldığında küçülüp köşeleri değişen yay (spring) hareketi. */
-private val SpatialSpring = spring<Float>(
-    dampingRatio = 0.55f,
-    stiffness = Spring.StiffnessMediumLow
-)
-
-internal val SpatialDpSpring = spring<Dp>(
-    dampingRatio = 0.55f,
-    stiffness = Spring.StiffnessMediumLow
-)
 
 /**
  * Köşe yarıçapı animasyonu — sonucu asla sıfırın altına inmiyor.
@@ -86,7 +74,7 @@ internal val SpatialDpSpring = spring<Dp>(
 @Composable
 fun animatedCorner(
     target: Dp,
-    animationSpec: AnimationSpec<Dp> = SpatialDpSpring,
+    animationSpec: AnimationSpec<Dp> = KasaMotion.small(),
     label: String = "corner"
 ): Dp {
     val value by animateDpAsState(target, animationSpec, label = label)
@@ -116,7 +104,7 @@ fun KasaButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, SpatialSpring, label = "btnScale")
+    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "btnScale")
     val radius = animatedCorner(if (pressed) pressedRadius else restingRadius, label = "btnRadius")
 
     val background = when (tone) {
@@ -224,7 +212,7 @@ private fun KasaButtonShaped(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, SpatialSpring, label = "splitScale")
+    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "splitScale")
 
     Box(
         modifier = modifier
@@ -262,7 +250,7 @@ fun <T> KasaButtonGroup(
         options.forEachIndexed { index, option ->
             val isSelected = option == selected
             val neighbourPressed = pressedIndex != null && pressedIndex != index
-            val squish by animateFloatAsState(if (neighbourPressed) 0.9f else 1f, SpatialSpring, label = "squish")
+            val squish by animateFloatAsState(if (neighbourPressed) 0.9f else 1f, KasaMotion.small(), label = "squish")
 
             val shape = when {
                 isSelected -> RoundedCornerShape(KasaRadius.full)
@@ -331,7 +319,7 @@ fun KasaSwitch(
             checked -> 22.dp
             else -> 16.dp
         },
-        SpatialDpSpring, label = "thumbSize"
+        KasaMotion.small(), label = "thumbSize"
     )
     val offsetX by animateDpAsState(
         when {
@@ -339,7 +327,7 @@ fun KasaSwitch(
             checked -> 26.dp
             else -> 6.dp
         },
-        SpatialDpSpring, label = "thumbOffset"
+        KasaMotion.small(), label = "thumbOffset"
     )
     val alpha = if (enabled) 1f else 0.38f
     val trackColor = if (checked) MaterialTheme.colorScheme.primary
@@ -389,8 +377,8 @@ fun ExpressiveSlider(
     var dragging by remember { mutableStateOf(false) }
 
     val fraction = ((value - range.first).toFloat() / (range.last - range.first).toFloat()).coerceIn(0f, 1f)
-    val thumbHeight by animateDpAsState(if (dragging) 52.dp else 44.dp, SpatialDpSpring, label = "sliderThumbH")
-    val thumbWidth by animateDpAsState(if (dragging) 3.dp else 6.dp, SpatialDpSpring, label = "sliderThumbW")
+    val thumbHeight by animateDpAsState(if (dragging) 52.dp else 44.dp, KasaMotion.small(), label = "sliderThumbH")
+    val thumbWidth by animateDpAsState(if (dragging) 3.dp else 6.dp, KasaMotion.small(), label = "sliderThumbW")
 
     fun valueFor(x: Float): Int {
         val f = (x / width).coerceIn(0f, 1f)
@@ -469,7 +457,7 @@ fun KasaChip(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.92f else 1f, SpatialSpring, label = "chipScale")
+    val scale by animateFloatAsState(if (pressed) 0.92f else 1f, KasaMotion.small(), label = "chipScale")
 
     Box(
         modifier = modifier
@@ -506,7 +494,7 @@ fun KasaIconButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.86f else 1f, SpatialSpring, label = "iconScale")
+    val scale by animateFloatAsState(if (pressed) 0.86f else 1f, KasaMotion.small(), label = "iconScale")
     // Hedef "tam yuvarlak" için 999dp değil, bileşenin kendi yarısı: aralık
     // küçük kalınca yayın aşma payı da görünmez oluyor.
     val radius = animatedCorner(if (pressed) 13.dp else size / 2, label = "iconRadius")
@@ -541,7 +529,7 @@ fun RowScope.ToolbarAction(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, SpatialSpring, label = "tbScale")
+    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, KasaMotion.small(), label = "tbScale")
 
     Box(
         modifier = Modifier

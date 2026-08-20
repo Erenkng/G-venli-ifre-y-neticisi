@@ -1,6 +1,5 @@
 package app.kasa.ui.components
 
-import android.provider.Settings
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -19,29 +18,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.kasa.ui.theme.KasaTheme
+import app.kasa.ui.theme.rememberReducedMotion
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
-
-/**
- * Sistemde animasyonlar kapalıysa (erişilebilirlik ya da pil tasarrufu) sürekli
- * dönen şekilleri durdururuz. Hareketi kapatan bir kullanıcıya ekranın ortasında
- * dönen bir kadran göstermek, tasarımın niyetini bozmaktan da öte rahatsız edici.
- */
-@Composable
-fun rememberReducedMotion(): Boolean {
-    val context = LocalContext.current
-    return remember {
-        runCatching {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-        }.getOrDefault(false)
-    }
-}
 
 // ══════════════════════════════ dalgalı ilerleme ══════════════════════════════
 

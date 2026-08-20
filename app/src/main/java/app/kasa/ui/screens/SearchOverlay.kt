@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
 import app.kasa.data.SettingsStore
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.SearchTopBar
@@ -91,6 +92,9 @@ fun SearchOverlay(
                 }
             } else {
                 itemsIndexed(items = results, key = { _, item -> item.id }) { index, item ->
+                    // Her harfte sonuç kümesi değişiyor; satırların yer
+                    // değiştirmesi kayarak olursa göz aradığı kaydı takip
+                    // edebiliyor, anlık yeniden dizilimde kaybediyor.
                     VaultRow(
                         item = item,
                         position = groupPositionOf(index, results.size),
@@ -98,7 +102,12 @@ fun SearchOverlay(
                         onClick = {
                             viewModel.select(item.id)
                             onClose()
-                        }
+                        },
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = KasaMotion.effect(),
+                            placementSpec = KasaMotion.medium(),
+                            fadeOutSpec = KasaMotion.exit()
+                        )
                     )
                 }
             }

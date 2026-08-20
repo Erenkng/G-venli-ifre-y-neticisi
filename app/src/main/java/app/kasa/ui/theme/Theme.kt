@@ -167,7 +167,11 @@ fun KasaTheme(
 
     CompositionLocalProvider(
         LocalKasaColors provides kasaColors,
-        LocalKasaTextStyles provides KasaTextStyles()
+        LocalKasaTextStyles provides KasaTextStyles(),
+        // Hareket ayarı buradan aşağıya iniyor: her bileşen kendi başına
+        // sormak yerine KasaMotion üzerinden hazır cevabı alıyor ve sistemde
+        // animasyon kapalıysa bütün geçişler kendiliğinden anlık oluyor.
+        LocalReducedMotion provides rememberReducedMotion()
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
