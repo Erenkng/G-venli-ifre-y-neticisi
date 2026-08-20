@@ -422,4 +422,20 @@
 
     <!-- Schema -->
     <string name="vault_too_new">This vault was created by a newer version of the app. It was not opened, to avoid losing data — please update.</string>
+
+    <!-- Passkeys -->
+    <string name="smart_passkeys">Passkeys</string>
+    <string name="passkey_provider_subtitle">Keep your passkeys in Kasa</string>
+    <string name="passkey_unlock_action">Unlock Kasa</string>
+    <string name="passkey_unlock_title">Vault locked</string>
+    <string name="passkey_unlock_body">Unlock the vault to see your passkeys.</string>
+    <string name="passkey_create_title">Create passkey?</string>
+    <string name="passkey_create_body">A passkey for %2$s on %1$s will be stored in Kasa.</string>
+    <string name="passkey_create_confirm">Create</string>
+    <string name="passkey_count">%1$d passkeys</string>
+    <string name="passkey_section">Passkeys</string>
+    <string name="passkey_remove">Delete passkey</string>
+    <string name="passkey_removed">Passkey deleted</string>
+    <string name="passkey_remove_body">The passkey for %1$s will be deleted. This cannot be undone: you will not be able to sign in with it again until you create a new passkey on the site.</string>
+    <string name="passkey_created_at">Created on %1$s</string>
 </resources>

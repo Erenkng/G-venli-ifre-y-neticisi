@@ -1,7 +1,11 @@
 package app.kasa.data.repo
 
 import android.content.Context
+import app.kasa.core.crypto.AeadSuite
+import app.kasa.core.crypto.Kdf
+import app.kasa.core.crypto.KdfCalibration
 import app.kasa.core.crypto.SecretBytes
+import app.kasa.core.crypto.SecretText
 import app.kasa.core.security.SecureClipboard
 import app.kasa.data.SettingsStore
 import app.kasa.data.VaultStore
@@ -11,6 +15,7 @@ import app.kasa.data.model.Attachment
 import app.kasa.data.model.Category
 import app.kasa.data.model.CategorySchema
 import app.kasa.data.model.Folder
+import app.kasa.data.model.Passkey
 import app.kasa.data.model.PasswordHistoryEntry
 import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultData
@@ -76,15 +81,32 @@ class VaultRepository(
 
     // ------------------------------------------------------------- kurulum
 
-    suspend fun createVault(masterPassword: CharArray): Result<String> = withContext(Dispatchers.IO) {
+    /**
+     * Sıfırdan kasa kurar.
+     *
+     * İlk iş cihazı ölçmek: anahtar türetme maliyeti ve şifreleme paketi sabit
+     * değil, bu telefonda ölçülüp bulunuyor ve kasa başlığına yazılıyor. Sabit
+     * bir parametre amiral gemisinde gereksiz zayıf, dört yıllık orta segment
+     * bir telefonda kullanılamaz yavaş kalırdı; ikisi de yanlış cevap.
+     *
+     * Ölçüm birkaç saniye sürüyor, bu yüzden [onProgress] ilerlemeyi bildiriyor.
+     */
+    suspend fun createVault(
+        masterPassword: CharArray,
+        onProgress: (Float) -> Unit = {}
+    ): Result<String> = withContext(Dispatchers.IO) {
         mutex.withLock {
             runCatching {
+                val calibration = KdfCalibration.calibrate(context) { onProgress(it * 0.85f) }
+                val cipherSuite = AeadSuite.fastest()
+                onProgress(0.9f)
                 SecretBytes.ofUtf8(masterPassword).use { secret ->
-                    val created = store.createVault(secret)
+                    val created = store.createVault(secret, calibration.params, cipherSuite)
                     vaultKey = created.vaultKey
                     _data.value = store.readVault(created.vaultKey)
                     _lockState.value = LockState.Unlocked
                     _pendingRecoveryCode.value = created.recoveryCode
+                    onProgress(1f)
                     created.recoveryCode
                 }
             }.also { masterPassword.fill('\u0000') }
@@ -173,6 +195,7 @@ class VaultRepository(
     fun lock() {
         vaultKey?.wipe()
         vaultKey = null
+        shredSecrets(_data.value)
         _data.value = VaultData()
         _pendingRecoveryCode.value = null
         _lockState.value = if (store.vaultExists()) LockState.Locked else LockState.NeedsSetup
@@ -183,10 +206,31 @@ class VaultRepository(
     private fun hardReset() {
         vaultKey?.wipe()
         vaultKey = null
+        shredSecrets(_data.value)
         _data.value = VaultData()
         _pendingRecoveryCode.value = null
         _lockState.value = LockState.NeedsSetup
         scope.launch { settings.clear() }
+    }
+
+    /**
+     * Açık kasadaki her gizli metni sıfırlar.
+     *
+     * Kilit kapandığı anda bellekte okunabilir tek bir parola kalmaması bu
+     * çağrıya bağlı. [SecretText] örnekleri kayıt kopyaları arasında
+     * paylaşıldığı için bir kez silmek yeter; çöp toplayıcının ne zaman
+     * çalışacağını beklemek zorunda değiliz.
+     *
+     * Silinen değer okunmaya çalışılırsa boş dizge döner — kilitlenme anında
+     * hâlâ çizilmekte olan bir ekranın çökmemesi için bilinçli bir seçim.
+     */
+    private fun shredSecrets(data: VaultData) {
+        data.items.forEach { item ->
+            item.password.wipe()
+            item.history.forEach { it.password.wipe() }
+            item.passkeys.forEach { it.privateKey.wipe() }
+        }
+        data.generatorHistory.forEach { it.wipe() }
     }
 
     // ------------------------------------------------------------ biyometri
@@ -223,6 +267,7 @@ class VaultRepository(
                 // ayrı işlemlerle yönetilir. Formun taşıdığı eski kopya bunları
                 // ezmemeli, yoksa düzenleme sırasında eklenen dosya kaybolur.
                 attachments = existing.attachments,
+                passkeys = existing.passkeys,
                 deletedAt = existing.deletedAt,
                 history = if (passwordChanged && existing.password.isNotBlank()) {
                     (listOf(PasswordHistoryEntry(existing.password, existing.passwordChangedAt)) + existing.history)
@@ -399,7 +444,11 @@ class VaultRepository(
         ByteArray(hex.length / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
     suspend fun addGeneratorHistory(value: String): Boolean = mutate { current ->
-        current.copy(generatorHistory = (listOf(value) + current.generatorHistory).distinct().take(MAX_GENERATOR_HISTORY))
+        val entry = SecretText.of(value)
+        val merged = (listOf(entry) + current.generatorHistory).distinct().take(MAX_GENERATOR_HISTORY)
+        // Listeden düşen üretilmiş parolalar bellekte asılı kalmasın.
+        current.generatorHistory.filterNot { it in merged }.forEach { it.wipe() }
+        current.copy(generatorHistory = merged)
     }
 
     suspend fun clearGeneratorHistory(): Boolean = mutate { it.copy(generatorHistory = emptyList()) }
@@ -460,6 +509,185 @@ class VaultRepository(
             runCatching { store.regenerateRecoveryKey(key) }.getOrNull()
         }
     }
+
+
+    // --------------------------------------------------- kriptografi bakımı
+
+    /**
+     * Bu kasanın diskteki kriptografik ayarları. Ayarlar ekranı gösteriyor.
+     *
+     * Kilit açık olmasa da okunabilir: bu değerler gizli değil, dosya
+     * başlığında düz duruyorlar ve başlık kimlik doğrulamalı verinin parçası
+     * olduğu için kurcalanamıyorlar.
+     */
+    class CryptoProfile(val kdf: Kdf.Params?, val suite: AeadSuite) {
+        val kdfName: String
+            get() = when (kdf?.algorithm) {
+                Kdf.ALG_ARGON2ID -> "Argon2id"
+                Kdf.ALG_PBKDF2_SHA512 -> "PBKDF2-SHA512"
+                else -> "?"
+            }
+
+        /** "64 MiB · 3 tur" ya da PBKDF2 için "600.000 tur". */
+        val costLabel: String
+            get() = when {
+                kdf == null -> ""
+                kdf.algorithm == Kdf.ALG_ARGON2ID -> "${kdf.memoryKib / 1024} MiB · ${kdf.iterations}"
+                else -> kdf.iterations.toString()
+            }
+    }
+
+    fun cryptoProfile(): CryptoProfile =
+        CryptoProfile(store.currentKdfParams(), store.peekSuiteOnDisk() ?: store.suite)
+
+    /**
+     * Anahtar türetme maliyetini bu cihazda yeniden ölçer ve ana parola
+     * sarmalayıcısını yeni maliyetle yazar.
+     *
+     * Neden gerekiyor: kasa eski, yavaş bir telefonda kurulup yenisine
+     * taşındığında maliyet olduğu yerde kalıyor — yeni cihaz aynı işi çok daha
+     * hızlı yapıyor, yani çevrimdışı saldırgan da öyle. Ölçümü tekrarlamak
+     * korumayı cihazın bugünkü gücüne geri bağlıyor.
+     *
+     * Yalnızca ana parola sarmalayıcısına dokunuyor. Kurtarma sarmalayıcısı
+     * kurtarma koduyla açıldığı için buradan yeniden yazılamaz; onu tazelemek
+     * isteyen kullanıcı kurtarma anahtarını yeniler.
+     */
+    suspend fun recalibrateKdf(
+        masterPassword: CharArray,
+        onProgress: (Float) -> Unit = {}
+    ): KdfCalibration.Result? = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            try {
+                val calibration = KdfCalibration.calibrate(context, onProgress = onProgress)
+                val ok = SecretBytes.ofUtf8(masterPassword).use { secret ->
+                    SecretBytes.ofUtf8(masterPassword).use { same ->
+                        store.changeMasterPassword(secret, same, calibration.params)
+                    }
+                }
+                if (ok) calibration else null
+            } catch (t: Throwable) {
+                null
+            } finally {
+                masterPassword.fill(0.toChar())
+            }
+        }
+    }
+
+    /**
+     * Kasa anahtarının kendisini yeniler: yeni anahtar, baştan şifrelenmiş
+     * kasa, yeniden yazılmış sarmalayıcılar.
+     *
+     * Ana parola değişimi bunu yapmıyordu — yalnızca sarmalayıcıyı tazeliyor,
+     * kasa anahtarı kurulumdan beri aynı kalıyordu. Eski bir yedek dosyası ya
+     * da eski bir cihaz görüntüsü ele geçmişse fark burada ortaya çıkıyor:
+     * parola değişimi o kopyayı korumasız bırakır, rotasyon işe yaramaz kılar.
+     *
+     * Dönen değer yeni kurtarma kodu; eski kod artık geçersiz. Biyometrik
+     * sarmalayıcı da silinir, kullanıcı yeniden kurmak zorunda.
+     */
+    suspend fun rotateVaultKey(masterPassword: CharArray): String? = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            try {
+                val rotation = SecretBytes.ofUtf8(masterPassword).use { secret ->
+                    store.rotateVaultKey(secret)
+                } ?: return@withLock null
+
+                // Açık kasa yeni anahtarla devam ediyor; eski anahtar siliniyor.
+                vaultKey?.wipe()
+                vaultKey = rotation.vaultKey
+                _data.value = store.readVault(rotation.vaultKey)
+                _lockState.value = LockState.Unlocked
+                rotation.recoveryCode
+            } catch (t: Throwable) {
+                null
+            } finally {
+                masterPassword.fill(0.toChar())
+            }
+        }
+    }
+
+    // ------------------------------------------------------------- passkey
+
+    /** Bir alan adı için kasadaki passkey'ler, sahibi olan kayıtla birlikte. */
+    fun passkeysFor(rpId: String): List<Pair<VaultItem, Passkey>> {
+        val wanted = rpId.lowercase()
+        return _data.value.liveItems.flatMap { item ->
+            item.passkeys
+                .filter { it.rpId.equals(wanted, ignoreCase = true) }
+                .map { item to it }
+        }.sortedByDescending { it.second.lastUsedAt }
+    }
+
+    fun findPasskey(credentialId: String): Pair<VaultItem, Passkey>? =
+        _data.value.liveItems.firstNotNullOfOrNull { item ->
+            item.passkeys.firstOrNull { it.credentialId == credentialId }?.let { item to it }
+        }
+
+    /**
+     * Yeni passkey'i kasaya yazar.
+     *
+     * Aynı alan adı için bir kayıt zaten varsa passkey oraya iliştiriliyor;
+     * yoksa alan adının adını taşıyan yeni bir kayıt açılıyor. Amaç, aynı site
+     * için parola ve passkey'in ayrı iki satıra dağılmaması.
+     */
+    suspend fun addPasskey(passkey: Passkey): Boolean = mutate { current ->
+        val host = passkey.rpId.lowercase()
+        val owner = current.items.firstOrNull { !it.inTrash && it.host() == host }
+            ?: current.items.firstOrNull { !it.inTrash && it.name.equals(passkey.rpName, ignoreCase = true) }
+
+        if (owner != null) {
+            val updated = owner.copy(
+                passkeys = owner.passkeys.filterNot { it.credentialId == passkey.credentialId } + passkey,
+                updatedAt = System.currentTimeMillis()
+            )
+            current.copy(items = current.items.map { if (it.id == updated.id) updated else it })
+        } else {
+            val created = VaultItem(
+                name = passkey.rpName.ifBlank { passkey.rpId },
+                category = Category.LOGIN,
+                username = passkey.userName,
+                url = passkey.rpId,
+                passkeys = listOf(passkey)
+            )
+            current.copy(items = current.items + created)
+        }
+    }
+
+    /** Passkey kullanıldı: kayıt "son kullanılanlar" listesinde öne çıksın. */
+    suspend fun touchPasskey(credentialId: String): Boolean = mutate { current ->
+        val now = System.currentTimeMillis()
+        current.copy(
+            items = current.items.map { item ->
+                if (item.passkeys.none { it.credentialId == credentialId }) item
+                else item.copy(
+                    lastUsedAt = now,
+                    passkeys = item.passkeys.map {
+                        if (it.credentialId == credentialId) it.copy(lastUsedAt = now) else it
+                    }
+                )
+            }
+        )
+    }
+
+    suspend fun removePasskey(itemId: String, credentialId: String): Boolean = mutate { current ->
+        current.copy(
+            items = current.items.map { item ->
+                if (item.id != itemId) item
+                else {
+                    item.passkeys.firstOrNull { it.credentialId == credentialId }?.privateKey?.wipe()
+                    item.copy(
+                        passkeys = item.passkeys.filterNot { it.credentialId == credentialId },
+                        updatedAt = System.currentTimeMillis()
+                    )
+                }
+            }
+        )
+    }
+
+    /** Kasadaki tüm passkey'ler; ayarlar ve kurallı görünüm için. */
+    fun allPasskeys(): List<Pair<VaultItem, Passkey>> =
+        _data.value.liveItems.flatMap { item -> item.passkeys.map { item to it } }
 
     suspend fun exportVault(exportPassword: CharArray): ByteArray? = withContext(Dispatchers.IO) {
         try {
@@ -536,6 +764,7 @@ class VaultRepository(
      *  ekranındaki bulgular ve buradaki görünümler aynı tanımı kullanmalı. */
     private fun matchesSmart(item: VaultItem, kind: SmartFolder): Boolean = when (kind) {
         SmartFolder.FAVORITES -> item.favorite
+        SmartFolder.PASSKEYS -> item.hasPasskey
         SmartFolder.LEAKED -> item.breached
         SmartFolder.REUSED -> item.password.isNotBlank() && reusedPasswords().contains(item.password)
         SmartFolder.WEAK -> item.primarySecret.isNotBlank() &&
@@ -547,7 +776,7 @@ class VaultRepository(
         SmartFolder.TRASH -> item.inTrash
     }
 
-    private fun reusedPasswords(): Set<String> =
+    private fun reusedPasswords(): Set<SecretText> =
         _data.value.liveItems
             .filter { it.password.isNotBlank() }
             .groupingBy { it.password }

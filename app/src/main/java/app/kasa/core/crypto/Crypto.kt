@@ -48,27 +48,39 @@ object Crypto {
     fun secretKey(key: ByteArray): SecretKey = SecretKeySpec(key, "AES")
 
     /**
-     * [plain] verisini şifreler. Dönen dizi: nonce (12 bayt) + şifreli metin + etiket.
+     * [plain] verisini [suite] ile şifreler.
+     * Dönen dizi: nonce + şifreli metin + etiket.
      */
-    fun seal(key: ByteArray, plain: ByteArray, aad: ByteArray? = null): ByteArray {
-        require(key.size == KEY_BYTES) { "AES-256 için 32 baytlık anahtar gerekir" }
-        val nonce = randomBytes(GCM_NONCE_BYTES)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey(key), GCMParameterSpec(GCM_TAG_BITS, nonce))
-        aad?.let { cipher.updateAAD(it) }
-        val body = cipher.doFinal(plain)
-        return nonce + body
-    }
+    fun seal(
+        key: ByteArray,
+        plain: ByteArray,
+        aad: ByteArray? = null,
+        suite: AeadSuite = AeadSuite.DEFAULT
+    ): ByteArray = suite.seal(key, plain, aad)
 
     /**
      * [sealed] verisini çözer. Etiket doğrulaması başarısızsa istisna fırlatır —
      * bu, yanlış ana parolanın da tek göstergesidir.
      */
-    fun open(key: ByteArray, sealed: ByteArray, aad: ByteArray? = null): ByteArray {
+    fun open(
+        key: ByteArray,
+        sealed: ByteArray,
+        aad: ByteArray? = null,
+        suite: AeadSuite = AeadSuite.DEFAULT
+    ): ByteArray = suite.open(key, sealed, aad)
+
+    // ── paket uygulamaları: doğrudan çağrılmaz, AeadSuite üzerinden gelinir ──
+
+    internal fun aesGcmSeal(key: ByteArray, nonce: ByteArray, plain: ByteArray, aad: ByteArray?): ByteArray {
         require(key.size == KEY_BYTES) { "AES-256 için 32 baytlık anahtar gerekir" }
-        require(sealed.size > GCM_NONCE_BYTES + GCM_TAG_BITS / 8) { "Şifreli veri çok kısa" }
-        val nonce = sealed.copyOfRange(0, GCM_NONCE_BYTES)
-        val body = sealed.copyOfRange(GCM_NONCE_BYTES, sealed.size)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey(key), GCMParameterSpec(GCM_TAG_BITS, nonce))
+        aad?.let { cipher.updateAAD(it) }
+        return cipher.doFinal(plain)
+    }
+
+    internal fun aesGcmOpen(key: ByteArray, nonce: ByteArray, body: ByteArray, aad: ByteArray?): ByteArray {
+        require(key.size == KEY_BYTES) { "AES-256 için 32 baytlık anahtar gerekir" }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, secretKey(key), GCMParameterSpec(GCM_TAG_BITS, nonce))
         aad?.let { cipher.updateAAD(it) }
@@ -104,4 +116,10 @@ object Crypto {
     }
 
     fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
+
+    /** [hex] karşılığı. Geçersiz girdi `null` döner; istisna fırlatmaz. */
+    fun fromHex(text: String): ByteArray? = runCatching {
+        require(text.length % 2 == 0) { "Tek uzunlukta onaltılık dizge" }
+        ByteArray(text.length / 2) { text.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+    }.getOrNull()
 }

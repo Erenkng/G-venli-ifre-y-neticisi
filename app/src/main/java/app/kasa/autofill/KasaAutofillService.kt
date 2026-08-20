@@ -16,6 +16,7 @@ import android.view.autofill.AutofillValue
 import android.widget.RemoteViews
 import app.kasa.KasaApplication
 import app.kasa.R
+import app.kasa.core.crypto.SecretText
 import app.kasa.data.model.Category
 import app.kasa.data.model.VaultItem
 import kotlinx.coroutines.CoroutineScope
@@ -120,7 +121,7 @@ class KasaAutofillService : AutofillService() {
             }
             val dataset = Dataset.Builder().apply {
                 parsed.usernameId?.let { setValue(it, AutofillValue.forText(item.username), presentation) }
-                parsed.passwordId?.let { setValue(it, AutofillValue.forText(item.password), presentation) }
+                parsed.passwordId?.let { setValue(it, AutofillValue.forText(item.password.reveal()), presentation) }
             }.build()
             builder.addDataset(dataset)
         }
@@ -183,7 +184,7 @@ class KasaAutofillService : AutofillService() {
                     name = name,
                     category = Category.LOGIN,
                     username = username,
-                    password = password,
+                    password = SecretText.of(password),
                     url = parsed.webDomain.orEmpty(),
                     tags = listOfNotNull(parsed.packageName)
                 )

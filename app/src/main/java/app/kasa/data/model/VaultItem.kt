@@ -1,6 +1,7 @@
 package app.kasa.data.model
 
 import app.kasa.core.crypto.Crypto
+import app.kasa.core.crypto.SecretText
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -42,7 +43,7 @@ data class CustomField(
 
 @Serializable
 data class PasswordHistoryEntry(
-    val password: String,
+    val password: SecretText,
     val changedAt: Long
 )
 
@@ -85,7 +86,7 @@ data class Folder(
  * bulguları gezilebilir kılan şey bunlar: "3 parola sızıntıda" artık bir sayı
  * değil, dokunulabilen bir liste.
  */
-enum class SmartFolder { FAVORITES, LEAKED, REUSED, WEAK, OLD, NO_2FA, TRASH }
+enum class SmartFolder { FAVORITES, PASSKEYS, LEAKED, REUSED, WEAK, OLD, NO_2FA, TRASH }
 
 /** Kasa listesinin etkin görünümü. */
 sealed interface VaultFilter {
@@ -111,7 +112,7 @@ data class VaultItem(
     val name: String,
     val category: Category = Category.LOGIN,
     val username: String = "",
-    val password: String = "",
+    val password: SecretText = SecretText.EMPTY,
     val url: String = "",
     val notes: String = "",
     /** RFC 4648 Base32 TOTP gizli anahtarı. */
@@ -128,6 +129,7 @@ data class VaultItem(
     val tags: List<String> = emptyList(),
     val customFields: List<CustomField> = emptyList(),
     val attachments: List<Attachment> = emptyList(),
+    val passkeys: List<Passkey> = emptyList(),
     val folderId: String? = null,
     val favorite: Boolean = false,
     /** 0 = kasada; >0 = çöp kutusunda, silinme anı. */
@@ -153,10 +155,13 @@ data class VaultItem(
     val primarySecret: String
         get() = when {
             category.schemaDriven -> CategorySchema.primaryValue(this)
-            category == Category.CARD -> cardNumber.ifBlank { password }
-            category == Category.NOTE -> notes.ifBlank { password }
-            else -> password
+            category == Category.CARD -> cardNumber.ifBlank { password.reveal() }
+            category == Category.NOTE -> notes.ifBlank { password.reveal() }
+            else -> password.reveal()
         }
+
+    /** Bu kayıt yalnızca passkey taşıyor mu? Liste rozetini bu belirliyor. */
+    val hasPasskey: Boolean get() = passkeys.isNotEmpty()
 
     /** Kayıt listesinde adın altında görünen ikincil satır. */
     fun subtitle(): String = when {
@@ -193,7 +198,7 @@ data class VaultData(
     val items: List<VaultItem> = emptyList(),
     val folders: List<Folder> = emptyList(),
     /** Üreticide son üretilenler; parolalar burada da şifreli blob içindedir. */
-    val generatorHistory: List<String> = emptyList(),
+    val generatorHistory: List<SecretText> = emptyList(),
     val lastScanAt: Long = 0L,
     val createdAt: Long = System.currentTimeMillis()
 ) {

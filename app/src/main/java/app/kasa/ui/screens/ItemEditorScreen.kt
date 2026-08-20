@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
+import app.kasa.core.crypto.SecretText
 import app.kasa.core.util.PasswordGenerator
 import app.kasa.core.util.PasswordStrength
 import app.kasa.core.util.Totp
@@ -101,7 +102,7 @@ fun ItemEditorScreen(
 
     val isNew = !viewModel.isExisting(initial.id)
     val nameError = nameTouched && item.name.isBlank()
-    val strength = if (item.password.isBlank()) null else PasswordStrength.evaluate(item.password)
+    val strength = if (item.password.isBlank()) null else PasswordStrength.evaluate(item.password.reveal())
 
     Column(
         modifier = modifier
@@ -174,8 +175,8 @@ fun ItemEditorScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     PasswordEditor(
-                        value = item.password,
-                        onValueChange = { item = item.copy(password = it) },
+                        value = item.password.reveal(),
+                        onValueChange = { item = item.copy(password = SecretText.of(it)) },
                         revealed = revealed,
                         onToggleReveal = { revealed = !revealed },
                         strength = strength

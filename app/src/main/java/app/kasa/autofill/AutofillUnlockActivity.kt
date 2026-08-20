@@ -145,7 +145,7 @@ class AutofillUnlockActivity : FragmentActivity() {
         }
         return Dataset.Builder().apply {
             parsed.usernameId?.let { setValue(it, AutofillValue.forText(item.username), presentation) }
-            parsed.passwordId?.let { setValue(it, AutofillValue.forText(item.password), presentation) }
+            parsed.passwordId?.let { setValue(it, AutofillValue.forText(item.password.reveal()), presentation) }
         }.build()
     }
 

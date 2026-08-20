@@ -421,10 +421,10 @@ private fun LoginFields(
     if (item.password.isNotBlank()) {
         SecretFieldBlock(
             label = stringResource(R.string.field_password),
-            value = item.password,
+            value = item.password.reveal(),
             revealed = revealed,
             onToggleReveal = onToggleReveal,
-            onCopy = { viewModel.copySecret(item.password, settings.clipboardClearSeconds) }
+            onCopy = { viewModel.copySecret(item.password.reveal(), settings.clipboardClearSeconds) }
         )
     }
 

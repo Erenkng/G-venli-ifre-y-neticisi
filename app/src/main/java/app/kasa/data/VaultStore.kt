@@ -1,6 +1,7 @@
 package app.kasa.data
 
 import android.content.Context
+import app.kasa.core.crypto.AeadSuite
 import app.kasa.core.crypto.Base32
 import app.kasa.core.crypto.Crypto
 import app.kasa.core.crypto.Kdf
@@ -9,6 +10,8 @@ import app.kasa.core.crypto.RecoveryKey
 import app.kasa.core.crypto.SecretBytes
 import app.kasa.data.model.VaultData
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.json.encodeToStream
 import kotlinx.serialization.json.jsonObject
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -53,10 +56,29 @@ class VaultStore(private val context: Context) {
     /** Ek dosyaları: her biri kendi anahtarıyla ayrı ayrı şifreli. */
     private val attachmentDir get() = File(dir, "att").apply { if (!exists()) mkdirs() }
 
+    /** Yarım kalmış anahtar rotasyonunun izi. */
+    private val rotationMarker get() = File(dir, "rotation.pending")
+
+    /**
+     * Bu kasanın şifreleme paketi. Dosya başlığından okunur; sonraki yazmalar
+     * aynı paketi kullanır, yoksa kasa her kaydetmede biçim değiştirirdi.
+     */
+    @Volatile
+    private var activeSuite: AeadSuite? = null
+
+    val suite: AeadSuite get() = activeSuite ?: AeadSuite.DEFAULT
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
         prettyPrint = false
+    }
+
+    init {
+        // Cihaz rotasyonun ortasında kapandıysa dosyalar yarım kalmış olabilir;
+        // kasayı açmayı denemeden önce iş bitirilir.
+        runCatching { completePendingRotation() }
+        runCatching { activeSuite = peekSuiteOnDisk() }
     }
 
     // ------------------------------------------------------------------ durum
@@ -70,6 +92,46 @@ class VaultStore(private val context: Context) {
     /** Ana parolanın en son ne zaman değiştiğini verir (sarmalayıcının yaşı). */
     fun masterKeyChangedAt(): Long = masterKeyFile.lastModified()
 
+    /**
+     * Kasa dosyasının başlığındaki şifreleme paketini anahtar olmadan okur.
+     *
+     * Başlık kimlik doğrulamalı verinin (AAD) parçası olduğu için kurcalanamaz;
+     * kilit açılmadan da güvenle gösterilebilir. Ayarlar ekranı bunu kullanıyor.
+     */
+    fun peekSuiteOnDisk(): AeadSuite? = runCatching {
+        if (!vaultFile.exists()) return@runCatching null
+        val head = ByteArray(MAGIC_LEN + 2)
+        vaultFile.inputStream().use { stream ->
+            if (stream.read(head) != head.size) return@runCatching null
+        }
+        if (!head.copyOfRange(0, MAGIC_LEN).contentEquals(MAGIC_VAULT)) return@runCatching null
+        when (val version = head[MAGIC_LEN].toInt()) {
+            FORMAT_VERSION_LEGACY -> AeadSuite.AES_256_GCM
+            else -> if (version >= FORMAT_VERSION) AeadSuite.fromId(head[MAGIC_LEN + 1]) else null
+        }
+    }.getOrNull()
+
+    /**
+     * Ana parola sarmalayıcısının başlığındaki anahtar türetme parametreleri.
+     *
+     * Ölçümle bulunan maliyet burada duruyor; parola değiştirirken ya da
+     * kurtarma anahtarını yenilerken yeniden ölçmek yerine bu okunuyor.
+     * Yeniden ölçüm saniyeler sürüyor ve sonucu da zaten aynı olurdu.
+     */
+    fun currentKdfParams(): Kdf.Params? = runCatching {
+        val blob = masterKeyFile.readBytes()
+        val input = DataInputStream(ByteArrayInputStream(blob))
+        val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
+        require(magic.contentEquals(MAGIC_MASTER)) { "Bozuk anahtar dosyası" }
+        val version = input.readByte().toInt()
+        readSuite(input, version)
+        Kdf.Params.readFrom(input)
+    }.getOrNull()
+
+    /** Sonraki yazmalarda kullanılacak parametreler: aynı maliyet, taze tuz. */
+    private fun inheritedParams(): Kdf.Params =
+        currentKdfParams()?.withFreshSalt() ?: Kdf.defaultParams()
+
     // ------------------------------------------------------------- oluşturma
 
     class NewVault(val vaultKey: SecretBytes, val recoveryCode: String)
@@ -78,18 +140,33 @@ class VaultStore(private val context: Context) {
      * Sıfırdan kasa kurar. Ağırdır (Argon2id), arka planda çağır.
      * Dönen kurtarma kodu bir daha üretilemez.
      */
-    fun createVault(masterPassword: SecretBytes): NewVault {
+    /**
+     * @param params ölçümle bulunmuş anahtar türetme parametreleri.
+     *        Verilmezse sabit varsayılanlara düşülür — ama kurulum akışı her
+     *        zaman [KdfCalibration] sonucunu geçirmeli, sabit değer bu cihazda
+     *        ya gereksiz zayıf ya da kullanılamaz yavaş olur.
+     * @param cipherSuite ölçümle seçilmiş şifreleme paketi.
+     */
+    fun createVault(
+        masterPassword: SecretBytes,
+        params: Kdf.Params = Kdf.defaultParams(),
+        cipherSuite: AeadSuite = AeadSuite.DEFAULT
+    ): NewVault {
         check(!vaultExists()) { "Kasa zaten var" }
+        activeSuite = cipherSuite
         val vaultKey = SecretBytes.random(Crypto.KEY_BYTES)
 
-        writeWrappedKey(masterKeyFile, MAGIC_MASTER, masterPassword, vaultKey, Kdf.defaultParams())
+        writeWrappedKey(masterKeyFile, MAGIC_MASTER, masterPassword, vaultKey, params, cipherSuite)
 
         val recoveryCode = RecoveryKey.generate()
         RecoveryKey.toSecret(recoveryCode)!!.use { secret ->
-            writeWrappedKey(recoveryKeyFile, MAGIC_RECOVERY, secret, vaultKey, Kdf.defaultParams())
+            writeWrappedKey(
+                recoveryKeyFile, MAGIC_RECOVERY, secret, vaultKey,
+                params.withFreshSalt(), cipherSuite
+            )
         }
 
-        writeVault(vaultKey, VaultData())
+        writeVaultTo(vaultFile, vaultKey, VaultData(), cipherSuite)
         resetAttempts()
         return NewVault(vaultKey, recoveryCode)
     }
@@ -213,71 +290,229 @@ class VaultStore(private val context: Context) {
      * Ana parolayı değiştirir. Kasa anahtarı aynı kalır, yalnızca sarmalayıcı
      * yeni tuz ve yeni KEK ile baştan yazılır.
      */
-    fun changeMasterPassword(current: SecretBytes, new: SecretBytes): Boolean {
+    fun changeMasterPassword(
+        current: SecretBytes,
+        new: SecretBytes,
+        params: Kdf.Params = inheritedParams()
+    ): Boolean {
         val key = try {
             openWrappedKey(masterKeyFile, MAGIC_MASTER, current)
         } catch (t: Throwable) {
             return false
         }
         key.use {
-            writeWrappedKey(masterKeyFile, MAGIC_MASTER, new, it, Kdf.defaultParams())
+            writeWrappedKey(masterKeyFile, MAGIC_MASTER, new, it, params)
         }
         resetAttempts()
         return true
     }
 
     /** Kurtarma anahtarını yeniler ve yeni kodu döndürür. */
-    fun regenerateRecoveryKey(vaultKey: SecretBytes): String {
+    fun regenerateRecoveryKey(vaultKey: SecretBytes, params: Kdf.Params = inheritedParams()): String {
         val code = RecoveryKey.generate()
         RecoveryKey.toSecret(code)!!.use { secret ->
-            writeWrappedKey(recoveryKeyFile, MAGIC_RECOVERY, secret, vaultKey, Kdf.defaultParams())
+            writeWrappedKey(recoveryKeyFile, MAGIC_RECOVERY, secret, vaultKey, params)
         }
         return code
     }
 
+    // ------------------------------------------------------- anahtar rotasyonu
+
+    class Rotation(val vaultKey: SecretBytes, val recoveryCode: String)
+
+    /**
+     * Kasa anahtarının kendisini yeniler.
+     *
+     * Ana parola değişimi yalnızca sarmalayıcıyı yeniliyordu; kasa anahtarı
+     * kurulumdan beri aynıydı. Cihaz kaybı ya da yedek dosyasının sızması gibi
+     * durumlarda gereken şey bu değil: eski anahtarı ele geçirmiş biri, eski
+     * kopyayı sonsuza dek açabilir. Rotasyon yeni bir anahtar üretip kasayı
+     * baştan şifreler ve üç sarmalayıcıyı da yeniden yazar — eski kopya bir
+     * daha hiçbir işe yaramaz.
+     *
+     * ### Yarıda kesilmeye karşı
+     *
+     * Tehlike, üç dosyanın birbiriyle tutarlı olmasında: yeni anahtarla yazılmış
+     * bir kasa, eski anahtarı saran bir `master.key` ile birlikte kaldığında
+     * kasa hiç açılamaz. Bu yüzden önce bütün yeni dosyalar `.new` uzantısıyla
+     * yazılır, sonra bir işaret dosyası konur, ancak ondan sonra yeniden
+     * adlandırma yapılır. Süreç arada ölürse [completePendingRotation] açılışta
+     * kalanları tamamlar; işlem tekrarlanabilir olduğu için iki kez çalışması
+     * da zarar vermez.
+     *
+     * Biyometrik sarmalayıcı silinir: içindeki eski kasa anahtarı artık geçersiz
+     * ve Keystore anahtarı kullanıcı doğrulaması istediği için burada sessizce
+     * yeniden yazılamaz. Kullanıcı biyometriyi bir kez daha kurmak zorunda.
+     */
+    fun rotateVaultKey(
+        masterPassword: SecretBytes,
+        params: Kdf.Params = inheritedParams(),
+        cipherSuite: AeadSuite = suite
+    ): Rotation? {
+        val oldKey = try {
+            openWrappedKey(masterKeyFile, MAGIC_MASTER, masterPassword)
+        } catch (t: Throwable) {
+            return null
+        }
+
+        return oldKey.use { current ->
+            val data = readVaultFrom(vaultFile, current)
+            val newKey = SecretBytes.random(Crypto.KEY_BYTES)
+            val recoveryCode = RecoveryKey.generate()
+
+            // 1. Yeni hâli yan dosyalara yaz. Bu aşamada diskteki kasa hâlâ
+            //    tutarlı ve eski anahtarla açılabilir durumda.
+            activeSuite = cipherSuite
+            writeVaultTo(File(vaultFile.path + NEW_SUFFIX), newKey, data, cipherSuite)
+            writeWrappedKey(
+                File(masterKeyFile.path + NEW_SUFFIX), MAGIC_MASTER,
+                masterPassword, newKey, params, cipherSuite
+            )
+            RecoveryKey.toSecret(recoveryCode)!!.use { secret ->
+                writeWrappedKey(
+                    File(recoveryKeyFile.path + NEW_SUFFIX), MAGIC_RECOVERY,
+                    secret, newKey, params.withFreshSalt(), cipherSuite
+                )
+            }
+
+            // 2. İşaret koy: buradan sonrası tamamlanmak zorunda.
+            rotationMarker.writeBytes(ByteArray(0))
+
+            // 3. Devral.
+            completePendingRotation()
+            resetAttempts()
+            Rotation(newKey, recoveryCode)
+        }
+    }
+
+    /**
+     * Yarım kalmış rotasyonu tamamlar. Açılışta çağrılır; işaret yoksa hiçbir
+     * şey yapmaz.
+     */
+    fun completePendingRotation() {
+        if (!rotationMarker.exists()) return
+        listOf(vaultFile, masterKeyFile, recoveryKeyFile).forEach { target ->
+            val staged = File(target.path + NEW_SUFFIX)
+            if (staged.exists()) {
+                target.delete()
+                staged.renameTo(target)
+            }
+        }
+        // Eski kasa anahtarını saran biyometrik sarmalayıcı artık geçersiz.
+        secureDelete(biometricKeyFile)
+        KeystoreKeys.deleteBiometricKey()
+        rotationMarker.delete()
+        activeSuite = runCatching { peekSuiteOnDisk() }.getOrNull()
+    }
+
     // ------------------------------------------------------------ kasa içeriği
 
-    fun readVault(vaultKey: SecretBytes): VaultData {
-        if (!vaultFile.exists()) return VaultData()
-        val blob = vaultFile.readBytes()
+    fun readVault(vaultKey: SecretBytes): VaultData = readVaultFrom(vaultFile, vaultKey)
+
+    private fun readVaultFrom(file: File, vaultKey: SecretBytes): VaultData {
+        if (!file.exists()) return VaultData()
+        val blob = file.readBytes()
         val input = DataInputStream(ByteArrayInputStream(blob))
         val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
         require(magic.contentEquals(MAGIC_VAULT)) { "Bu bir Kasa dosyası değil" }
+
         val version = input.readByte().toInt()
-        require(version == FORMAT_VERSION) { "Desteklenmeyen kasa sürümü: $version" }
+        val suite = readSuite(input, version)
+        activeSuite = suite
+
+        val headerLen = MAGIC_LEN + 1 + if (version >= FORMAT_VERSION) 1 else 0
         val len = input.readInt()
         val sealed = ByteArray(len).also { input.readFully(it) }
-        val aad = blob.copyOfRange(0, MAGIC_LEN + 1)
-        val plain = Crypto.open(vaultKey.raw(), sealed, aad)
+        val plain = Crypto.open(vaultKey.raw(), sealed, blob.copyOfRange(0, headerLen), suite)
         return try {
-            // Önce ham JSON'a bak: şema sürümünü öğrenip gerekiyorsa yükselt.
-            // Doğrudan decode etmek, bizden yeni bir dosyayı sessizce budardı.
-            val root = json.parseToJsonElement(String(plain, Charsets.UTF_8)).jsonObject
-            val migrated = VaultMigrations.migrate(root)
-            json.decodeFromJsonElement(VaultData.serializer(), migrated)
+            decodeVault(plain)
         } finally {
             plain.fill(0)
         }
     }
 
     fun writeVault(vaultKey: SecretBytes, data: VaultData) {
-        val plain = json.encodeToString(VaultData.serializer(), data).toByteArray(Charsets.UTF_8)
+        writeVaultTo(vaultFile, vaultKey, data, activeSuite ?: AeadSuite.DEFAULT)
+    }
+
+    /**
+     * Kasayı JSON baytlarına çevirir.
+     *
+     * Akışa yazılıyor, `String` üzerinden geçilmiyor: aksi hâlde kasanın
+     * tamamı — içindeki bütün parolalarla — silinemeyen bir `String` olarak
+     * yığında kalırdı. Dönen dizi çağıran tarafından sıfırlanıyor.
+     */
+    @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+    private fun encodeVault(data: VaultData): ByteArray {
+        val out = ByteArrayOutputStream()
+        json.encodeToStream(VaultData.serializer(), data, out)
+        return out.toByteArray()
+    }
+
+    private fun writeVaultTo(file: File, vaultKey: SecretBytes, data: VaultData, suite: AeadSuite) {
+        val plain = encodeVault(data)
         try {
             val header = ByteArrayOutputStream().apply {
                 write(MAGIC_VAULT)
                 write(FORMAT_VERSION)
+                write(suite.id.toInt())
             }.toByteArray()
-            val sealed = Crypto.seal(vaultKey.raw(), plain, header)
+            val sealed = Crypto.seal(vaultKey.raw(), plain, header, suite)
             val out = ByteArrayOutputStream()
             DataOutputStream(out).use { d ->
                 d.write(header)
                 d.writeInt(sealed.size)
                 d.write(sealed)
             }
-            writeAtomically(vaultFile, out.toByteArray())
+            writeAtomically(file, out.toByteArray())
         } finally {
             plain.fill(0)
         }
+    }
+
+    /**
+     * Çözülmüş JSON'u nesneye çevirir.
+     *
+     * Hızlı yol, göç gerekmediğinde JSON ağacını ve tüm kasanın metin kopyasını
+     * hiç oluşturmaz: doğrudan bayt akışından okur. Bu yalnızca hız değil,
+     * bellek hijyeni meselesi — aksi hâlde kasanın tamamı, içindeki bütün
+     * parolalarla birlikte, silinemeyen bir `String` olarak yığında kalırdı.
+     */
+    private fun decodeVault(plain: ByteArray): VaultData {
+        val schema = peekSchema(plain)
+        if (schema == VaultMigrations.CURRENT) {
+            return ByteArrayInputStream(plain).use { stream ->
+                @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+                json.decodeFromStream(VaultData.serializer(), stream)
+            }
+        }
+        // Göç gerekiyor: ancak burada ağaç kurulur.
+        val text = String(plain, Charsets.UTF_8)
+        val root = json.parseToJsonElement(text).jsonObject
+        return json.decodeFromJsonElement(VaultData.serializer(), VaultMigrations.migrate(root))
+    }
+
+    /**
+     * Şema sürümünü JSON'u ayrıştırmadan, baytlar üzerinde arayarak okur.
+     * Bulunamazsa en eski sürüm varsayılır ve tam ayrıştırmaya düşülür.
+     */
+    private fun peekSchema(plain: ByteArray): Int {
+        val needle = "\"schema\":".toByteArray(Charsets.US_ASCII)
+        val limit = minOf(plain.size, 512)
+        outer@ for (start in 0..limit - needle.size) {
+            for (i in needle.indices) if (plain[start + i] != needle[i]) continue@outer
+            var index = start + needle.size
+            while (index < plain.size && plain[index] == ' '.code.toByte()) index++
+            var value = 0
+            var digits = 0
+            while (index < plain.size && plain[index] in '0'.code.toByte()..'9'.code.toByte()) {
+                value = value * 10 + (plain[index] - '0'.code.toByte())
+                index++
+                digits++
+            }
+            return if (digits > 0) value else VaultMigrations.OLDEST_SUPPORTED
+        }
+        return VaultMigrations.OLDEST_SUPPORTED
     }
 
     // -------------------------------------------------------- dışa/içe aktarma
@@ -287,19 +522,24 @@ class VaultStore(private val context: Context) {
      * kullanıcının seçtiği ayrı bir dışa aktarma parolasıyla korunur; böylece
      * yedek dosyası ana parolayı ifşa etmez.
      */
-    fun exportEncrypted(data: VaultData, exportPassword: SecretBytes): ByteArray {
-        val params = Kdf.defaultParams(forExport = true)
-        val plain = json.encodeToString(VaultData.serializer(), data).toByteArray(Charsets.UTF_8)
+    fun exportEncrypted(
+        data: VaultData,
+        exportPassword: SecretBytes,
+        params: Kdf.Params = Kdf.defaultParams(forExport = true),
+        cipherSuite: AeadSuite = suite
+    ): ByteArray {
+        val plain = encodeVault(data)
         try {
             val header = ByteArrayOutputStream()
             DataOutputStream(header).use { d ->
                 d.write(MAGIC_EXPORT)
                 d.writeByte(FORMAT_VERSION)
+                d.writeByte(cipherSuite.id.toInt())
                 params.writeTo(d)
             }
             val headerBytes = header.toByteArray()
             return Kdf.derive(exportPassword, params).use { kek ->
-                val sealed = Crypto.seal(kek.raw(), plain, headerBytes)
+                val sealed = Crypto.seal(kek.raw(), plain, headerBytes, cipherSuite)
                 val out = ByteArrayOutputStream()
                 DataOutputStream(out).use { d ->
                     d.write(headerBytes)
@@ -320,17 +560,17 @@ class VaultStore(private val context: Context) {
             val input = DataInputStream(stream)
             val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
             require(magic.contentEquals(MAGIC_EXPORT)) { "Bu bir .kasa dosyası değil" }
-            input.readByte()
+            val version = input.readByte().toInt()
+            val fileSuite = readSuite(input, version)
             val params = Kdf.Params.readFrom(input)
             val headerLen = blob.size - stream.available()
             val headerBytes = blob.copyOfRange(0, headerLen)
             val len = input.readInt()
             val sealed = ByteArray(len).also { input.readFully(it) }
             Kdf.derive(exportPassword, params).use { kek ->
-                val plain = Crypto.open(kek.raw(), sealed, headerBytes)
+                val plain = Crypto.open(kek.raw(), sealed, headerBytes, fileSuite)
                 try {
-                    val root = json.parseToJsonElement(String(plain, Charsets.UTF_8)).jsonObject
-                    json.decodeFromJsonElement(VaultData.serializer(), VaultMigrations.migrate(root))
+                    decodeVault(plain)
                 } finally {
                     plain.fill(0)
                 }
@@ -344,15 +584,18 @@ class VaultStore(private val context: Context) {
 
     /**
      * Eki diske yazar. [key] o eke özel 32 baytlık anahtardır; kasa anahtarı
-     * değil. Dosya biçimi kasa dosyasıyla aynı: sihirli sayı + AES-GCM.
+     * değil. Dosya biçimi kasa dosyasıyla aynı: sihirli sayı + sürüm + paket
+     * kimliği + kimlik doğrulamalı şifreli gövde.
      */
     fun writeAttachment(id: String, key: ByteArray, content: ByteArray) {
         require(key.size == Crypto.KEY_BYTES) { "Ek anahtarı 32 bayt olmalı" }
+        val cipherSuite = suite
         val header = ByteArrayOutputStream().apply {
             write(MAGIC_ATTACHMENT)
             write(FORMAT_VERSION)
+            write(cipherSuite.id.toInt())
         }.toByteArray()
-        val sealed = Crypto.seal(key, content, header)
+        val sealed = Crypto.seal(key, content, header, cipherSuite)
         val out = ByteArrayOutputStream()
         DataOutputStream(out).use { d ->
             d.write(header)
@@ -368,10 +611,12 @@ class VaultStore(private val context: Context) {
         val input = DataInputStream(ByteArrayInputStream(blob))
         val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
         require(magic.contentEquals(MAGIC_ATTACHMENT)) { "Bu bir Kasa eki değil" }
-        input.readByte()
+        val version = input.readByte().toInt()
+        val fileSuite = readSuite(input, version)
+        val headerLen = MAGIC_LEN + 1 + if (version >= FORMAT_VERSION) 1 else 0
         val len = input.readInt()
         val sealed = ByteArray(len).also { input.readFully(it) }
-        Crypto.open(key, sealed, blob.copyOfRange(0, MAGIC_LEN + 1))
+        Crypto.open(key, sealed, blob.copyOfRange(0, headerLen), fileSuite)
     } catch (t: Throwable) {
         null
     }
@@ -462,17 +707,19 @@ class VaultStore(private val context: Context) {
         magic: ByteArray,
         secret: SecretBytes,
         vaultKey: SecretBytes,
-        params: Kdf.Params
+        params: Kdf.Params,
+        suite: AeadSuite = activeSuite ?: AeadSuite.DEFAULT
     ) {
         val header = ByteArrayOutputStream()
         DataOutputStream(header).use { d ->
             d.write(magic)
             d.writeByte(FORMAT_VERSION)
+            d.writeByte(suite.id.toInt())
             params.writeTo(d)
         }
         val headerBytes = header.toByteArray()
         Kdf.derive(secret, params).use { kek ->
-            val wrapped = Crypto.seal(kek.raw(), vaultKey.raw(), headerBytes)
+            val wrapped = Crypto.seal(kek.raw(), vaultKey.raw(), headerBytes, suite)
             val out = ByteArrayOutputStream()
             DataOutputStream(out).use { d ->
                 d.write(headerBytes)
@@ -489,15 +736,29 @@ class VaultStore(private val context: Context) {
         val input = DataInputStream(stream)
         val fileMagic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
         require(fileMagic.contentEquals(magic)) { "Bozuk anahtar dosyası" }
-        input.readByte()
+        val version = input.readByte().toInt()
+        val suite = readSuite(input, version)
         val params = Kdf.Params.readFrom(input)
         val headerLen = blob.size - stream.available()
         val headerBytes = blob.copyOfRange(0, headerLen)
         val len = input.readInt()
         val wrapped = ByteArray(len).also { input.readFully(it) }
         return Kdf.derive(secret, params).use { kek ->
-            SecretBytes(Crypto.open(kek.raw(), wrapped, headerBytes))
+            SecretBytes(Crypto.open(kek.raw(), wrapped, headerBytes, suite))
         }
+    }
+
+    /**
+     * Dosya başlığından şifreleme paketini okur.
+     *
+     * Sürüm 1 dosyalarında paket baytı yoktu; onlar her zaman AES-256-GCM'di.
+     * Kimliği dosyaya yazmanın karşılığı bu: varsayılan değişse bile eski
+     * kasa hangi paketle yazıldığını kendisi söylüyor.
+     */
+    private fun readSuite(input: DataInputStream, version: Int): AeadSuite = when {
+        version >= FORMAT_VERSION -> AeadSuite.fromId(input.readByte())
+        version == FORMAT_VERSION_LEGACY -> AeadSuite.AES_256_GCM
+        else -> throw IllegalStateException("Desteklenmeyen dosya sürümü: $version")
     }
 
     /**
@@ -538,7 +799,15 @@ class VaultStore(private val context: Context) {
 
     companion object {
         private const val MAGIC_LEN = 8
-        private const val FORMAT_VERSION = 1
+
+        /** Şifreleme paketi kimliğini de taşıyan güncel biçim. */
+        private const val FORMAT_VERSION = 2
+
+        /** Paket baytı olmayan ilk biçim; her zaman AES-256-GCM demekti. */
+        private const val FORMAT_VERSION_LEGACY = 1
+
+        /** Rotasyon sırasında hazırlanan yan dosyaların uzantısı. */
+        private const val NEW_SUFFIX = ".new"
 
         private val MAGIC_MASTER = "KASAMST1".toByteArray(Charsets.US_ASCII)
         private val MAGIC_RECOVERY = "KASAREC1".toByteArray(Charsets.US_ASCII)

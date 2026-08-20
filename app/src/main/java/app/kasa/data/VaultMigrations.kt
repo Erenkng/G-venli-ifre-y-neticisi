@@ -27,7 +27,7 @@ import kotlinx.serialization.json.put
 object VaultMigrations {
 
     /** Uygulamanın yazdığı şema sürümü. */
-    const val CURRENT = 2
+    const val CURRENT = 3
 
     /** Şema alanı olmayan en eski kasalar sürüm 1 sayılır. */
     const val OLDEST_SUPPORTED = 1
@@ -66,7 +66,8 @@ object VaultMigrations {
      * dosyaya dokunmamış olur.
      */
     private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(
-        1 to ::migrate1to2
+        1 to ::migrate1to2,
+        2 to ::migrate2to3
     )
 
     /**
@@ -82,6 +83,18 @@ object VaultMigrations {
      * ilerlemiş oluyor. Boş bırakmak yerine burada durmasının nedeni bu.
      */
     private fun migrate1to2(root: JsonObject): JsonObject = root
+
+    /**
+     * 2 → 3: passkey saklama.
+     *
+     * `VaultItem.passkeys` eklendi; varsayılanı boş liste olduğu için eski
+     * dosya olduğu gibi okunuyor. Bu adımın asıl işi, sürüm numarasını
+     * ilerleterek **eski uygulamanın bu dosyayı açmasını engellemek**: passkey
+     * taşıyan bir kasa, passkey'i tanımayan bir sürümde açılıp kaydedilseydi
+     * özel anahtarlar sessizce silinir ve kullanıcı o hesaplara bir daha
+     * giremezdi. Parolanın aksine passkey'in yedeği yok — geri alınamaz.
+     */
+    private fun migrate2to3(root: JsonObject): JsonObject = root
 
     private fun JsonObject.withSchema(version: Int): JsonObject = buildJsonObject {
         this@withSchema.forEach { (key, value) -> if (key != "schema") put(key, value) }

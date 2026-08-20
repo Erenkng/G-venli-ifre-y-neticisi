@@ -65,6 +65,16 @@ object Kdf {
             out.write(salt)
         }
 
+        /**
+         * Aynı maliyet, yeni tuz.
+         *
+         * Her sarmalayıcı kendi tuzunu taşımalı: aynı tuzu paylaşan iki
+         * sarmalayıcı, saldırgana tek bir Argon2 hesabıyla ikisini birden
+         * deneme imkânı verirdi.
+         */
+        fun withFreshSalt(): Params =
+            Params(algorithm, Crypto.randomBytes(SALT_BYTES), iterations, memoryKib, parallelism)
+
         override fun equals(other: Any?): Boolean =
             other is Params && algorithm == other.algorithm && iterations == other.iterations &&
                 memoryKib == other.memoryKib && parallelism == other.parallelism &&

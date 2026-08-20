@@ -100,9 +100,9 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.credentials)
     implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.androidx.camera.core)

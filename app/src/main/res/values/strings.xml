@@ -440,4 +440,20 @@
 
     <!-- Şema -->
     <string name="vault_too_new">Bu kasa uygulamanın daha yeni bir sürümüyle oluşturulmuş. Veri kaybetmemek için açılmadı; uygulamayı güncelle.</string>
+
+    <!-- Passkey -->
+    <string name="smart_passkeys">Passkey</string>
+    <string name="passkey_provider_subtitle">Passkey\'lerini Kasa\'da sakla</string>
+    <string name="passkey_unlock_action">Kasa\'nın kilidini aç</string>
+    <string name="passkey_unlock_title">Kasa kilitli</string>
+    <string name="passkey_unlock_body">Passkey\'lerini görebilmek için kasanın kilidini aç.</string>
+    <string name="passkey_create_title">Passkey oluşturulsun mu?</string>
+    <string name="passkey_create_body">%1$s sitesi için %2$s hesabına ait bir passkey Kasa\'da saklanacak.</string>
+    <string name="passkey_create_confirm">Oluştur</string>
+    <string name="passkey_count">%1$d passkey</string>
+    <string name="passkey_section">Passkey</string>
+    <string name="passkey_remove">Passkey\'i sil</string>
+    <string name="passkey_removed">Passkey silindi</string>
+    <string name="passkey_remove_body">%1$s için passkey silinecek. Bu geri alınamaz: o hesaba passkey ile bir daha giremezsin, önce sitede yeni bir passkey oluşturman gerekir.</string>
+    <string name="passkey_created_at">%1$s tarihinde oluşturuldu</string>
 </resources>

@@ -178,7 +178,10 @@ fun MainScaffold(
                         settings = settings,
                         onUseForNewEntry = { generated ->
                             vaultViewModel.startEdit(
-                                app.kasa.data.model.VaultItem(name = "", password = generated)
+                                app.kasa.data.model.VaultItem(
+                                    name = "",
+                                    password = app.kasa.core.crypto.SecretText.of(generated)
+                                )
                             )
                         }
                     )

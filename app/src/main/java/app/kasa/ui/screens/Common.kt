@@ -12,6 +12,7 @@ import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.Password
@@ -141,6 +142,7 @@ fun categoryFilterLabel(category: Category?): String = stringResource(
 fun smartFolderLabel(kind: SmartFolder): String = stringResource(
     when (kind) {
         SmartFolder.FAVORITES -> R.string.smart_favorites
+        SmartFolder.PASSKEYS -> R.string.smart_passkeys
         SmartFolder.LEAKED -> R.string.smart_leaked
         SmartFolder.REUSED -> R.string.smart_reused
         SmartFolder.WEAK -> R.string.smart_weak
@@ -152,6 +154,7 @@ fun smartFolderLabel(kind: SmartFolder): String = stringResource(
 
 fun smartFolderIcon(kind: SmartFolder): ImageVector = when (kind) {
     SmartFolder.FAVORITES -> Icons.Rounded.Star
+    SmartFolder.PASSKEYS -> Icons.Rounded.Fingerprint
     SmartFolder.LEAKED -> Icons.Rounded.Warning
     SmartFolder.REUSED -> Icons.Rounded.Repeat
     SmartFolder.WEAK -> Icons.Rounded.Warning
