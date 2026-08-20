@@ -82,6 +82,53 @@ biyometri ──Keystore/StrongBox──────────┘    KASA ANAH
 | Bildirimler | `VISIBILITY_SECRET` | Hangi hesabın sızdığı da gizli bir bilgidir. |
 | Sürüm derlemesi | R8 + tüm `Log` çağrıları çıkarılır, `dependenciesInfo` kapalı | Üretimde kayıt sızıntısı ve APK meta verisi yok. |
 
+### Güvenlik denetiminde bulunup düzeltilenler
+
+Kod baştan sona düşman gözüyle okundu. Bulunan gerçek kusurlar ve
+düzeltmeleri:
+
+| Bulgu | Neden önemliydi |
+|---|---|
+| `webDomain` her uygulamadan kabul ediliyordu | Bu alanı uygulamanın kendisi doldurur, sistem doğrulamaz. Kötü niyetli bir uygulama kendi formuna `webDomain="bankam.com"` yazıp o bankanın parolasını isteyebilirdi ve kullanıcı doğru kaydı gördüğü için dokunurdu. Artık yalnızca tanınan tarayıcılardan kabul ediliyor. |
+| Eşleşme yokken kasadan beş kayıt öneriliyordu | Parola alanı olan **herhangi** bir uygulama, hiçbir eşleşme sağlamadan kullanıcının hesaplarını öneri menüsünde görebiliyordu. Artık tek bir kimlik doğrulamalı "Kasa'dan seç" satırı dönüyor. |
+| Kilit açmada iki Argon2 eş zamanlıydı | İki türetme aynı anda bellekteydi; ölçüm 512 MiB'ye çıkabildiği için orta segment telefonda çökme riski. Sırayla çalışıyor, ikisi de her zaman yapılıyor (süre sabit kalsın diye). |
+| Zorlama parolası ana parolayla aynı olabiliyordu | Aynı parola her ikisini de açtığında önce ana sarmalayıcı denendiği için kullanıcı yem kasa açtığını sanarken gerçek kasasını açardı. Kurulumda denetleniyor. |
+| XChaCha20 el yazması ve denetlenmemişti | Sessizce yanlış bir alt anahtar, açılamayan bir kasa demek; ancak kullanıcı doğru parolayla açamadığında anlaşılır. Artık RFC vektörü ve gidiş-dönüş testi geçmeden paket sunulmuyor. |
+| HIBP yanıtında sonek kısmen karşılaştırılıyordu | Kısa bir satır, kendi ön ekiyle başlayan her parolayı "sızmış" gösterebilirdi. Uzunluk eşitliği zorunlu. |
+| Deneme sayacı bozulunca sıfır sayılıyordu | Üstel beklemeyi tek dosya bozarak atlamanın yolu. Artık kurcalanmış sayılıp bekleme uygulanıyor. |
+| `writeAtomically` dizini `fsync` etmiyordu | Elektrik kesintisi, içeriği yazılmış ama adı hâlâ `.tmp` olan bir dosya bırakabilirdi — kasa kaybolmuş görünürdü. |
+| Sıfır baytlık ek yazılıp okunamıyordu | Boş bir mühür tam olarak nonce + etiket uzunluğunda; kesin büyüklük aranıyordu. |
+| Parola üreteci dağılımı düzgün değildi | İlk konumlara her kümeden birer karakter konuyordu; bildirilen entropi gerçekte olduğundan yüksekti. Reddetme örneklemeye geçildi. |
+| TOTP anahtarı ve kurtarma anahtarı bellekte kalıyordu | İkisi de parola kadar değerli. Çözülen baytlar artık her yolda sıfırlanıyor. |
+| `"pass"` anahtar sözcüğü çok genişti | "passport", "passenger", "compass" alanlarını parola sanıp oraya parola yazdırıyordu. |
+| Dışa aktarma sabit maliyet kullanıyordu | Dosya cihazdan çıkıyor ve tek koruması parolası; artık ayrı ve daha ağır ölçülüyor (~2 sn), parola alt sınırı 12 karakter. |
+| `rootPackagesPresent` hiç çalışmıyordu | Paket görünürlüğü kısıtı yüzünden her zaman `false` dönerdi. Çalışmayan güvenlik kodu, hiç olmamasından kötüdür: kapsam varmış gibi görünür. Kaldırıldı. |
+
+### Açıkça söylenen sınırlar
+
+Bir güvenlik iddiası, sınırı söylenmediği sürece eksiktir:
+
+- **Deneme sayacı silinebilir.** Root yetkisi olan biri `attempts.bin`'i siler
+  ve üstel beklemeyi sıfırlar; Android'de uygulamanın kendi veri dizinindeki
+  bir dosyayı bundan koruma yolu yok. Kararlı saldırgana karşı asıl koruma
+  sayaç değil: ana parolanın **en az 60 bit** olma zorunluluğu ve ölçümle
+  ~800 ms'ye ayarlanmış Argon2id maliyeti.
+- **Zorlama parolası "ikinci parolayı da ver" diyene karşı çalışmaz.**
+  Verdiği tek söz dar ve gerçek: *dosyaya bakarak kurulu olup olmadığı
+  anlaşılamaz.*
+- **Kayıt bazlı ek kilit bir varlık kontrolüdür**, kripto bağlı değil. Kasa
+  anahtarı zaten bellekte; sorulan şey erişim değil, telefonu o anda kimin
+  tuttuğu. Uygulamanın belleğine müdahale edebilen bir saldırgan onu atlar —
+  ama o saldırgan kasa anahtarına zaten erişmiştir.
+- **Bellekte `String` tamamen ortadan kaldırılamaz.** JSON çözücüsü ve Compose
+  metin alanı kaçınılmaz olarak `String` üretir. Verilen söz "hiç `String`
+  olmasın" değil, **kalıcı kopya olmasın**: kasa kilitlendiği anda
+  uygulamanın elindeki hiçbir nesnede okunabilir parola kalmaz.
+- **Root tespiti bir güvenlik sınırı değildir.** Uygulama uyarır, kapanmaz.
+- **Tarayıcı listesi eksik kalabilir.** Tanınmayan bir tarayıcıda alan adı
+  eşleşmesi çalışmaz ve kullanıcı kaydı elle seçer. Kimlik avına açık
+  kalmaktansa bu bedel tercih edildi.
+
 ### Bilinçli olarak yapılmayanlar
 
 - **Bulut eşitleme yok.** Sunucu tarafı, anahtar yönetimi ve hesap kurtarma

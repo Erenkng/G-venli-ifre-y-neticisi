@@ -894,9 +894,18 @@ class VaultStore(private val context: Context) {
             write(SECTION_COUNT)
         }.toByteArray()
 
-        val carried = existing ?: runCatching {
-            if (vaultFile.exists()) readContainer(vaultFile).sections else emptyList()
-        }.getOrDefault(emptyList())
+        // Var olan bölmeler okunamıyorsa **yazmıyoruz**.
+        //
+        // Sessizce boş listeye düşmek, yem bölmesini bir daha açılamayacak
+        // taze bir yemle değiştirmek demekti: kullanıcının kurduğu zorlama
+        // kasası, dosyada geçici bir okuma hatası yüzünden yok olurdu. Kasa
+        // zaten açık olduğuna göre kabın okunabiliyor olması gerekir; okunmuyorsa
+        // durum beklenmedik ve gürültülü başarısız olmak doğru olan.
+        val carried = existing ?: if (!vaultFile.exists()) {
+            emptyList()
+        } else {
+            readContainer(vaultFile).sections
+        }
 
         val plain = pad(encodeVault(data))
         val sealed = try {
