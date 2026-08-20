@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
+import app.kasa.core.util.PasswordStrength
 import app.kasa.data.SettingsStore
 import app.kasa.data.model.Category
 import app.kasa.data.model.SmartFolder
@@ -92,6 +93,12 @@ fun VaultScreen(
     // Basılı tutulan kayıt. Ayrıntı ekranından ayrı tutuluyor: bu menü kaydın
     // içeriğini hiç ekrana getirmeden iş bitirmek için var.
     var actionTarget by remember { mutableStateOf<VaultItem?>(null) }
+    var listMenuOpen by remember { mutableStateOf(false) }
+
+    // Sıralama listede uygulanıyor, depoda değil: süzgeç sonucu zaten burada
+    // ve sıralama bir görüntüleme tercihi — kasanın içeriğine ait değil.
+    val sorted = remember(items, settings.sortOrder) { sortItems(items, settings.sortOrder) }
+    val compact = settings.listDensity == SettingsStore.ListDensity.COMPACT
 
     LazyColumn(
         modifier = modifier
@@ -119,6 +126,7 @@ fun VaultScreen(
             SearchBarButton(
                 placeholder = stringResource(R.string.vault_search),
                 onClick = onOpenSearch,
+                onMenuClick = { listMenuOpen = true },
                 modifier = Modifier.padding(bottom = 18.dp)
             )
         }
@@ -238,15 +246,16 @@ fun VaultScreen(
                 )
             }
         } else {
-            itemsIndexed(items = items, key = { _, entry -> entry.id }) { index, entry ->
+            itemsIndexed(items = sorted, key = { _, entry -> entry.id }) { index, entry ->
                 // Silinen kayıt yerinden kaybolmuyor, kalanlar boşluğu
                 // kayarak kapatıyor. Anlık atlamada kullanıcı hangi satırın
                 // gittiğini göremiyor ve "yanlış olanı mı sildim" sorusu
                 // kalıyordu; geri alma şeridi de bu yüzden geç fark ediliyordu.
                 VaultRow(
                     item = entry,
-                    position = groupPositionOf(index, items.size),
-                    folderName = viewModel.folderName(entry.folderId),
+                    position = groupPositionOf(index, sorted.size),
+                    folderName = if (compact) null else viewModel.folderName(entry.folderId),
+                    compact = compact,
                     onClick = { viewModel.select(entry.id) },
                     onLongClick = { actionTarget = entry },
                     modifier = Modifier.animateItem(
@@ -257,6 +266,16 @@ fun VaultScreen(
                 )
             }
         }
+    }
+
+    if (listMenuOpen) {
+        ListOptionsSheet(
+            sortOrder = settings.sortOrder,
+            density = settings.listDensity,
+            onSortChange = viewModel::setSortOrder,
+            onDensityChange = viewModel::setListDensity,
+            onDismiss = { listMenuOpen = false }
+        )
     }
 
     actionTarget?.let { target ->
@@ -281,7 +300,16 @@ fun VaultRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     folderName: String? = null,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    /**
+     * Sıkışık yerleşim: ikincil satır yok.
+     *
+     * Yüz kaydı geçen bir kasada rahat yerleşim ekrana altı satır sığdırıyor ve
+     * liste sonsuz görünüyor. İkincil satırın taşıdığı bilgi (kullanıcı adı,
+     * klasör, sızıntı işareti) kayıt açıldığında zaten görünüyor; listede asıl
+     * iş aradığını **bulmak** ve onun için ad ile rozet yetiyor.
+     */
+    compact: Boolean = false
 ) {
     val tone = toneOf(item)
     val breachMark = stringResource(R.string.breach_mark)
@@ -309,6 +337,7 @@ fun VaultRow(
                     )
                 }
             }
+            if (!compact) {
             Spacer(Modifier.height(2.dp))
             Text(
                 text = buildString {
@@ -327,10 +356,33 @@ fun VaultRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            }
         }
         StrengthDot(tone)
     }
 }
+
+/**
+ * Kayıtları seçilen düzene göre sıralar.
+ *
+ * Sıralama bir görüntüleme tercihi; kasanın içeriğine ait değil ve bu yüzden
+ * depoda değil burada. "En zayıf önce" kasayı temizlerken kullanılıyor:
+ * gücü ölçülemeyen türler (not, kart) sona düşüyor, çünkü onlar için
+ * "zayıf" diye bir şey yok.
+ */
+private fun sortItems(items: List<VaultItem>, order: SettingsStore.SortOrder): List<VaultItem> =
+    when (order) {
+        SettingsStore.SortOrder.LAST_USED ->
+            items.sortedWith(compareByDescending<VaultItem> { it.lastUsedAt }.thenBy { it.name.lowercase() })
+        SettingsStore.SortOrder.NAME -> items.sortedBy { it.name.lowercase() }
+        SettingsStore.SortOrder.NEWEST -> items.sortedByDescending { it.createdAt }
+        SettingsStore.SortOrder.WEAKEST ->
+            items.sortedWith(
+                compareBy<VaultItem> { it.category != Category.LOGIN }
+                    .thenBy { PasswordStrength.evaluate(it.password.reveal()).score }
+                    .thenBy { it.name.lowercase() }
+            )
+    }
 
 /**
  * Koleksiyon çipi: simge, ad ve sayaç.

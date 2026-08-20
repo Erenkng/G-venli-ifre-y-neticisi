@@ -40,6 +40,7 @@ import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.KasaPinField
+import app.kasa.ui.components.KasaReveal
 import app.kasa.ui.components.KasaTextField
 import app.kasa.ui.components.MorphDial
 import app.kasa.ui.theme.KasaTheme
@@ -121,6 +122,20 @@ fun UnlockScreen(
             color = KasaTheme.colors.ink
         )
         Spacer(Modifier.height(28.dp))
+
+        // Alan işaretten sonra beliriyor.
+        //
+        // Ekran açıldığı anda parola alanını göstermek ilk kareden itibaren
+        // "yaz" demek. Oysa o an biyometri istemi de açılıyor ve tipik
+        // kullanımda hiçbir şey yazılmayacak. Sıra böyle doğru kuruluyor: önce
+        // uygulamanın kim olduğu, sonra ondan ne istendiği. Gerekçenin uzunu
+        // KasaReveal üzerinde yazılı.
+        KasaReveal(
+            visible = true,
+            delayMillis = FIELD_DELAY_MILLIS,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
         if (pinMode && !state.recoveryMode) {
             KasaPinField(
@@ -257,8 +272,19 @@ fun UnlockScreen(
             tone = ButtonTone.TEXT,
             modifier = Modifier.fillMaxWidth()
         )
+        }
+        }
     }
 }
+
+/**
+ * İşaretin belirmesiyle alanın gelmesi arasındaki bekleme.
+ *
+ * Açılış ekranındaki kadran dönüşü 780 ms sürüyor ve bu ekran onun hemen
+ * ardından geliyor; buradaki bekleme, iki hareketin üst üste binmesini
+ * engelleyecek kadar uzun, kullanıcıyı bekletmeyecek kadar kısa.
+ */
+private const val FIELD_DELAY_MILLIS = 260
 
 private fun formatCooldown(millis: Long): String {
     val totalSeconds = (millis / 1000).toInt().coerceAtLeast(0)

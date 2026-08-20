@@ -542,4 +542,12 @@
     <string name="row_clipboard_note">The copied value is cleared from the clipboard after %1$d seconds.</string>
     <string name="restore">Restore</string>
     <string name="delete_forever">Delete forever</string>
+    <string name="list_sort">Sort</string>
+    <string name="list_density">Density</string>
+    <string name="sort_last_used">Recently used</string>
+    <string name="sort_name">By name</string>
+    <string name="sort_newest">Recently added</string>
+    <string name="sort_weakest">Weakest first</string>
+    <string name="density_comfortable">Comfortable</string>
+    <string name="density_compact">Compact</string>
 </resources>

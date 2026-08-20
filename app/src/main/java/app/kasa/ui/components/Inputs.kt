@@ -65,7 +65,17 @@ private val SEARCH_HEIGHT = 58.dp
 fun SearchBarButton(
     placeholder: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Sağdaki üç nokta.
+     *
+     * Eskiden yalnızca bir süstü — tasarımdan gelmiş, hiçbir şey yapmıyordu.
+     * Bir arayüzde dokunulabilir görünüp dokunulunca hiçbir şey olmayan bir
+     * öğe, kullanıcıya "bu uygulamanın bazı yerleri çalışmıyor" diyor.
+     * Verildiğinde sıralama ve yoğunluk menüsünü açıyor; verilmediğinde
+     * noktalar hiç çizilmiyor.
+     */
+    onMenuClick: (() -> Unit)? = null
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -103,14 +113,22 @@ fun SearchBarButton(
             color = KasaTheme.colors.ink3,
             modifier = Modifier.weight(1f)
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            repeat(3) {
-                Box(
-                    Modifier
-                        .size(4.dp)
-                        .clip(RoundedCornerShape(KasaRadius.full))
-                        .background(MaterialTheme.colorScheme.outline)
-                )
+        if (onMenuClick != null) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(KasaRadius.full))
+                    .clickableNoRipple(role = Role.Button, onClick = onMenuClick)
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                repeat(3) {
+                    Box(
+                        Modifier
+                            .size(4.dp)
+                            .clip(RoundedCornerShape(KasaRadius.full))
+                            .background(MaterialTheme.colorScheme.outline)
+                    )
+                }
             }
         }
     }

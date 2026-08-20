@@ -294,6 +294,14 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     // ----------------------------------------------------------------- diğer
 
+    fun setSortOrder(order: app.kasa.data.SettingsStore.SortOrder) {
+        viewModelScope.launch { container.settingsStore.setSortOrder(order) }
+    }
+
+    fun setListDensity(density: app.kasa.data.SettingsStore.ListDensity) {
+        viewModelScope.launch { container.settingsStore.setListDensity(density) }
+    }
+
     fun toggleFavorite(id: String) {
         viewModelScope.launch {
             repository.toggleFavorite(id)

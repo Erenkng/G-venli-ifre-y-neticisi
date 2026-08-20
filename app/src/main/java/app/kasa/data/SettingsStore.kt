@@ -25,6 +25,25 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 class SettingsStore(private val context: Context) {
 
+    /**
+     * Kasa listesinin sıralaması.
+     *
+     * Varsayılan son kullanım: bir parola yöneticisinde en olası sonraki kayıt,
+     * en son açılan kayıttır. Ada göre sıralama alfabeyi bilenler için;
+     * eklenme sırası "az önce ne kaydettim" sorusu için; güç sırası ise
+     * temizlik yaparken en zayıftan başlamak için.
+     */
+    enum class SortOrder { LAST_USED, NAME, NEWEST, WEAKEST }
+
+    /**
+     * Satır yoğunluğu.
+     *
+     * Kasası yüz kaydı geçen bir kullanıcıda rahat yerleşim ekrana altı satır
+     * sığdırıyor ve liste sonsuz görünüyor. Sıkışık yerleşim ikincil satırı
+     * kaldırıp yüksekliği düşürüyor: aynı ekranda on bir satır.
+     */
+    enum class ListDensity { COMFORTABLE, COMPACT }
+
     data class Settings(
         val theme: ThemeMode = ThemeMode.SYSTEM,
         val dynamicColor: Boolean = false,
@@ -61,6 +80,8 @@ class SettingsStore(private val context: Context) {
          * bağlarla çalışıyor; hiçbir zaman ad benzerliğiyle değil.
          */
         val autofillVerifyDomains: Boolean = true,
+        val sortOrder: SortOrder = SortOrder.LAST_USED,
+        val listDensity: ListDensity = ListDensity.COMFORTABLE,
         val onboardingDone: Boolean = false,
         val lastScanAt: Long = 0L,
         val integrityWarningShown: Boolean = false,
@@ -93,6 +114,10 @@ class SettingsStore(private val context: Context) {
             wipeAfterAttempts = prefs[KEY_WIPE_ATTEMPTS] ?: 0,
             onlineBreachCheck = prefs[KEY_ONLINE_CHECK] ?: true,
             autofillVerifyDomains = prefs[KEY_AF_VERIFY] ?: true,
+            sortOrder = runCatching { SortOrder.valueOf(prefs[KEY_SORT] ?: SortOrder.LAST_USED.name) }
+                .getOrDefault(SortOrder.LAST_USED),
+            listDensity = runCatching { ListDensity.valueOf(prefs[KEY_DENSITY] ?: ListDensity.COMFORTABLE.name) }
+                .getOrDefault(ListDensity.COMFORTABLE),
             onboardingDone = prefs[KEY_ONBOARDING] ?: false,
             lastScanAt = prefs[KEY_LAST_SCAN] ?: 0L,
             integrityWarningShown = prefs[KEY_INTEGRITY_SHOWN] ?: false,
@@ -119,6 +144,8 @@ class SettingsStore(private val context: Context) {
     suspend fun setContextLockSeconds(value: Int) = put(KEY_CONTEXT_SECONDS, value)
     suspend fun setBlockScreenshots(value: Boolean) = put(KEY_BLOCK_SHOTS, value)
     suspend fun setAutofillVerifyDomains(value: Boolean) = put(KEY_AF_VERIFY, value)
+    suspend fun setSortOrder(value: SortOrder) = put(KEY_SORT, value.name)
+    suspend fun setListDensity(value: ListDensity) = put(KEY_DENSITY, value.name)
     suspend fun setClipboardClearSeconds(value: Int) = put(KEY_CLIP_SECONDS, value)
     suspend fun setAutoLockSeconds(value: Int) = put(KEY_AUTOLOCK, value)
     suspend fun setWipeAfterAttempts(value: Int) = put(KEY_WIPE_ATTEMPTS, value)
@@ -174,6 +201,8 @@ class SettingsStore(private val context: Context) {
         val KEY_WIPE_ATTEMPTS = intPreferencesKey("wipe_attempts")
         val KEY_ONLINE_CHECK = booleanPreferencesKey("online_breach_check")
         val KEY_AF_VERIFY = booleanPreferencesKey("autofill_verify_domains")
+        val KEY_SORT = stringPreferencesKey("sort_order")
+        val KEY_DENSITY = stringPreferencesKey("list_density")
         val KEY_ONBOARDING = booleanPreferencesKey("onboarding_done")
         val KEY_LAST_SCAN = longPreferencesKey("last_scan_at")
         val KEY_INTEGRITY_SHOWN = booleanPreferencesKey("integrity_warning_shown")

@@ -560,4 +560,12 @@
     <string name="row_clipboard_note">Kopyalanan değer %1$d saniye sonra panodan silinir.</string>
     <string name="restore">Geri al</string>
     <string name="delete_forever">Kalıcı sil</string>
+    <string name="list_sort">Sıralama</string>
+    <string name="list_density">Yoğunluk</string>
+    <string name="sort_last_used">Son kullanılan</string>
+    <string name="sort_name">Ada göre</string>
+    <string name="sort_newest">Yeni eklenen</string>
+    <string name="sort_weakest">En zayıf önce</string>
+    <string name="density_comfortable">Rahat</string>
+    <string name="density_compact">Sıkışık</string>
 </resources>
