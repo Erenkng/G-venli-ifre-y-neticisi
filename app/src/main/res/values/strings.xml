@@ -525,4 +525,8 @@
     <string name="set_group_crypto">Kriptografi</string>
     <string name="set_key_storage">Anahtar deposu</string>
     <string name="af_browse_entry">Kasa\'dan seç</string>
+
+    <!-- Kart görünümü -->
+    <string name="field_card_brand">Ağ</string>
+    <string name="card_luhn_warning">Numara sağlamayı geçmiyor · bir hane yanlış olabilir</string>
 </resources>

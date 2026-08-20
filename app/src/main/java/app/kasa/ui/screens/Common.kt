@@ -1,16 +1,16 @@
 package app.kasa.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.unit.Dp
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Badge
@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,12 +37,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.kasa.R
 import app.kasa.core.util.PasswordStrength
 import app.kasa.data.model.Category
 import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultItem
+import app.kasa.ui.components.CardThumb
+import app.kasa.ui.components.KasaBadge
 import app.kasa.ui.theme.KasaTheme
 
 /** Ekranların tepesindeki dev başlık ve alt satırı. */
@@ -111,6 +115,89 @@ fun strengthColor(tone: PasswordStrength.Tone): Color = when (tone) {
     PasswordStrength.Tone.WEAK -> KasaTheme.colors.strengthWeak
     PasswordStrength.Tone.MID -> KasaTheme.colors.strengthMid
     PasswordStrength.Tone.STRONG -> KasaTheme.colors.strengthStrong
+}
+
+/**
+ * Kayıt türünün kendi rengi.
+ *
+ * Eskiden her rozet parola gücüne göre renkleniyordu. Bu, giriş kayıtlarında
+ * doğru bir sinyal — ama kimlik, ehliyet ya da Wi-Fi kaydında "parola gücü"
+ * diye ölçülen şey aslında bir kimlik numarasının entropisi oluyordu ve
+ * kullanıcıya anlamsız bir renk gösteriyordu. Artık gücü olan türde güç,
+ * olmayan türde tür gösteriliyor.
+ *
+ * Renkler tema simgelerinden geliyor; dinamik renk açıkken de tutarlı kalsın
+ * diye yeni sabit renk eklenmedi.
+ */
+@Composable
+fun categoryTint(category: Category): Pair<Color, Color> {
+    val colors = KasaTheme.colors
+    val scheme = MaterialTheme.colorScheme
+    return when (category) {
+        Category.LOGIN, Category.CARD -> colors.badgeStrongBg to colors.badgeStrongFg
+        Category.NOTE -> scheme.surfaceContainerHigh to colors.ink2
+        Category.OTP -> colors.badgeMidBg to colors.badgeMidFg
+        Category.IDENTITY -> colors.badgeBlueBg to colors.badgeBlueFg
+        Category.BANK -> colors.badgeStrongBg to colors.badgeStrongFg
+        // Uçbirim çağrışımı: koyu zemin, açık simge.
+        Category.SSH_KEY -> colors.ink to scheme.surface
+        Category.LICENSE -> scheme.tertiaryContainer to scheme.onTertiaryContainer
+        Category.WIFI -> scheme.primaryContainer to scheme.onPrimaryContainer
+    }
+}
+
+/**
+ * Kaydın listedeki ve başlıktaki görsel kimliği.
+ *
+ * Üç ayrı davranış var ve her biri o türün nasıl hatırlandığına dayanıyor:
+ *
+ *  - **Kart** → minyatür kart yüzü. İnsanlar kartlarını renginden tanıyor;
+ *    "Ziraat Bankası Kart 2" yazısını okumaktan hızlı.
+ *  - **Giriş** → sitenin baş harfi, parola gücü renginde. Giriş kayıtları
+ *    isimden tanınıyor ve güç burada gerçek bir sinyal.
+ *  - **Diğerleri** → türün simgesi, türün renginde. Bir kimlik kaydının baş
+ *    harfi hiçbir şey söylemiyordu.
+ */
+@Composable
+fun EntryBadge(
+    item: VaultItem,
+    modifier: Modifier = Modifier,
+    size: Dp = 46.dp,
+    cornerRadius: Dp = 16.dp
+) {
+    if (item.category == Category.CARD) {
+        CardThumb(item = item, modifier = modifier, size = size)
+        return
+    }
+
+    if (item.category == Category.LOGIN) {
+        val (background, foreground) = badgeColors(toneOf(item))
+        KasaBadge(
+            text = item.initial,
+            background = background,
+            foreground = foreground,
+            modifier = modifier,
+            size = size,
+            cornerRadius = cornerRadius
+        )
+        return
+    }
+
+    val (background, foreground) = categoryTint(item.category)
+    KasaBadge(
+        background = background,
+        foreground = foreground,
+        modifier = modifier,
+        size = size,
+        cornerRadius = cornerRadius
+    ) {
+        Icon(
+            imageVector = categoryIcon(item.category),
+            contentDescription = null,
+            tint = foreground,
+            modifier = Modifier.size(size * 0.46f)
+        )
+    }
 }
 
 fun categoryIcon(category: Category): ImageVector = when (category) {

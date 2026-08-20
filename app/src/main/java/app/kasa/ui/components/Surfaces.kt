@@ -221,11 +221,14 @@ fun KasaCard(
 fun RecentCard(
     name: String,
     subtitle: String,
-    badgeBackground: Color,
-    badgeForeground: Color,
-    initial: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Rozet dışarıdan veriliyor: son kullanılanlar şeridinde de kartlar kart
+     * yüzüyle, diğer türler kendi simgeleriyle görünsün diye. Rozeti burada
+     * kurmak, kart görselini bu dosyaya taşımak anlamına gelirdi.
+     */
+    badge: @Composable () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -242,13 +245,7 @@ fun RecentCard(
             .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
             .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)
     ) {
-        KasaBadge(
-            text = initial,
-            background = badgeBackground,
-            foreground = badgeForeground,
-            size = 38.dp,
-            cornerRadius = 13.dp
-        )
+        badge()
         Spacer(Modifier.height(10.dp))
         Text(
             name,

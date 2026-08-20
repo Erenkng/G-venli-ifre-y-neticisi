@@ -54,7 +54,6 @@ import app.kasa.data.repo.VaultRepository
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.GroupPosition
-import app.kasa.ui.components.KasaBadge
 import app.kasa.ui.components.KasaButtonGroup
 import app.kasa.ui.components.KasaTile
 import app.kasa.ui.components.RecentCard
@@ -189,15 +188,11 @@ fun VaultScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(recents, key = { it.id }) { entry ->
-                        val tone = toneOf(entry)
-                        val (background, foreground) = badgeColors(tone)
                         RecentCard(
                             name = entry.name,
-                            subtitle = toneLabel(tone),
-                            initial = entry.initial,
-                            badgeBackground = background,
-                            badgeForeground = foreground,
-                            onClick = { viewModel.select(entry.id) }
+                            subtitle = categoryLabel(entry.category),
+                            onClick = { viewModel.select(entry.id) },
+                            badge = { EntryBadge(item = entry, size = 38.dp, cornerRadius = 13.dp) }
                         )
                     }
                 }
@@ -260,11 +255,10 @@ fun VaultRow(
     folderName: String? = null
 ) {
     val tone = toneOf(item)
-    val (background, foreground) = badgeColors(tone)
     val breachMark = stringResource(R.string.breach_mark)
 
     KasaTile(position = position, onClick = onClick, modifier = modifier) {
-        KasaBadge(text = item.initial, background = background, foreground = foreground)
+        EntryBadge(item = item)
         Column(Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

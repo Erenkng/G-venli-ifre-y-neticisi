@@ -59,7 +59,8 @@ import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.FieldBlock
-import app.kasa.ui.components.KasaBadge
+import app.kasa.data.model.CardBrand
+import app.kasa.ui.components.CardFace
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.SectionLabel
@@ -108,7 +109,6 @@ fun ItemDetailSheet(
     }
 
     val tone = toneOf(item)
-    val (badgeBackground, badgeForeground) = badgeColors(tone)
     val strength = if (item.primarySecret.isBlank()) 1f
     else PasswordStrength.evaluate(item.primarySecret).score
     val reuse = viewModel.reuseCount(item)
@@ -127,19 +127,30 @@ fun ItemDetailSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp)
         ) {
+            // ── kart yüzü ─────────────────────────────────────────────────
+            //
+            // Kart kaydı açıldığında ilk görülen şey kartın kendisi: numara,
+            // ad ve son kullanma tek karede, cüzdandan çıkarılmış gibi. Aynı
+            // bilgiyi alt alta üç satır olarak listelemek teknik olarak
+            // yeterliydi ama kartı tanımayı okumaya bağlıyordu.
+            //
+            // Kilitli kayıtta çizilmiyor: kart yüzü zaten numarayı taşıyor,
+            // doğrulamadan önce göstermek ek kilidi anlamsız kılardı.
+            if (item.category == Category.CARD && itemUnlocked) {
+                Spacer(Modifier.height(6.dp))
+                CardFace(item = item, revealed = revealed)
+                Spacer(Modifier.height(6.dp))
+            }
+
             // ── başlık ────────────────────────────────────────────────────
             Row(
-                Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
+                Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                KasaBadge(
-                    text = item.initial,
-                    background = badgeBackground,
-                    foreground = badgeForeground,
-                    size = 60.dp,
-                    cornerRadius = 21.dp
-                )
+                if (item.category != Category.CARD) {
+                    EntryBadge(item = item, size = 60.dp, cornerRadius = 21.dp)
+                }
                 Column(Modifier.weight(1f)) {
                     Text(
                         item.name,
@@ -476,6 +487,9 @@ private fun CardFields(
     viewModel: VaultViewModel,
     settings: SettingsStore.Settings
 ) {
+    // Numara, ad ve son kullanma kart yüzünde zaten duruyor. Buradaki blok
+    // onları tekrar yazmak için değil, **kopyalanabilir** kılmak için var:
+    // kart yüzü bir görsel, alan ise bir eylem.
     SecretFieldBlock(
         label = stringResource(R.string.field_card_number),
         value = item.cardNumber,
@@ -484,23 +498,9 @@ private fun CardFields(
         onToggleReveal = onToggleReveal,
         onCopy = { viewModel.copySecret(item.cardNumber, settings.clipboardClearSeconds) }
     )
-    if (item.cardHolder.isNotBlank()) {
-        Spacer(Modifier.height(8.dp))
-        FieldBlock(label = stringResource(R.string.field_card_holder)) {
-            Text(item.cardHolder, style = MaterialTheme.typography.bodyLarge, color = KasaTheme.colors.ink)
-        }
-    }
+
     Spacer(Modifier.height(8.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.weight(1f)) {
-            FieldBlock(label = stringResource(R.string.field_card_expiry)) {
-                Text(
-                    item.cardExpiry.ifBlank { "—" },
-                    style = KasaTheme.text.mono,
-                    color = KasaTheme.colors.ink
-                )
-            }
-        }
         Box(Modifier.weight(1f)) {
             SecretFieldBlock(
                 label = stringResource(R.string.field_card_cvv),
@@ -511,6 +511,29 @@ private fun CardFields(
                 compact = true
             )
         }
+        Box(Modifier.weight(1f)) {
+            FieldBlock(label = stringResource(R.string.field_card_brand)) {
+                Text(
+                    CardBrand.detect(item.cardNumber).displayName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = KasaTheme.colors.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+
+    // Luhn sağlaması yalnızca tutmadığında konuşuyor. Doğru numaranın yanına
+    // "geçerli" yazmak gürültü; yanlış yazılmış bir numaranın aylar sonra
+    // ödeme anında keşfedilmesi ise gerçek bir zarar.
+    if (CardBrand.luhnValid(item.cardNumber) == false) {
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.card_luhn_warning),
+            style = MaterialTheme.typography.bodySmall,
+            color = KasaTheme.colors.strengthMid
+        )
     }
 }
 

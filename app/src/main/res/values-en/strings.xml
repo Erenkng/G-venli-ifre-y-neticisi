@@ -507,4 +507,8 @@
     <string name="set_group_crypto">Cryptography</string>
     <string name="set_key_storage">Key storage</string>
     <string name="af_browse_entry">Choose from Kasa</string>
+
+    <!-- Card view -->
+    <string name="field_card_brand">Network</string>
+    <string name="card_luhn_warning">Number fails its checksum · a digit may be wrong</string>
 </resources>
