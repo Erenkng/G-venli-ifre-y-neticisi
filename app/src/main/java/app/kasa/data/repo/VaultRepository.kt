@@ -982,9 +982,18 @@ class VaultRepository(
             .take(limit)
 
     /** Otomatik doldurma için: paket adı ve alan adına göre eşleşen kayıtlar. */
+    /**
+     * Otomatik doldurmada gösterilecek eşleşmeler.
+     *
+     * "Her açışta doğrula" işaretli kayıtlar **dışarıda bırakılıyor**. Otomatik
+     * doldurma akışı yalnızca kasanın kilidini soruyor; kayıt bazlı kilidi
+     * orada uygulamanın yolu yok. Kaydı yine de sunmak, kullanıcının koruma
+     * altına aldığını sandığı parolayı en geniş kapıdan vermek olurdu. Kayıt
+     * uygulamanın içinden, doğrulamanın ardından kopyalanabiliyor.
+     */
     fun matchesFor(packageName: String?, webDomain: String?): List<VaultItem> {
         val items = _data.value.liveItems
-            .filter { it.category == Category.LOGIN || it.category == Category.OTP }
+            .filter { (it.category == Category.LOGIN || it.category == Category.OTP) && !it.requireAuth }
         val domain = webDomain?.lowercase()?.removePrefix("www.")
         val appToken = packageName?.substringAfterLast('.')?.lowercase()
 

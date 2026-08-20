@@ -116,7 +116,9 @@ class AutofillUnlockActivity : FragmentActivity() {
         val parsed = StructureParser(structure).parse()
         val repository = KasaApplication.container(this).vaultRepository
         val matches = repository.matchesFor(parsed.packageName, parsed.webDomain)
-            .ifEmpty { repository.data.value.items.take(8) }
+            // Eşleşme yoksa son kayıtlar sunuluyor; ek kilitli olanlar burada
+            // da dışarıda kalıyor.
+            .ifEmpty { repository.data.value.liveItems.filter { !it.requireAuth }.take(8) }
 
         val builder = FillResponse.Builder()
         var added = 0
