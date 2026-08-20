@@ -32,21 +32,7 @@ object Base32 {
     /** Boşluk, tire ve dolgu karakterlerini yok sayar. Geçersizse `null` döner. */
     fun decodeRfc4648(text: String): ByteArray? {
         val cleaned = text.uppercase().filter { it != '=' && !it.isWhitespace() && it != '-' }
-        if (cleaned.isEmpty()) return null
-        val out = ArrayList<Byte>(cleaned.length * 5 / 8 + 1)
-        var buffer = 0
-        var bitsLeft = 0
-        for (c in cleaned) {
-            val idx = RFC4648.indexOf(c)
-            if (idx < 0) return null
-            buffer = (buffer shl 5) or idx
-            bitsLeft += 5
-            if (bitsLeft >= 8) {
-                out.add(((buffer shr (bitsLeft - 8)) and 0xFF).toByte())
-                bitsLeft -= 8
-            }
-        }
-        return out.toByteArray()
+        return decodeInto(cleaned, RFC4648)
     }
 
     fun encodeCrockford(data: ByteArray): String {
@@ -77,21 +63,47 @@ object Base32 {
                 }
             }
         }
+        return decodeInto(cleaned, CROCKFORD)
+    }
+
+    /**
+     * Ortak çözücü.
+     *
+     * Çıktı doğrudan bir `ByteArray` içine yazılıyor; eski hâli `ArrayList<Byte>`
+     * kullanıyordu ve her bayt için ayrı bir nesne üretiyordu. Kurtarma
+     * anahtarının çözüldüğü yol burası olduğu için ara kopyaların sayısı
+     * bilerek en aza indirildi: silinemeyen her kopya, gizli veriyi çöp
+     * toplayıcının insafına bırakmak demek.
+     *
+     * Geçersiz karakterde yarı dolu tampon sıfırlanıyor.
+     */
+    private fun decodeInto(cleaned: String, alphabet: String): ByteArray? {
         if (cleaned.isEmpty()) return null
-        val out = ArrayList<Byte>(cleaned.length * 5 / 8 + 1)
+        val out = ByteArray(cleaned.length * 5 / 8)
+        var written = 0
         var buffer = 0
         var bitsLeft = 0
         for (c in cleaned) {
-            val idx = CROCKFORD.indexOf(c)
-            if (idx < 0) return null
+            val idx = alphabet.indexOf(c)
+            if (idx < 0) {
+                out.fill(0)
+                return null
+            }
             buffer = (buffer shl 5) or idx
             bitsLeft += 5
             if (bitsLeft >= 8) {
-                out.add(((buffer shr (bitsLeft - 8)) and 0xFF).toByte())
+                if (written >= out.size) {
+                    out.fill(0)
+                    return null
+                }
+                out[written++] = ((buffer shr (bitsLeft - 8)) and 0xFF).toByte()
                 bitsLeft -= 8
             }
         }
-        return out.toByteArray()
+        if (written == out.size) return out
+        val exact = out.copyOf(written)
+        out.fill(0)
+        return exact
     }
 }
 
@@ -112,10 +124,18 @@ object RecoveryKey {
     /** "XXXX-XXXX-..." biçimine sokar. */
     fun format(raw: String): String = raw.chunked(4).joinToString("-")
 
-    /** Kullanıcının yazdığı metni normalize edip parola baytlarına çevirir. */
+    /**
+     * Kullanıcının yazdığı metni normalize edip parola baytlarına çevirir.
+     *
+     * Çözülen ara dizi her yolda sıfırlanıyor: kurtarma anahtarı ana parolayla
+     * eşdeğer yetkiye sahip ve yığında asılı kalmasının hiçbir gerekçesi yok.
+     */
     fun toSecret(typed: String): SecretBytes? {
         val bytes = Base32.decodeCrockford(typed) ?: return null
-        if (bytes.size < ENTROPY_BYTES) return null
-        return SecretBytes(bytes.copyOf(ENTROPY_BYTES))
+        return try {
+            if (bytes.size < ENTROPY_BYTES) null else SecretBytes(bytes.copyOf(ENTROPY_BYTES))
+        } finally {
+            bytes.fill(0)
+        }
     }
 }

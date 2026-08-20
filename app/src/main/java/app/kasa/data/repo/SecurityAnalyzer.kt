@@ -66,7 +66,7 @@ class SecurityAnalyzer(private val breachChecker: BreachChecker) {
                 if (fresh) {
                     results[item.id] = item.breachCount
                 } else {
-                    val count = breachChecker.timesSeen(item.password.reveal())
+                    val count = breachChecker.timesSeen(item.password)
                     if (count != null) {
                         onlineRan = true
                         results[item.id] = count

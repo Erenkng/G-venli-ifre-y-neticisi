@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.concurrent.FutureTask
 import javax.crypto.AEADBadTagException
@@ -1141,13 +1142,23 @@ class VaultStore(private val context: Context) {
      * sayacı yeniden kurmak zorunda kalır.
      */
     fun readAttempts(): Attempts {
+        // Dosya hiç yoksa gerçekten sıfırdır: kasa yeni kurulmuş ya da sayaç
+        // başarılı bir açılıştan sonra bilinçli olarak sıfırlanmıştır.
         if (!attemptsFile.exists()) return Attempts(0, 0)
-        val raw = runCatching { attemptsFile.readBytes() }.getOrNull() ?: return Attempts(0, 0)
-        val plain = KeystoreKeys.deviceOpen(raw) ?: return Attempts(0, 0)
+
+        val raw = runCatching { attemptsFile.readBytes() }.getOrNull()
+        val plain = raw?.let { KeystoreKeys.deviceOpen(it) }
+        if (plain == null) {
+            // Dosya var ama açılamıyor: ya bozulmuş ya da biri sayacı
+            // sıfırlamak için kurcalamış. Eskiden burada sıfır dönülüyordu ve
+            // bu, üstel beklemeyi tek dosya bozarak atlamanın yolu demekti.
+            // Şüphede kalındığında sıkı taraf seçiliyor.
+            return Attempts(TAMPERED_ATTEMPTS, System.currentTimeMillis() + TAMPER_BLOCK_MILLIS)
+        }
         return runCatching {
             val input = DataInputStream(ByteArrayInputStream(plain))
             Attempts(input.readInt(), input.readLong())
-        }.getOrDefault(Attempts(0, 0))
+        }.getOrDefault(Attempts(TAMPERED_ATTEMPTS, System.currentTimeMillis() + TAMPER_BLOCK_MILLIS))
     }
 
     private fun writeAttempts(attempts: Attempts) {
@@ -1268,6 +1279,14 @@ class VaultStore(private val context: Context) {
             target.delete()
             check(tmp.renameTo(target)) { "Kasa dosyası yazılamadı" }
         }
+        // Dosyanın içeriğini `fsync` etmek yetmiyor: yeniden adlandırma dizin
+        // girdisinde yaşıyor ve o da ayrıca kalıcı kılınmalı. Aksi hâlde
+        // elektrik kesilmesi, içeriği yazılmış ama adı hâlâ `.tmp` olan bir
+        // dosya bırakabilir — yani kasa kaybolmuş görünür.
+        runCatching {
+            val dir = target.parentFile ?: return@runCatching
+            FileInputStream(dir).use { it.fd.sync() }
+        }
     }
 
     /**
@@ -1347,6 +1366,24 @@ class VaultStore(private val context: Context) {
          * her zaman açıyor.
          */
         const val PIN_MAX_ATTEMPTS = 5
+
+        /**
+         * Kurcalanmış sayaç dosyasında varsayılan deneme sayısı ve bekleme.
+         *
+         * Dosya var ama cihaz anahtarıyla açılamıyorsa kurcalanmış sayılıyor ve
+         * beş dakika bekleniyor.
+         *
+         * Bunun sınırı açıkça söylenmeli: **dosyayı tamamen silen** bir
+         * saldırgan sayacı yine sıfırlar ve Android'de uygulamanın kendi veri
+         * dizinindeki bir dosyayı, root yetkisi olan birinden koruyabilmesinin
+         * yolu yok. Üstel bekleme, telefonu eline geçirmiş sıradan birine karşı
+         * bir engel; kararlı bir saldırgana karşı asıl koruma sayaç değil, ana
+         * parolanın en az 60 bitlik olma zorunluluğu ve ölçümle ~800 ms'ye
+         * ayarlanmış Argon2id maliyeti. Bu ikisiyle deneme başına maliyet,
+         * sayaç hiç olmasa da kaba kuvveti anlamsız kılıyor.
+         */
+        private const val TAMPERED_ATTEMPTS = 5
+        private const val TAMPER_BLOCK_MILLIS = 5 * 60 * 1000L
 
         /** Kullanıcının seçtiği dosyanın gerçekten .kasa olup olmadığını hızlıca söyler. */
         fun looksLikeExport(head: ByteArray): Boolean =

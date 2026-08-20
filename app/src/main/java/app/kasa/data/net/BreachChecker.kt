@@ -1,6 +1,7 @@
 package app.kasa.data.net
 
 import app.kasa.core.crypto.Crypto
+import app.kasa.core.crypto.SecretText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -41,9 +42,16 @@ class BreachChecker {
     /**
      * @return parolanın sızıntılarda kaç kez görüldüğü, ağ hatasında `null`.
      */
-    suspend fun timesSeen(password: String): Int? = withContext(Dispatchers.IO) {
+    suspend fun timesSeen(password: SecretText): Int? = withContext(Dispatchers.IO) {
         if (password.isBlank()) return@withContext 0
-        val hash = Crypto.sha1Hex(password.toByteArray(Charsets.UTF_8))
+        // Parola baytları özet alındıktan hemen sonra sıfırlanıyor; ağ katmanına
+        // giden tek şey özetin ilk beş onaltılık hanesi.
+        val bytes = password.toSecretBytes()
+        val hash = try {
+            Crypto.sha1Hex(bytes.raw())
+        } finally {
+            bytes.wipe()
+        }
         val prefix = hash.substring(0, 5)
         val suffix = hash.substring(5)
 
@@ -59,7 +67,11 @@ class BreachChecker {
                 val body = response.body?.string() ?: return@withContext null
                 for (line in body.lineSequence()) {
                     val separator = line.indexOf(':')
-                    if (separator <= 0) continue
+                    // Uzunluk eşitliği şart. Eskiden yalnızca satırın ':' öncesi
+                    // kadarı karşılaştırılıyordu; kısa (bozuk ya da kötü niyetli)
+                    // bir satır, kendi ön ekiyle başlayan her parolayı "sızmış"
+                    // gösterebilirdi.
+                    if (separator != suffix.length) continue
                     if (line.regionMatches(0, suffix, 0, separator, ignoreCase = true)) {
                         val count = line.substring(separator + 1).trim().toIntOrNull() ?: 0
                         // Dolgu satırlarının sayacı 0'dır; onlar eşleşme sayılmaz.

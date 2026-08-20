@@ -30,9 +30,74 @@ object XChaCha20Poly1305 {
     const val NONCE_BYTES = 24
     const val TAG_BYTES = 16
 
-    /** Platformun ChaCha20-Poly1305 sunup sunmadığı. */
-    val available: Boolean by lazy {
-        runCatching { chachaCipher() }.isSuccess
+    /**
+     * Bu paket bu cihazda güvenle kullanılabilir mi?
+     *
+     * Yalnızca "sağlayıcı var mı" diye bakmıyor. Buradaki HChaCha20 el yazması
+     * ve el yazması kriptografinin sessizce yanlış olması, gürültülü şekilde
+     * bozulmasından çok daha kötü: yanlış bir alt anahtar, açılamayan bir kasa
+     * demek ve bu ancak kullanıcı parolasını doğru girdiği hâlde kasası
+     * açılmadığında anlaşılır.
+     *
+     * Bu yüzden paket sunulmadan önce iki şey doğrulanıyor:
+     *
+     *  1. **Bilinen cevap testi.** RFC 8439 türevi XChaCha taslağındaki
+     *     HChaCha20 vektörü hesaplanıp beklenen alt anahtarla karşılaştırılıyor.
+     *     Bu, dört-tur işlevinden bayt sırasına kadar her adımı sınıyor.
+     *  2. **Gidiş-dönüş testi.** Gerçek bir mühürleme/açma turu yapılıp düz
+     *     metnin aynen döndüğü ve kurcalanmış etiketin reddedildiği
+     *     doğrulanıyor — yani platformun sağlayıcısı da sınanıyor.
+     *
+     * Biri bile tutmazsa paket hiç sunulmuyor ve kasa AES-256-GCM ile yazılıyor.
+     */
+    val available: Boolean by lazy { runCatching { selfTest() }.getOrDefault(false) }
+
+    /** RFC taslağındaki HChaCha20 vektörünün girdisi ve beklenen alt anahtarı. */
+    private val KAT_KEY = byteArrayOf(
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    )
+
+    private val KAT_NONCE = byteArrayOf(
+        0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x4a,
+        0x00, 0x00, 0x00, 0x00, 0x31, 0x41, 0x59, 0x27
+    )
+
+    private val KAT_SUBKEY = byteArrayOf(
+        0x82.toByte(), 0x41, 0x3b, 0x42, 0x27, 0xb2.toByte(), 0x7b, 0xfe.toByte(),
+        0xd3.toByte(), 0x0e, 0x42, 0x50, 0x8a.toByte(), 0x87.toByte(), 0x7d, 0x73,
+        0xa0.toByte(), 0xf9.toByte(), 0xe4.toByte(), 0xd5.toByte(),
+        0x8a.toByte(), 0x74, 0xa8.toByte(), 0x53,
+        0xc1.toByte(), 0x2e, 0xc4.toByte(), 0x13, 0x26, 0xd3.toByte(), 0xec.toByte(), 0xdc.toByte()
+    )
+
+    private fun selfTest(): Boolean {
+        val derived = hChaCha20(KAT_KEY, KAT_NONCE)
+        val kdfOk = try {
+            Crypto.constantTimeEquals(derived, KAT_SUBKEY)
+        } finally {
+            derived.fill(0)
+        }
+        if (!kdfOk) return false
+
+        val key = Crypto.randomBytes(KEY_BYTES)
+        val nonce = Crypto.randomBytes(NONCE_BYTES)
+        val plain = Crypto.randomBytes(96)
+        val aad = Crypto.randomBytes(16)
+        return try {
+            val sealed = seal(key, nonce, plain, aad)
+            if (!Crypto.constantTimeEquals(open(key, nonce, sealed, aad), plain)) return false
+            // Kurcalanan etiket reddedilmeli; edilmiyorsa bütünlük yok demektir.
+            sealed[sealed.size - 1] = (sealed[sealed.size - 1].toInt() xor 0x01).toByte()
+            runCatching { open(key, nonce, sealed, aad) }.isFailure
+        } catch (t: Throwable) {
+            false
+        } finally {
+            key.fill(0)
+            plain.fill(0)
+        }
     }
 
     fun seal(key: ByteArray, nonce: ByteArray, plain: ByteArray, aad: ByteArray?): ByteArray {

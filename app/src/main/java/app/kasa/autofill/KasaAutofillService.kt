@@ -68,10 +68,16 @@ class KasaAutofillService : AutofillService() {
             lockedResponse(parsed)
         } else {
             val matches = repository.matchesFor(parsed.packageName, parsed.webDomain)
-            val fallback = if (matches.isEmpty()) {
-                repository.data.value.items.filter { it.category == Category.LOGIN }.take(5)
-            } else matches
-            unlockedResponse(parsed, fallback)
+            // Eşleşme yoksa kasadan rastgele kayıtlar **sunulmuyor**.
+            //
+            // Eskiden burada ilk beş giriş kaydı doğrudan öneri menüsüne
+            // konuyordu. Bunun anlamı şuydu: parola alanı olan herhangi bir
+            // uygulama, hiçbir eşleşme sağlamadan kullanıcının hesaplarını
+            // menüde görebiliyor ve kullanıcı yanlışlıkla dokunduğunda parola
+            // o uygulamaya gidiyordu. Artık tek bir "Kasa'dan seç" satırı
+            // dönüyor; o satır kimlik doğrulamasından geçiyor ve kullanıcı
+            // seçimi Kasa'nın kendi ekranında yapıyor.
+            if (matches.isEmpty()) browseResponse(parsed) else unlockedResponse(parsed, matches)
         }
 
         callback.onSuccess(response)
@@ -97,6 +103,41 @@ class KasaAutofillService : AutofillService() {
         val datasetBuilder = Dataset.Builder()
         // Kimlik doğrulamalı veri kümesinde değerler yer tutucudur; gerçek
         // değerleri doğrulama sonrası dönen yanıt taşır.
+        ids.forEach { id -> datasetBuilder.setValue(id, null, presentation) }
+        datasetBuilder.setAuthentication(pendingIntent.intentSender)
+
+        return FillResponse.Builder()
+            .addDataset(datasetBuilder.build())
+            .setSaveInfo(buildSaveInfo(parsed))
+            .build()
+    }
+
+    /**
+     * Eşleşme yokken: tek bir kimlik doğrulamalı "Kasa'dan seç" satırı.
+     *
+     * Değer taşımıyor; dokunulduğunda [AutofillUnlockActivity] açılıyor ve
+     * kullanıcı hangi uygulamanın istediğini görerek seçim yapıyor. Kasa açık
+     * olsa bile o ekran ayrıca doğrulama istiyor: eşleşmeyen bir uygulamaya
+     * kimlik bilgisi vermek, eşleşen birine vermekten farklı bir karar.
+     */
+    private fun browseResponse(parsed: StructureParser.Result): FillResponse {
+        val ids = listOfNotNull(parsed.usernameId, parsed.passwordId).toTypedArray()
+
+        val presentation = RemoteViews(packageName, R.layout.autofill_dataset).apply {
+            setTextViewText(R.id.autofill_title, getString(R.string.af_browse_entry))
+            setTextViewText(R.id.autofill_subtitle, getString(R.string.app_name))
+        }
+
+        val intent = Intent(this, AutofillUnlockActivity::class.java)
+            .putExtra(AutofillUnlockActivity.EXTRA_BROWSE, true)
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            REQUEST_BROWSE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        )
+
+        val datasetBuilder = Dataset.Builder()
         ids.forEach { id -> datasetBuilder.setValue(id, null, presentation) }
         datasetBuilder.setAuthentication(pendingIntent.intentSender)
 
@@ -217,5 +258,6 @@ class KasaAutofillService : AutofillService() {
 
     private companion object {
         const val REQUEST_UNLOCK = 9021
+        const val REQUEST_BROWSE = 9022
     }
 }

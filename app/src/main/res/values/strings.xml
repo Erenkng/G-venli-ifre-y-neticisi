@@ -524,4 +524,5 @@
     <string name="set_cipher_suite">Şifreleme paketi</string>
     <string name="set_group_crypto">Kriptografi</string>
     <string name="set_key_storage">Anahtar deposu</string>
+    <string name="af_browse_entry">Kasa\'dan seç</string>
 </resources>

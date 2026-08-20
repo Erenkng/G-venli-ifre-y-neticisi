@@ -506,4 +506,5 @@
     <string name="set_cipher_suite">Cipher suite</string>
     <string name="set_group_crypto">Cryptography</string>
     <string name="set_key_storage">Key storage</string>
+    <string name="af_browse_entry">Choose from Kasa</string>
 </resources>

@@ -76,10 +76,21 @@ class AutofillUnlockActivity : FragmentActivity() {
 
         val container = KasaApplication.container(this)
         val repository = container.vaultRepository
+        val browsing = intent.getBooleanExtra(EXTRA_BROWSE, false)
 
-        // Zaten açıksa doğrudan yanıtla.
         if (repository.isUnlocked) {
-            finishWithResponse()
+            // Eşleşmeyen bir uygulamaya kimlik bilgisi vermek ayrı bir karar:
+            // kasa açık olsa bile burada bir kez daha kim olduğu soruluyor.
+            if (browsing) {
+                BiometricGate(this).authenticatePresence(
+                    title = getString(R.string.af_browse_entry),
+                    subtitle = getString(R.string.af_unlock_prompt),
+                    onSuccess = { finishWithResponse() },
+                    onCancel = { setResult(Activity.RESULT_CANCELED); finish() }
+                )
+            } else {
+                finishWithResponse()
+            }
             return
         }
 
@@ -256,5 +267,13 @@ class AutofillUnlockActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        /**
+         * "Kasa'dan seç" akışı. Eşleşme bulunamadığında otomatik doldurma
+         * servisi bu bayrakla geliyor ve burada ek doğrulama isteniyor.
+         */
+        const val EXTRA_BROWSE = "app.kasa.autofill.BROWSE"
     }
 }

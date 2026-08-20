@@ -36,19 +36,30 @@ class StructureParser(private val structure: AssistStructure) {
     private var webDomain: String? = null
 
     fun parse(): Result {
+        val packageName = structure.activityComponent?.packageName
         for (i in 0 until structure.windowNodeCount) {
             traverse(structure.getWindowNodeAt(i).rootViewNode)
         }
         return Result(
             usernameId = usernameId,
             passwordId = passwordId,
-            packageName = structure.activityComponent?.packageName,
-            webDomain = webDomain
+            packageName = packageName,
+            // Alan adı yalnızca tarayıcıdan geliyorsa kabul ediliyor; gerekçesi
+            // [isBrowser] üzerinde yazılı.
+            webDomain = if (isBrowser(packageName)) webDomain else null
         )
     }
 
     private fun traverse(node: AssistStructure.ViewNode) {
-        node.webDomain?.takeIf { it.isNotBlank() }?.let { if (webDomain == null) webDomain = it }
+        if (webDomain == null) {
+            val domain = node.webDomain?.trim()?.lowercase()
+            val scheme = node.webScheme?.lowercase()
+            // Şema varsa https/http olmalı. `javascript:` ya da `data:` gibi bir
+            // şemayla gelen "alan adı" gerçek bir kaynak değildir.
+            if (!domain.isNullOrBlank() && (scheme == null || scheme == "https" || scheme == "http")) {
+                webDomain = domain.removePrefix("www.")
+            }
+        }
 
         val id = node.autofillId
         if (id != null && node.autofillType == View.AUTOFILL_TYPE_TEXT) {
@@ -108,10 +119,60 @@ class StructureParser(private val structure: AssistStructure) {
         return keywords.any { haystack.contains(it) }
     }
 
+    /**
+     * Çağıran bir tarayıcı mı?
+     *
+     * Bu ayrım güvenlik açısından belirleyici. `ViewNode.webDomain` alanını
+     * **uygulamanın kendisi** dolduruyor; sistem doğrulamıyor. Yani kötü niyetli
+     * bir uygulama, kendi giriş formundaki bir alana `webDomain = "bankam.com"`
+     * yazıp kasadan o bankanın parolasını isteyebilir — kullanıcı da doğru
+     * kaydı gördüğü için gönül rahatlığıyla dokunur.
+     *
+     * Tarayıcılarda bu alan gerçekten görüntülenen sayfanın adresidir ve
+     * tarayıcının kendisi güvenilir bir aracıdır. Bu yüzden alan adı eşleşmesi
+     * yalnızca tarayıcılarda kullanılıyor; başka her uygulamada eşleştirme
+     * paket adı üzerinden yapılıyor ve paket adını taklit etmek imza
+     * doğrulaması yüzünden mümkün değil.
+     *
+     * Liste kaçınılmaz olarak eksik: tanınmayan bir tarayıcıda alan adı
+     * eşleşmesi çalışmaz, kullanıcı kaydı elle seçer. Yanlış tarafta kalmanın
+     * bedeli budur — kimlik avına açık kalmaktan iyidir.
+     */
+    private fun isBrowser(packageName: String?): Boolean =
+        packageName != null && packageName in BROWSERS
+
     private companion object {
+        /** Alan adı beyanına güvenilen tarayıcılar. */
+        val BROWSERS = setOf(
+            "com.android.chrome",
+            "com.chrome.beta",
+            "com.chrome.dev",
+            "com.chrome.canary",
+            "org.mozilla.firefox",
+            "org.mozilla.firefox_beta",
+            "org.mozilla.fenix",
+            "org.mozilla.focus",
+            "com.microsoft.emmx",
+            "com.opera.browser",
+            "com.opera.mini.native",
+            "com.opera.gx",
+            "com.brave.browser",
+            "com.duckduckgo.mobile.android",
+            "com.sec.android.app.sbrowser",
+            "com.vivaldi.browser",
+            "com.kiwibrowser.browser",
+            "org.chromium.chrome",
+            "com.ecosia.android",
+            "com.yandex.browser",
+            "com.UCMobile.intl",
+            "com.android.browser"
+        )
+
         val PASSWORD_KEYWORDS = arrayOf(
-            "password", "passwd", "pwd", "pass",
-            "sifre", "şifre", "parola", "gizli"
+            // "pass" tek başına yok: "passport", "passenger", "compass" gibi
+            // alanları parola sanıp oraya parola yazdırırdı.
+            "password", "passwd", "pwd",
+            "sifre", "şifre", "parola"
         )
         val USERNAME_KEYWORDS = arrayOf(
             "username", "user", "login", "email", "e-mail", "account", "identifier",

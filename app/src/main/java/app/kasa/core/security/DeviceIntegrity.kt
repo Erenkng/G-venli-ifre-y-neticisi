@@ -49,26 +49,10 @@ object DeviceIntegrity {
         "/system/xbin/mu"
     )
 
-    private val ROOT_PACKAGES = arrayOf(
-        "com.topjohnwu.magisk",
-        "eu.chainfire.supersu",
-        "com.noshufou.android.su",
-        "com.koushikdutta.superuser",
-        "com.thirdparty.superuser",
-        "com.yellowes.su"
-    )
-
     private fun isRooted(): Boolean =
         ROOT_PATHS.any { runCatching { File(it).exists() }.getOrDefault(false) } ||
             Build.TAGS?.contains("test-keys") == true ||
             runCatching { File("/system").canWrite() }.getOrDefault(false)
-
-    fun rootPackagesPresent(context: Context): Boolean = ROOT_PACKAGES.any { pkg ->
-        runCatching {
-            context.packageManager.getPackageInfo(pkg, 0)
-            true
-        }.getOrDefault(false)
-    }
 
     private fun isEmulator(): Boolean =
         Build.FINGERPRINT.startsWith("generic") ||
