@@ -30,10 +30,13 @@ bildirim ve dinamik renk yollarındaki tüm `Build.VERSION` kontrolleri
 kaldırıldı. Argon2Kt 1.6.0'ın dört ABI'sinin de 16 KB sayfa hizalı olduğu
 ELF program başlıklarından doğrulandı; 32 bit ABI'ler paketlenmiyor.
 
-> **Not:** Bu depo, Android SDK'sına erişimi olmayan bir ortamda yazıldı;
-> Gradle derlemesi henüz çalıştırılmadı. Bağımlılık sürümleri ve API
-> kullanımları elle doğrulandı, ancak ilk `./gradlew assembleDebug`
-> çalıştırmasında küçük düzeltmeler gerekebilir.
+### Sürekli tümleştirme
+
+Depo yazılırken kullanılan ortamda Android SDK indirmesi engelliydi, bu yüzden
+derleme doğrulaması **GitHub Actions**'a taşındı: `.github/workflows/android.yml`
+her itmede `assembleDebug` ve `lintDebug` çalıştırıp APK'yı yapı çıktısı olarak
+yüklüyor. Derleme başarısız olduğunda Kotlin hataları günlüğün sonunda ayrıca
+özetleniyor — Gradle'ın yığın izi altında kaybolmasınlar diye.
 
 ---
 
@@ -54,11 +57,19 @@ biyometri ──Keystore/StrongBox──────────┘    KASA ANAH
 
 | Katman | Seçim | Gerekçe |
 |---|---|---|
-| Anahtar türetme | **Argon2id** 64 MiB / 3 tur / 2 şerit | Bellek-zor; GPU ve ASIC ile paralel deneme pahalı. Yerel kitaplık yüklenemezse PBKDF2-HMAC-SHA512 / 600.000 tura düşer ve bu, dosya başlığına yazılır. |
+| Anahtar türetme | **Argon2id**, parametreleri cihazda **ölçülerek** bulunur | Sabit 64 MiB / 3 tur amiral gemisinde gereksiz zayıf, dört yıllık orta segment telefonda kullanılamaz yavaştı. Kurulumda ~800 ms hedefine göre ölçülüp bulunan değer kasa başlığına yazılır; kasa başka cihaza taşındığında orada yeniden ölçülmez. Yerel kitaplık yüklenemezse PBKDF2-HMAC-SHA512'ye düşer ve bu da başlığa yazılır. |
+| Şifreleme paketi | **AES-256-GCM** ya da **XChaCha20-Poly1305**, ölçümle seçilir | AES komut kümesi olan cihazlarda GCM açık ara önde; olmayanlarda ChaCha öne geçiyor ve yazılımda tasarımı gereği sabit zamanlı. Seçim dosya başlığındaki paket kimliğine yazılır, böylece varsayılan değişse bile eski kasa açılmayı sürdürür. |
 | Şifreleme | **AES-256-GCM**, 96 bit rastgele nonce | Bütünlük şifrelemenin içinde. Yanlış ana parola ayrı bir doğrulayıcı alan olmadan, etiket hatasıyla anlaşılır — çevrimdışı saldırgana bedava sağlama sunulmaz. |
 | AAD | Dosya başlığı (KDF parametreleri dâhil) | Saldırgan Argon2 maliyetini düşürecek şekilde başlığı kurcalayamaz. |
 | Biyometrik kilit | Keystore anahtarı, `setUserAuthenticationRequired(true)`, **StrongBox** varsa donanımda | Parmak izi bir bayrağı `true` yapmaz; doğrudan Keystore anahtarının kullanımını açar. Yeni parmak izi kaydedilirse anahtar otomatik geçersizleşir. |
-| Bellek | `SecretBytes` — silinebilir bayt tamponu | Anahtarlar `String` olarak tutulmaz; iş bitince sıfırlanır. |
+| Bellek | `SecretBytes` (anahtarlar) ve `SecretText` (parolalar) — silinebilir tamponlar | Kasa kilitlendiği anda uygulamanın elindeki hiçbir nesnede okunabilir parola kalmaz. JSON çözücüsünün ürettiği geçici `String` kaçınılmaz; kazanç "hiç `String` olmasın" değil, **kalıcı kopya olmasın**. |
+| Kasa anahtarı rotasyonu | Yeni anahtar, kasa baştan şifrelenir, üç sarmalayıcı da yeniden yazılır | Ana parola değişimi yalnızca sarmalayıcıyı yeniler; eski anahtarı ele geçirmiş biri eski kopyayı sonsuza dek açardı. Rotasyon önce `.new` dosyaları, sonra işaret dosyası, en son devralma sırasıyla yapılır; yarıda kesilirse açılışta tamamlanır. |
+| Passkey | FIDO2/WebAuthn kimlik bilgileri kasada; Kasa bir Credential Manager sağlayıcısı | Özel anahtar Keystore'da değil kasada: Keystore'a bağlı bir passkey telefonla birlikte kaybolurdu ve parola yöneticisinin varlık sebebi tam olarak bunu engellemek. `none` attestation, AAGUID sıfır — yazılım kimlik doğrulayıcısı kendisi hakkında doğrulanabilir bir şey söyleyemez, sahte bir donanım kimliği üretmek yerine hiçbir şey iddia etmiyoruz. |
+| Hızlı PIN | 4-6 hane; kasa anahtarı önce PIN'den türetilen anahtarla, sonra Keystore anahtarıyla sarmalanır | Dosyayı kopyalayan biri dış katmanı açamadığı için çevrimdışı deneme mümkün değil; cihaz üzerinde beş yanlış denemede PIN düşer ve ana parola istenir. 20 karakterlik ana parolayı günde on kez yazdırmak, pratikte ana parolayı zayıflatan kuraldır. |
+| Cihaz kimlik bilgisi | İsteğe bağlı: biyometri **ya da** telefonun ekran kilidi | Parmak izi okuyucusu bozuk cihazda tek seçenek "her açılışta ana parola" olmasın diye. Eşiği bilerek düşürüyor, bu yüzden varsayılan değil. |
+| Kayıt bazlı ek kilit | İşaretli kayıtta alanlar doğrulama gelene kadar hiç çizilmez | Banka kaydının Spotify kaydıyla aynı eşiği paylaşması için sebep yok. Maskeleyip "göster"e basılabilir bırakmak, korunanı bir dokunuş uzağa koymak olurdu. |
+| Zorlama parolası | İkinci bir ana parola yem kasayı açar; iki bölme aynı dosyada | Kurulu olup olmadığı dosyaya bakılarak anlaşılamaz: sarmalayıcı her kasada aynı boyutta bulunur, yem bölmesi her kasada doludur ve bölmeler 4 KiB'lik bloklara tamamlanır. İki sarmalayıcı eş zamanlı denenir; sırayla denemek yem parolanın iki kat uzun sürmesi demekti. |
+| Bağlama duyarlı kilit | Güvenilen Wi-Fi'da daha uzun kilit gecikmesi | Ağ adı ham hâlde saklanmaz; yalnızca `SHA-256(ssid‖bssid)` özetinin ilk 16 baytı, yalnızca cihazda. Konum izni gerektirdiği için tamamen isteğe bağlı ve izin yoksa sessizce devre dışı. |
 | Deneme sayacı | Cihaz anahtarıyla şifreli, üstel bekleme (5 sn → 30 dk) | İsteğe bağlı olarak N hatalı denemeden sonra kasayı kalıcı siler. |
 | Yedekleme | `allowBackup=false`, buluta ve cihaz aktarımına kapalı | Taşınan bir kopya zaten açılamaz; yalnızca saldırı yüzeyi büyütürdü. |
 | Ağ | Tek uç nokta, sistem CA'ları, düz metin HTTP yasak | Kullanıcı tarafından kurulan sertifikalar (araya girme vekilleri) güvenilmez. |

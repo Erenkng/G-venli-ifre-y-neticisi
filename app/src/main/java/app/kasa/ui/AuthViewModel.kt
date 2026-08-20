@@ -34,7 +34,16 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
         val busy: Boolean = false,
         val error: Int? = null,
         val recoveryCode: String? = null,
-        val strength: Float = 0f
+        val strength: Float = 0f,
+        /**
+         * Kurulum ilerlemesi (0..1).
+         *
+         * Kurulum artık anında değil: cihazın anahtar türetme kapasitesi
+         * ölçülüyor ve bu birkaç saniye sürüyor. Dönen bir çark yerine gerçek
+         * ilerlemeyi göstermek, kullanıcının uygulamanın donduğunu sanmasını
+         * engelliyor.
+         */
+        val progress: Float = 0f
     )
 
     data class UnlockState(
@@ -79,8 +88,10 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
         }
 
         viewModelScope.launch {
-            _setup.value = _setup.value.copy(busy = true, error = null)
-            val result = repository.createVault(password)
+            _setup.value = _setup.value.copy(busy = true, error = null, progress = 0f)
+            val result = repository.createVault(password) { done ->
+                _setup.value = _setup.value.copy(progress = done)
+            }
             confirm.fill('\u0000')
             _setup.value = result.fold(
                 onSuccess = { code ->

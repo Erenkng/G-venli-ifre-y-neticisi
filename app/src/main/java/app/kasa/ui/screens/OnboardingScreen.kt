@@ -166,6 +166,21 @@ private fun SetupStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState)
             supportingText = state.error?.let { stringResource(it) }
         )
 
+        if (state.busy) {
+            Spacer(Modifier.height(18.dp))
+            WavyProgress(
+                progress = state.progress,
+                color = KasaTheme.colors.badgeStrongBg,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.calib_running),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3
+            )
+        }
+
         Spacer(Modifier.height(24.dp))
         KasaButton(
             text = stringResource(if (state.busy) R.string.onb_creating else R.string.onb_create),
