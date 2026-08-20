@@ -10,7 +10,14 @@ on:
   push:
     tags:
       - "v*"
+  # Etiketi elle atmanın mümkün olmadığı ortamlar için: sürüm adı girdi olarak
+  # veriliyor ve etiket yayımlama sırasında bu iş akışı tarafından oluşturuluyor.
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Sürüm etiketi (örn. v1.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -43,14 +50,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Sürüm numarasını doğrula
+        id: version
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          tag="${{ inputs.tag || github.ref_name }}"
+          case "$tag" in
+            v*) ;;
+            *) echo "::error::Etiket 'v' ile başlamalı: $tag"; exit 1 ;;
+          esac
           name=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
           echo "Etiket: $tag / build.gradle.kts: $name"
-          if [ "$tag" != "$name" ]; then
-            echo "::error::Etiket ($tag) ile versionName ($name) uyuşmuyor."
+          if [ "${tag#v}" != "$name" ]; then
+            echo "::error::Etiket (${tag#v}) ile versionName ($name) uyuşmuyor."
             exit 1
           fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       # Anahtar deposu gizli anahtarlardan geliyor. Tanımlı değilse bu adım
       # sessizce atlanıyor ve APK imzasız çıkıyor; sürüm notunda söyleniyor.
@@ -103,12 +116,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SIGNED: ${{ steps.keystore.outputs.signed }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
           notes=$(mktemp)
           cat .github/RELEASE_BODY.md > "$notes"
           if [ "$SIGNED" != "true" ]; then
             cat .github/RELEASE_UNSIGNED.md >> "$notes"
           fi
-          gh release create "$GITHUB_REF_NAME" dist/*.apk \
-            --title "Kasa $GITHUB_REF_NAME" \
-            --notes-file "$notes"
+          # --target ile etiket yoksa bu commit üzerinde oluşturuluyor; etiketle
+          # tetiklendiğinde zaten var olan etiket kullanılıyor.
+          gh release create "$TAG" dist/*.apk \
+            --title "Kasa $TAG" \
+            --notes-file "$notes" \
+            --target "$GITHUB_SHA"

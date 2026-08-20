@@ -58,6 +58,10 @@ ancak sürüm APK'sı üretilirken anlaşılması, kullanıcıya gidecek APK'nı
 git tag v1.0 && git push origin v1.0
 ```
 
+Etiket itemeyen ortamlar için iş akışı elle de tetiklenebiliyor (Actions →
+Sürüm → Run workflow), sürüm adı girdi olarak veriliyor ve etiket yayımlama
+sırasında iş akışının kendisi tarafından oluşturuluyor.
+
 Etiketle `versionName` uyuşmazsa iş akışı duruyor. Yanlış sürüm numarası
 taşıyan bir APK'yı geri almanın yolu yok; kullanıcının telefonunda o numarayla
 kurulu kalıyor.
