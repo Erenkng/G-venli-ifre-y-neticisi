@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-label="Kasa — Android için çevrimdışı parola kasası">
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="1200" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B5347"/>
+      <stop offset="0.55" stop-color="#073C34"/>
+      <stop offset="1" stop-color="#04241F"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="238" cy="190" r="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2FD9B6" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#2FD9B6" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="card">
+      <rect x="0" y="0" width="1200" height="360" rx="30"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <rect x="0" y="0" width="1200" height="360" fill="url(#plate)"/>
+    <rect x="0" y="0" width="1200" height="360" fill="url(#halo)"/>
+
+    <!-- Sağ kenarda soluk eşmerkezli halkalar: kadranın yankısı -->
+    <g fill="none" stroke="#A6F0DE" stroke-opacity="0.07" stroke-width="2">
+      <circle cx="1128" cy="180" r="120"/>
+      <circle cx="1128" cy="180" r="176"/>
+      <circle cx="1128" cy="180" r="232"/>
+      <circle cx="1128" cy="180" r="288"/>
+    </g>
+
+    <!-- Kasa kadranı: uygulamanın simgesiyle aynı geometri -->
+    <g transform="translate(238 190) scale(2.42) translate(-54 -54)">
+      <circle cx="54" cy="54" r="28" fill="none" stroke="#A6F0DE" stroke-width="8"/>
+      <g fill="#A6F0DE">
+        <path transform="rotate(30 54 54)"  d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
+        <path transform="rotate(150 54 54)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
+        <path transform="rotate(270 54 54)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
+      </g>
+      <!-- Göbek: mil deliği gerçek bir delik (evenodd), zemin içinden görünüyor -->
+      <path fill="#A6F0DE" fill-rule="evenodd"
+            d="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z
+               M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
+    </g>
+
+    <g font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+      <text x="404" y="200" font-size="132" font-weight="700" letter-spacing="1" fill="#EAFFF9">Kasa</text>
+      <text x="408" y="250" font-size="28" font-weight="500" fill="#8FD8C8">Android için çevrimdışı parola kasası</text>
+      <rect x="408" y="276" width="52" height="2" fill="#A6F0DE" fill-opacity="0.55"/>
+      <text x="408" y="314" font-size="20" font-weight="600" letter-spacing="3.5" fill="#5DAF9E">ARGON2ID · AES-256-GCM · SUNUCU YOK</text>
+    </g>
+  </g>
+</svg>
