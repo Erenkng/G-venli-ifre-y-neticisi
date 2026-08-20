@@ -145,7 +145,6 @@ private fun categoryHint(category: Category): Int = when (category) {
     Category.LOGIN -> R.string.type_hint_login
     Category.CARD -> R.string.type_hint_card
     Category.OTP -> R.string.type_hint_otp
-    Category.NOTE -> R.string.type_hint_note
     Category.BANK -> R.string.type_hint_bank
     Category.IDENTITY -> R.string.type_hint_identity
     Category.SSH_KEY -> R.string.type_hint_ssh

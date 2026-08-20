@@ -31,6 +31,14 @@ object PasswordGenerator {
     const val MAX_LENGTH = 64
     const val MIN_WORDS = 3
     const val MAX_WORDS = 10
+    const val MIN_PIN = 4
+    const val MAX_PIN = 12
+    /** Anahtar üretiminde sunulan iki boy: simetrik anahtar ve uzun tuz. */
+    val HEX_BIT_CHOICES = listOf(128, 256)
+    /** Entropi hedefi seçenekleri (bit). 0 = hedef yok, uzunluğu kullanıcı seçer. */
+    val ENTROPY_TARGETS = listOf(0, 60, 80, 100, 128)
+    const val BATCH_SIZE = 5
+
     const val MIN_SYLLABLES = 4
     const val MAX_SYLLABLES = 12
 
@@ -71,6 +79,119 @@ object PasswordGenerator {
     )
 
     data class Generated(val value: String, val entropyBits: Double)
+
+    /**
+     * PIN.
+     *
+     * ### Neden ayrı bir üretici
+     *
+     * `generate()` en az bir küçük harf içeren bir havuzla çalışıyor; PIN'in
+     * tanımı ise "yalnızca rakam". Parola üreticisini rakama indirmek için
+     * bütün kümeleri kapatmak gerekiyordu ve o durumda havuz tek kümeye
+     * düşüyor, "her kümeden en az bir karakter" koşulu anlamsızlaşıyordu.
+     *
+     * ### Tekrar ve dizi elenmiyor
+     *
+     * `1111` ya da `1234` üretilebiliyor ve bu **bilerek**. Bu desenleri
+     * elemek entropiyi düşürür: saldırgan da onların elendiğini bilir ve
+     * arama uzayı küçülür. Rastgele bir PIN'in `1234` çıkma olasılığı zaten
+     * on binde bir; onu yasaklamanın kazandırdığı hiçbir şey yok.
+     */
+    fun generatePin(length: Int): Generated {
+        val size = length.coerceIn(MIN_PIN, MAX_PIN)
+        val digits = CharArray(size) { DIGITS[Crypto.randomInt(10)] }
+        try {
+            return Generated(String(digits), size * log2(10.0))
+        } finally {
+            digits.fill(0.toChar())
+        }
+    }
+
+    /**
+     * Onaltılık anahtar.
+     *
+     * API anahtarı, şifreleme anahtarı ya da tuz gerektiğinde parola üreticisi
+     * yanlış araç: çıktısı yazı tipine ve panoya bağlı olarak bozulabilen
+     * simgeler içeriyor ve çoğu sistem hex bekliyor.
+     *
+     * Entropi burada tahmin değil, ölçü: [bits] bit rastgelelik isteniyor ve
+     * tam o kadar bayt çekiliyor.
+     */
+    fun generateHexKey(bits: Int): Generated {
+        val safeBits = if (bits in HEX_BIT_CHOICES) bits else 256
+        val bytes = Crypto.randomBytes(safeBits / 8)
+        try {
+            val hex = buildString(bytes.size * 2) {
+                bytes.forEach { append("%02x".format(it)) }
+            }
+            return Generated(hex, safeBits.toDouble())
+        } finally {
+            bytes.fill(0)
+        }
+    }
+
+    /**
+     * Rastgele kullanıcı adı.
+     *
+     * ### Ne işe yarıyor
+     *
+     * Her sitede aynı kullanıcı adını kullanmak, sızan bir veritabanındaki
+     * hesabı öteki sitelerdeki hesaplarla eşleştirmeyi kolaylaştırıyor: parola
+     * her yerde farklı olsa bile kimliğin kendisi ortak kalıyor. Siteye özel
+     * bir kullanıcı adı bu bağı koparıyor.
+     *
+     * ### Biçim
+     *
+     * `sozcuk.sozcuk42` — sözlükten iki sözcük ve iki hane. Okunabilir olması
+     * önemli: kullanıcı adı çoğu zaman karşıya söyleniyor ya da destek
+     * kaydına yazılıyor. Nokta ayırıcısı hemen her sitenin kabul ettiği tek
+     * ayırıcı; alt çizgi ve tire bazı sitelerde reddediliyor.
+     */
+    fun generateUsername(words: List<String>): Generated {
+        require(words.isNotEmpty()) { "Sözlük boş" }
+        val first = words[Crypto.randomInt(words.size)]
+        val second = words[Crypto.randomInt(words.size)]
+        val number = Crypto.randomInt(100).toString().padStart(2, '0')
+        val entropy = 2 * log2(words.size.toDouble()) + log2(100.0)
+        return Generated("$first.$second$number", entropy)
+    }
+
+    /**
+     * Hedeflenen entropiye ulaşmak için gereken uzunluk.
+     *
+     * ### Neden gerekli
+     *
+     * "20 karakter" bir güç ölçüsü değil. Sembol ve rakam kapatıldığında havuz
+     * 26 karaktere iniyor ve aynı uzunluk 94 bitten 94×0.7 bite düşüyor;
+     * kullanıcı bunu görmüyor, yalnızca kaydırıcıdaki sayıyı görüyor. Hedef
+     * entropiyle uzunluk kullanıcının değil seçilen kümelerin sonucu oluyor.
+     *
+     * @return [MIN_LENGTH]–[MAX_LENGTH] aralığına kırpılmış uzunluk
+     */
+    fun lengthForEntropy(targetBits: Int, options: Options): Int {
+        if (targetBits <= 0) return options.length
+        val poolSize = poolFor(options).length
+        if (poolSize <= 1) return MAX_LENGTH
+        val needed = kotlin.math.ceil(targetBits / log2(poolSize.toDouble())).toInt()
+        return needed.coerceIn(MIN_LENGTH, MAX_LENGTH)
+    }
+
+    /**
+     * Seçeneklere karşılık gelen karakter kümeleri.
+     *
+     * Hem üretim hem entropi hesabı buradan besleniyor. İkisi ayrı ayrı
+     * kurulsaydı, birine eklenen bir küme ötekine eklenmeyi unutulduğunda
+     * bildirilen güç gerçek güçten sapardı — ve bu sapma hiçbir yerde hata
+     * vermez, yalnızca kullanıcıya yanlış sayı gösterirdi.
+     */
+    private fun setsFor(options: Options): List<String> = buildList {
+        add(if (options.avoidLookalikes) LOWER_CLEAR else LOWER)
+        if (options.upper) add(if (options.avoidLookalikes) UPPER_CLEAR else UPPER)
+        if (options.digits) add(if (options.avoidLookalikes) DIGITS_CLEAR else DIGITS)
+        if (options.symbols) add(SYMBOLS)
+    }
+
+    private fun poolFor(options: Options): String = setsFor(options).joinToString("")
 
     /**
      * Telaffuz edilebilir parola.
@@ -115,12 +236,7 @@ object PasswordGenerator {
     }
 
     fun generate(options: Options): Generated {
-        val sets = buildList {
-            add(if (options.avoidLookalikes) LOWER_CLEAR else LOWER)
-            if (options.upper) add(if (options.avoidLookalikes) UPPER_CLEAR else UPPER)
-            if (options.digits) add(if (options.avoidLookalikes) DIGITS_CLEAR else DIGITS)
-            if (options.symbols) add(SYMBOLS)
-        }
+        val sets = setsFor(options)
         val pool = sets.joinToString("")
         val length = options.length.coerceIn(MIN_LENGTH, MAX_LENGTH)
 

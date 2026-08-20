@@ -141,7 +141,12 @@ fun ItemDetailSheet(
             // doğrulamadan önce göstermek ek kilidi anlamsız kılardı.
             if (item.category == Category.CARD && itemUnlocked) {
                 Spacer(Modifier.height(6.dp))
-                CardFace(item = item, revealed = revealed)
+                CardFace(
+                    item = item,
+                    revealed = revealed,
+                    // Kart alanlarının hepsi hassas: pano süreli temizleniyor.
+                    onCopy = { viewModel.copySecret(it, settings.clipboardClearSeconds) }
+                )
                 Spacer(Modifier.height(6.dp))
             }
 
@@ -205,14 +210,13 @@ fun ItemDetailSheet(
             } else {
                 when (item.category) {
                     Category.CARD -> CardFields(item, revealed, { revealed = !revealed }, viewModel, settings)
-                    Category.NOTE -> NoteFields(item, viewModel)
                     Category.OTP -> OtpFields(item, viewModel, settings)
                     Category.LOGIN -> LoginFields(item, revealed, { revealed = !revealed }, viewModel, settings)
                     else -> SchemaDetailFields(item, revealed, { revealed = !revealed }, viewModel, settings)
                 }
             }
 
-            if (item.url.isNotBlank() && item.category != Category.NOTE) {
+            if (item.url.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 FieldBlock(label = stringResource(R.string.field_url)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -239,7 +243,7 @@ fun ItemDetailSheet(
                 }
             }
 
-            if (item.notes.isNotBlank() && item.category != Category.NOTE) {
+            if (item.notes.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 FieldBlock(label = stringResource(R.string.field_notes)) {
                     Text(item.notes, style = MaterialTheme.typography.bodyLarge, color = KasaTheme.colors.ink)
@@ -537,21 +541,6 @@ private fun CardFields(
             style = MaterialTheme.typography.bodySmall,
             color = KasaTheme.colors.strengthMid
         )
-    }
-}
-
-@Composable
-private fun NoteFields(item: VaultItem, viewModel: VaultViewModel) {
-    FieldBlock(label = stringResource(R.string.field_notes)) {
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                item.notes,
-                style = MaterialTheme.typography.bodyLarge,
-                color = KasaTheme.colors.ink,
-                modifier = Modifier.weight(1f)
-            )
-            CopyButton(onClick = { viewModel.copyPlain(item.notes) })
-        }
     }
 }
 

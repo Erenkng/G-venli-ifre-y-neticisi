@@ -161,3 +161,65 @@ private const val REVEAL_MILLIS = 620
 private const val DUST_COUNT = 26
 private const val DUST_SEED = 20260820
 private const val DUST_RADIUS_PX = 2.2f
+
+/**
+ * Gizli bir değer açılırken noktaların harfe dönüşmesi.
+ *
+ * ### Sorun
+ *
+ * Göz tuşuna basınca `••••••••` bir karede `Tr0ub4dor` oluyordu. Tek karelik
+ * bu takas iki şeyi birden bozuyor: göz değişimi yakalayamadığı için yeni
+ * metni baştan okumak zorunda kalıyor, ve alanın genişliği aynı anda
+ * değiştiği için satır zıplıyor. Sonuç, kullanıcının "ne oldu" diye ikinci
+ * kez bakması.
+ *
+ * ### Çözüm
+ *
+ * Değişim odak üzerinden yapılıyor: metin önce bulanıklaşıyor, bulanıklığın
+ * **en yoğun** olduğu anda maske kalkıyor, sonra tekrar netleşiyor. Takasın
+ * gerçekleştiği kare, hiçbir şeyin okunabilir olmadığı kare. Göz bir metnin
+ * yerini başkasının aldığını değil, aynı metnin odağa girdiğini görüyor.
+ *
+ * Bulanıklık eğrisi bir sinüs yarım dalgası: iki uçta tam sıfır. Yarıçap
+ * sıfırda bulanıklık katmanı hiç kurulmuyor, yani alan durağan hâlde
+ * fazladan hiçbir çizim maliyeti taşımıyor.
+ *
+ * ### Hareket kapalıyken
+ *
+ * Bulanıklık da geçiş de yok, takas anında yapılıyor: [LocalReducedMotion]
+ * açıkken kullanıcı zaten hareketin kendisini istemiyor ve odak değişimi de
+ * bir hareket.
+ */
+@Composable
+fun rememberMaskFade(revealed: Boolean): MaskFade {
+    val reduced = LocalReducedMotion.current
+    val progress by animateFloatAsState(
+        targetValue = if (revealed) 1f else 0f,
+        animationSpec = tween(durationMillis = if (reduced) 0 else MASK_FADE_MILLIS),
+        label = "maskFade"
+    )
+    // Yarım sinüs: 0 ve 1'de sıfır, 0.5'te tepe.
+    val blur = if (reduced) 0.dp
+    else (sin(progress * PI).toFloat() * MASK_BLUR_MAX.value).dp
+
+    return MaskFade(
+        // Takas tam tepe noktasında: okunabilir hiçbir kare iki metni birden
+        // göstermiyor.
+        showPlain = progress > 0.5f,
+        blur = blur
+    )
+}
+
+/**
+ * @param showPlain maske kalktı mı — alanın görsel dönüşümünü bu belirliyor
+ * @param blur o karedeki bulanıklık yarıçapı; 0dp ise katman hiç kurulmuyor
+ */
+@androidx.compose.runtime.Immutable
+data class MaskFade(val showPlain: Boolean, val blur: Dp)
+
+/** Bulanıklığı yalnızca gerçekten gerekliyse uygular. */
+fun Modifier.maskFade(fade: MaskFade): Modifier =
+    if (fade.blur > 0.4.dp) this.blur(fade.blur) else this
+
+private const val MASK_FADE_MILLIS = 380
+private val MASK_BLUR_MAX = 9.dp

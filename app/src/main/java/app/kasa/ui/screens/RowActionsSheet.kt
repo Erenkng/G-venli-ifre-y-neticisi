@@ -235,7 +235,6 @@ private fun ActionRow(action: RowAction, position: GroupPosition, onRun: () -> U
  */
 private fun secretLabel(category: Category): Int = when (category) {
     Category.CARD -> R.string.copy_card_number
-    Category.NOTE -> R.string.copy_note
     Category.OTP -> R.string.copy_code
     else -> R.string.copy_password
 }

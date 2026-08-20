@@ -594,4 +594,15 @@
     <string name="stat_with_2fa">2FA\'li</string>
     <string name="stat_avg_length">ort. uzunluk</string>
     <string name="stat_oldest_days">en eski (gün)</string>
+    <string name="intro_1_title">Tek bir kilit</string>
+    <string name="intro_1_body">Bütün kayıtların tek bir şifreli dosyada. Kaç kaydın olduğu bile o dosyanın içinde kalıyor.</string>
+    <string name="intro_2_title">Her tür kendi alanında</string>
+    <string name="intro_2_body">Kart karta, kimlik kimliğe benziyor. Her tür kendi ekranıyla geliyor; hiçbir şey nota tıkıştırılmıyor.</string>
+    <string name="intro_3_title">Cihazdan çıkmıyor</string>
+    <string name="intro_3_body">Sunucu yok, hesap yok, eşitleme yok. Kaybedilecek bir hesap da yok.</string>
+    <string name="intro_next">İleri</string>
+    <string name="intro_start">Başla</string>
+    <string name="intro_skip">Atla</string>
+    <string name="card_expired">Son kullanma tarihi geçmiş</string>
+    <string name="otp_empty_hint">Karekodu okutun ya da anahtarı elle girin. Kod, anahtar girildiği anda burada dönmeye başlar.</string>
 </resources>

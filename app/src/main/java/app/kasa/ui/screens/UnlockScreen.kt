@@ -1,6 +1,11 @@
 package app.kasa.ui.screens
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -43,6 +48,7 @@ import app.kasa.ui.components.KasaPinField
 import app.kasa.ui.components.KasaReveal
 import app.kasa.ui.components.KasaTextField
 import app.kasa.ui.components.MorphDial
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaTheme
 
 /**
@@ -99,13 +105,38 @@ fun UnlockScreen(
         }
     }
 
-    Column(
+    // ── neden BoxWithConstraints ve neden kaydırılabilir ────────────────────
+    //
+    // Önceki hâli düz bir `Column(verticalArrangement = Center)` idi ve iki
+    // ayrı durumda ortalamayı kaybediyordu:
+    //
+    //  - Ayarlar eşzamansız geliyor. İlk karelerde `biometricUnlock` varsayılan
+    //    olarak kapalı, yani biyometri düğmesi hiç yerleşmiyor; ayarlar
+    //    ulaştığında sütun aniden ~60dp uzuyor ve ortalama yeniden hesaplanıp
+    //    başlık zıplıyordu.
+    //  - Klavye açıldığında içerik ekrandan uzun kalıyor. `Center`, sığmayan
+    //    içeriği ortalayamıyor: üstten ve alttan kırpıyor, yani yazılar
+    //    yukarı kaçmış gibi görünüyor ve bir kısmı hiç görünmüyor.
+    //
+    // Çözüm ikisini birden kapatıyor: içerik ekrandan kısaysa gerçekten
+    // ortalanıyor (en az ekran yüksekliği kadar yer kaplayan bir sütun),
+    // uzunsa kırpılmak yerine kaydırılıyor. Geç gelen içerik de
+    // `animateContentSize` ile yerine kayarak oturuyor, sıçramıyor.
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .imePadding()
-            .padding(horizontal = 24.dp),
+    ) {
+    val available = maxHeight
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .heightIn(min = available)
+            .padding(horizontal = 24.dp)
+            .animateContentSize(KasaMotion.medium()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -274,6 +305,7 @@ fun UnlockScreen(
         )
         }
         }
+    }
     }
 }
 

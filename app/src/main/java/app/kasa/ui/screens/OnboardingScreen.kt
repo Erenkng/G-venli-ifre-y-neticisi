@@ -1,6 +1,12 @@
 package app.kasa.ui.screens
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,13 +55,26 @@ import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
 /**
- * İlk kurulum: ana parola, kurtarma anahtarı, biyometri.
+ * İlk kurulum: tanıtım, ana parola, kurtarma anahtarı, biyometri.
  *
  * Üç adım da atlanamaz sırayla gösteriliyor. Kurtarma anahtarı adımı
  * özellikle "sonra bakarım" denemeyecek şekilde kurgulandı: kod bir daha
  * gösterilmiyor ve devam etmek için kullanıcı açıkça "kaydettim" demek
  * zorunda. Bir parola yöneticisinde en sık yaşanan felaket veri sızıntısı
  * değil, kullanıcının kendi kasasından kilitlenmesidir.
+ *
+ * ### Tanıtım neden burada, ViewModel'de değil
+ *
+ * [IntroPager] kasa durumuna hiç dokunmuyor: ne anahtar üretiyor ne dosya
+ * yazıyor, yalnızca üç sayfa gösterip kenara çekiliyor. Onu
+ * [AuthViewModel.Stage] içine bir aşama olarak eklemek, sunum katmanına ait
+ * bir kararı kurulum durum makinesine taşımak olurdu — ve o durum makinesi
+ * kasanın hangi dosyalarının yazıldığını izliyor, hangi tanıtım sayfasının
+ * açık olduğunu değil.
+ *
+ * Bu yüzden tanıtımın "bitti mi" bilgisi burada, ekranın kendi durumunda.
+ * Kullanıcı kurulumu yarıda bırakıp uygulamayı kapatırsa tanıtımı yeniden
+ * görüyor; kurulum da zaten baştan başlıyor, yani ikisi tutarlı.
  */
 @Composable
 fun OnboardingScreen(
@@ -63,6 +82,7 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.setup.collectAsStateWithLifecycle()
+    var introDone by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -70,11 +90,30 @@ fun OnboardingScreen(
             .windowInsetsPadding(WindowInsets.statusBars)
             .imePadding()
     ) {
+        // Tanıtımdan kuruluma geçiş de bir hareket: sayfalar sola çıkıyor,
+        // parola adımı alttan yükseliyor. Sert bir takas, tanıtımın sonunda
+        // "başka bir uygulamaya düştüm" hissi veriyordu.
+        val enter = KasaMotion.enter()
+        val exit = KasaMotion.exit()
+
+        AnimatedContent(
+            targetState = introDone,
+            transitionSpec = {
+                (fadeIn(enter) + slideInVertically(KasaMotion.large()) { it / 8 })
+                    .togetherWith(fadeOut(exit) + slideOutHorizontally(KasaMotion.large()) { -it / 6 })
+            },
+            label = "onboardingStage"
+        ) { done ->
+        if (!done) {
+            IntroPager(onFinish = { introDone = true })
+        } else {
         when (state.stage) {
             AuthViewModel.Stage.SETUP -> SetupStep(viewModel, state)
             AuthViewModel.Stage.RECOVERY_SHOWN -> RecoveryStep(viewModel, state)
             AuthViewModel.Stage.BIOMETRIC_OFFER -> BiometricStep(viewModel)
             AuthViewModel.Stage.DONE -> Unit
+        }
+        }
         }
     }
 }

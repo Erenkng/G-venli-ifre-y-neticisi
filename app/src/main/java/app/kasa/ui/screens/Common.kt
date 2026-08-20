@@ -48,6 +48,7 @@ import app.kasa.data.model.Category
 import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.components.CardThumb
+import app.kasa.ui.components.SiteLogo
 import app.kasa.ui.components.KasaBadge
 import app.kasa.ui.theme.KasaTheme
 
@@ -138,7 +139,6 @@ fun categoryTint(category: Category): Pair<Color, Color> {
     val scheme = MaterialTheme.colorScheme
     return when (category) {
         Category.LOGIN, Category.CARD -> colors.badgeStrongBg to colors.badgeStrongFg
-        Category.NOTE -> scheme.surfaceContainerHigh to colors.ink2
         Category.OTP -> colors.badgeMidBg to colors.badgeMidFg
         Category.IDENTITY -> colors.badgeBlueBg to colors.badgeBlueFg
         Category.BANK -> colors.badgeStrongBg to colors.badgeStrongFg
@@ -174,11 +174,15 @@ fun EntryBadge(
     }
 
     if (item.category == Category.LOGIN) {
-        val (background, foreground) = badgeColors(toneOf(item))
-        KasaBadge(
-            text = item.initial,
-            background = background,
-            foreground = foreground,
+        // Sitenin kendi işareti, baş harfin yerine.
+        //
+        // Baş harf listeyi tarayan göze hiçbir şey söylemiyordu: on kaydın
+        // altısı "G" ile başlıyor ve altı rozet birbirinin aynı. Sitenin rengi
+        // ve simgesi kaydı okumadan ayırıyor. İşaret uygulamanın içinden
+        // geliyor, ağdan değil — gerekçesi SiteLogo üzerinde yazılı.
+        SiteLogo(
+            url = item.url,
+            fallbackText = item.initial,
             modifier = modifier,
             size = size,
             cornerRadius = cornerRadius
@@ -206,7 +210,6 @@ fun EntryBadge(
 fun categoryIcon(category: Category): ImageVector = when (category) {
     Category.LOGIN -> Icons.Rounded.Password
     Category.CARD -> Icons.Rounded.CreditCard
-    Category.NOTE -> Icons.Rounded.Notes
     Category.OTP -> Icons.Rounded.Timer
     Category.IDENTITY -> Icons.Rounded.Badge
     Category.BANK -> Icons.Rounded.AccountBalance
@@ -222,7 +225,6 @@ fun categoryFilterLabel(category: Category?): String = stringResource(
         null -> R.string.cat_all
         Category.LOGIN -> R.string.cat_login
         Category.CARD -> R.string.cat_card
-        Category.NOTE -> R.string.cat_note
         Category.OTP -> R.string.cat_otp
         Category.IDENTITY -> R.string.cat_identity
         Category.BANK -> R.string.cat_bank
@@ -262,7 +264,6 @@ fun categoryLabel(category: Category): String = stringResource(
     when (category) {
         Category.LOGIN -> R.string.item_login
         Category.CARD -> R.string.item_card
-        Category.NOTE -> R.string.item_note
         Category.OTP -> R.string.item_otp
         Category.IDENTITY -> R.string.item_identity
         Category.BANK -> R.string.item_bank

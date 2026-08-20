@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
@@ -185,7 +187,14 @@ fun KasaTextField(
     trailing: @Composable (() -> Unit)? = null,
     isError: Boolean = false,
     supportingText: String? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    /**
+     * Yalnızca değer satırına uygulanan bulanıklık.
+     *
+     * Etiket ve destek metni dışarıda kalıyor: bulanan şey gizli değerin
+     * kendisi, alanın kimliği değil. Sıfırken katman hiç kurulmuyor.
+     */
+    contentBlur: Dp = 0.dp
 ) {
     val style = (textStyle ?: MaterialTheme.typography.bodyLarge).copy(color = KasaTheme.colors.ink)
 
@@ -209,7 +218,7 @@ fun KasaTextField(
             )
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.weight(1f)) {
+                Box(Modifier.weight(1f).then(if (contentBlur > 0.4.dp) Modifier.blur(contentBlur) else Modifier)) {
                     if (value.isEmpty() && placeholder.isNotEmpty()) {
                         Text(placeholder, style = style.copy(color = KasaTheme.colors.ink3))
                     }
@@ -255,6 +264,8 @@ fun KasaPasswordField(
     supportingText: String? = null,
     trailingExtra: @Composable (() -> Unit)? = null
 ) {
+    val fade = rememberMaskFade(revealed)
+
     KasaTextField(
         value = value,
         onValueChange = onValueChange,
@@ -262,10 +273,12 @@ fun KasaPasswordField(
         modifier = modifier,
         keyboardType = KeyboardType.Password,
         imeAction = imeAction,
-        visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation('•'),
+        visualTransformation = if (fade.showPlain) VisualTransformation.None
+        else PasswordVisualTransformation('•'),
         textStyle = KasaTheme.text.mono,
         isError = isError,
         supportingText = supportingText,
+        contentBlur = fade.blur,
         trailing = {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 trailingExtra?.invoke()

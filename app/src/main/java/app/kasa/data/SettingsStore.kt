@@ -16,6 +16,39 @@ import kotlinx.coroutines.flow.map
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /**
+ * Zeminin gradyan ailesi.
+ *
+ * Renk şeması (Material You, açık/karanlık) ayrı bir ayar; bu yalnızca arka
+ * plandaki üç radyal durağın hangi renk ailesinden geleceğini seçiyor.
+ * İkisini tek ayarda toplamak, "karanlık tema" isteyen kullanıcıya aynı anda
+ * bir renk kimliği dayatmak olurdu.
+ */
+enum class GradientTheme { JADE, SUNSET, DEEP }
+
+/**
+ * Üreticinin ne ürettiği.
+ *
+ * Önceden üç ayrı boole vardı (`passphrase`, `pronounceable` ve örtük olarak
+ * "hiçbiri = parola") ve üçünün aynı anda açılmaması elle korunuyordu. Birbirini
+ * dışlayan durumları boole ile taşımak, geçersiz bileşimleri temsil edilebilir
+ * bırakıyor: iki bayrak da açıkken hangisinin kazanacağı okuyan koda kalıyordu.
+ */
+enum class GeneratorMode {
+    /** Rastgele karakter dizisi. */
+    PASSWORD,
+    /** Türkçe sözcüklerden oluşan dizi. */
+    PASSPHRASE,
+    /** Sesletilebilir hece dizisi: telefonda okunup karşıya söylenmek için. */
+    PRONOUNCEABLE,
+    /** Yalnızca rakam: kart PIN'i, kapı kodu, telefon kilidi. */
+    PIN,
+    /** Rastgele kullanıcı adı: kayıt olurken gerçek adı vermemek için. */
+    USERNAME,
+    /** Onaltılık anahtar: API anahtarı, şifreleme anahtarı, tuz. */
+    HEX
+}
+
+/**
  * Kullanıcı tercihleri.
  *
  * Burada gizli hiçbir şey tutulmaz — parola, anahtar ya da kayıt adı yok.
@@ -107,14 +140,40 @@ class SettingsStore(private val context: Context) {
         val generatorDigits: Boolean = true,
         val generatorSymbols: Boolean = true,
         val generatorAvoidLookalikes: Boolean = false,
-        val generatorPassphrase: Boolean = false,
+        val gradientTheme: GradientTheme = GradientTheme.JADE,
+        /**
+         * Gradyan günün saatine göre kaysın mı.
+         *
+         * Seçilen aile aynı kalıyor; içindeki tonlar sabahtan geceye doğru
+         * yer değiştiriyor. Kapatıldığında ailenin gündüz tonları sabitleniyor.
+         */
+        val gradientFollowsTime: Boolean = true,
+        val generatorMode: GeneratorMode = GeneratorMode.PASSWORD,
+        val generatorPinLength: Int = 6,
+        val generatorHexBits: Int = 256,
+        /**
+         * Aynı anda birden çok seçenek üret.
+         *
+         * Tek bir öneriyi beğenmeyen kullanıcı düğmeye basıp yeniden üretiyordu
+         * ve beğendiği bir önceki artık yoktu. Toplu üretimde seçenekler aynı
+         * anda duruyor, karşılaştırılabiliyor.
+         */
+        val generatorBatch: Boolean = false,
+        /**
+         * İstenen en az entropi (bit). Sıfır = kapalı.
+         *
+         * Açıkken uzunluk kullanıcıdan değil hedeften geliyor: seçilen karakter
+         * kümesiyle o güce ulaşmak için kaç karakter gerekiyorsa o kadar.
+         * "20 karakter" bir güç ölçüsü değil — sembol kapatıldığında aynı
+         * uzunluk belirgin şekilde zayıflıyor ve kullanıcı bunu görmüyordu.
+         */
+        val generatorEntropyTarget: Int = 0,
         /**
          * Telaffuz edilebilir mod.
          *
          * Parola dizesi ve sözcük dizisiyle aynı düzeyde üçüncü bir seçenek;
          * ayrı bir bayrak olmasının sebebi ikisiyle birlikte kullanılamaması.
          */
-        val generatorPronounceable: Boolean = false,
         val generatorSyllables: Int = 6,
         val generatorWordCount: Int = 5,
         val generatorSeparator: String = "-",
@@ -140,7 +199,6 @@ class SettingsStore(private val context: Context) {
             onlineBreachCheck = prefs[KEY_ONLINE_CHECK] ?: true,
             autofillVerifyDomains = prefs[KEY_AF_VERIFY] ?: true,
             lockOnScreenOff = prefs[KEY_LOCK_SCREEN_OFF] ?: true,
-            generatorPronounceable = prefs[KEY_GEN_PRONOUNCE] ?: false,
             generatorSyllables = prefs[KEY_GEN_SYLLABLES] ?: 6,
             sortOrder = runCatching { SortOrder.valueOf(prefs[KEY_SORT] ?: SortOrder.LAST_USED.name) }
                 .getOrDefault(SortOrder.LAST_USED),
@@ -154,7 +212,23 @@ class SettingsStore(private val context: Context) {
             generatorDigits = prefs[KEY_GEN_DIGITS] ?: true,
             generatorSymbols = prefs[KEY_GEN_SYMBOLS] ?: true,
             generatorAvoidLookalikes = prefs[KEY_GEN_CLEAR] ?: false,
-            generatorPassphrase = prefs[KEY_GEN_PASSPHRASE] ?: false,
+            gradientTheme = runCatching { GradientTheme.valueOf(prefs[KEY_GRADIENT] ?: GradientTheme.JADE.name) }
+                .getOrDefault(GradientTheme.JADE),
+            gradientFollowsTime = prefs[KEY_GRADIENT_TIME] ?: true,
+            // Kip anahtarı yoksa eski boole çiftinden türetiliyor: 1.1'den
+            // yükselen kullanıcı seçtiği modu kaybetmiyor.
+            generatorMode = runCatching {
+                prefs[KEY_GEN_MODE]?.let { GeneratorMode.valueOf(it) }
+                    ?: when {
+                        prefs[KEY_GEN_PASSPHRASE] == true -> GeneratorMode.PASSPHRASE
+                        prefs[KEY_GEN_PRONOUNCE] == true -> GeneratorMode.PRONOUNCEABLE
+                        else -> GeneratorMode.PASSWORD
+                    }
+            }.getOrDefault(GeneratorMode.PASSWORD),
+            generatorPinLength = prefs[KEY_GEN_PIN_LEN] ?: 6,
+            generatorHexBits = prefs[KEY_GEN_HEX_BITS] ?: 256,
+            generatorBatch = prefs[KEY_GEN_BATCH] ?: false,
+            generatorEntropyTarget = prefs[KEY_GEN_ENTROPY] ?: 0,
             generatorWordCount = prefs[KEY_GEN_WORDS] ?: 5,
             generatorSeparator = prefs[KEY_GEN_SEPARATOR] ?: "-",
             generatorCapitalize = prefs[KEY_GEN_CAPITALIZE] ?: true
@@ -173,7 +247,6 @@ class SettingsStore(private val context: Context) {
     suspend fun setBlockScreenshots(value: Boolean) = put(KEY_BLOCK_SHOTS, value)
     suspend fun setAutofillVerifyDomains(value: Boolean) = put(KEY_AF_VERIFY, value)
     suspend fun setLockOnScreenOff(value: Boolean) = put(KEY_LOCK_SCREEN_OFF, value)
-    suspend fun setGeneratorPronounceable(value: Boolean) = put(KEY_GEN_PRONOUNCE, value)
     suspend fun setGeneratorSyllables(value: Int) = put(KEY_GEN_SYLLABLES, value)
     suspend fun setSortOrder(value: SortOrder) = put(KEY_SORT, value.name)
     suspend fun setListDensity(value: ListDensity) = put(KEY_DENSITY, value.name)
@@ -190,9 +263,15 @@ class SettingsStore(private val context: Context) {
     suspend fun setGeneratorDigits(value: Boolean) = put(KEY_GEN_DIGITS, value)
     suspend fun setGeneratorSymbols(value: Boolean) = put(KEY_GEN_SYMBOLS, value)
     suspend fun setGeneratorAvoidLookalikes(value: Boolean) = put(KEY_GEN_CLEAR, value)
-    suspend fun setGeneratorPassphrase(value: Boolean) = put(KEY_GEN_PASSPHRASE, value)
     suspend fun setGeneratorWordCount(value: Int) = put(KEY_GEN_WORDS, value)
     suspend fun setGeneratorSeparator(value: String) = put(KEY_GEN_SEPARATOR, value)
+    suspend fun setGradientTheme(value: GradientTheme) = put(KEY_GRADIENT, value.name)
+    suspend fun setGradientFollowsTime(value: Boolean) = put(KEY_GRADIENT_TIME, value)
+    suspend fun setGeneratorMode(value: GeneratorMode) = put(KEY_GEN_MODE, value.name)
+    suspend fun setGeneratorPinLength(value: Int) = put(KEY_GEN_PIN_LEN, value)
+    suspend fun setGeneratorHexBits(value: Int) = put(KEY_GEN_HEX_BITS, value)
+    suspend fun setGeneratorBatch(value: Boolean) = put(KEY_GEN_BATCH, value)
+    suspend fun setGeneratorEntropyTarget(value: Int) = put(KEY_GEN_ENTROPY, value)
     suspend fun setGeneratorCapitalize(value: Boolean) = put(KEY_GEN_CAPITALIZE, value)
 
     /** Kasa silindiğinde tercihler de sıfırlanır. */
@@ -249,5 +328,12 @@ class SettingsStore(private val context: Context) {
         val KEY_GEN_WORDS = intPreferencesKey("gen_words")
         val KEY_GEN_SEPARATOR = stringPreferencesKey("gen_separator")
         val KEY_GEN_CAPITALIZE = booleanPreferencesKey("gen_capitalize")
+        val KEY_GRADIENT = stringPreferencesKey("gradient_theme")
+        val KEY_GRADIENT_TIME = booleanPreferencesKey("gradient_follows_time")
+        val KEY_GEN_MODE = stringPreferencesKey("gen_mode")
+        val KEY_GEN_PIN_LEN = intPreferencesKey("gen_pin_length")
+        val KEY_GEN_HEX_BITS = intPreferencesKey("gen_hex_bits")
+        val KEY_GEN_BATCH = booleanPreferencesKey("gen_batch")
+        val KEY_GEN_ENTROPY = intPreferencesKey("gen_entropy_target")
     }
 }

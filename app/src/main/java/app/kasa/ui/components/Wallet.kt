@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +28,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -52,15 +56,31 @@ import app.kasa.ui.theme.KasaTheme
  * yüzden varsayılan maskeli ve açmak ayrı bir dokunuş — "gördüm" ile
  * "kullanılabilir hâle getirdim" iki farklı karar.
  *
+ * ### Kopyalama düğmeleri kartın üzerinde
+ *
+ * Kart bilgisi neredeyse her zaman **yapıştırılmak** için açılıyor: ödeme
+ * formuna numara, sonra son kullanma, sonra güvenlik kodu. Önceden bunların
+ * her biri kartın altındaki ayrı alan bloklarındaydı ve kullanıcı kartı
+ * görüp aşağı kaydırmak zorundaydı — üç değer için üç kez.
+ *
+ * Düğmeler artık değerin kendi yanında. Kart bir tanıtım resmi değil, üzerinde
+ * çalışılan yüzey.
+ *
+ * Düğmeler yalnızca [onCopy] verildiğinde çiziliyor: liste satırındaki ve
+ * düzenleyicideki önizlemede kopyalanacak bir şey yok, orada kart yalnızca
+ * bakılan bir nesne.
+ *
  * @param revealed numara açık mı. Kart yüzü kendi durumunu tutmuyor; ayrıntı
  *        sayfasındaki tek "göster" düğmesiyle aynı durumu paylaşıyor ki
  *        kullanıcı iki ayrı yerde iki farklı görünüm bulmasın.
+ * @param onCopy kopyalanacak değeri alan geri çağırım; `null` ise düğmeler yok
  */
 @Composable
 fun CardFace(
     item: VaultItem,
     revealed: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onCopy: ((String) -> Unit)? = null
 ) {
     val brand = CardBrand.detect(item.cardNumber)
     val number = if (revealed) CardBrand.group(item.cardNumber, brand)
@@ -93,24 +113,25 @@ fun CardFace(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 EmvChip(Modifier.size(width = 40.dp, height = 30.dp))
-                Text(
-                    text = brand.displayName.uppercase(),
-                    color = Color.White.copy(alpha = 0.94f),
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.6.sp
-                    ),
-                    maxLines = 1
-                )
+                BrandMark(brand = brand, height = 26.dp)
             }
 
-            Text(
-                text = number.ifBlank { "•••• •••• •••• ••••" },
-                color = Color.White,
-                style = KasaTheme.text.mono.copy(fontSize = 19.sp, letterSpacing = 1.4.sp),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = number.ifBlank { "•••• •••• •••• ••••" },
+                    color = Color.White,
+                    style = KasaTheme.text.mono.copy(fontSize = 19.sp, letterSpacing = 1.4.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (onCopy != null && item.cardNumber.isNotBlank()) {
+                    OnCardCopyButton { onCopy(item.cardNumber.filter { it.isDigit() }) }
+                }
+            }
 
             Row(
                 Modifier.fillMaxWidth(),
@@ -121,16 +142,65 @@ fun CardFace(
                     CardCaption(stringOrDash(item.cardHolder).uppercase())
                 }
                 Spacer(Modifier.width(14.dp))
+                if (onCopy != null && item.cardCvv.isNotBlank()) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            "CVV",
+                            color = Color.White.copy(alpha = 0.55f),
+                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.8.sp)
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Güvenlik kodu kartın yüzünde hiçbir zaman açık
+                            // yazmıyor: numarayla birlikte görünmesi, kartı tek
+                            // bir ekran görüntüsüyle kullanılabilir yapardı.
+                            CardCaption("•".repeat(item.cardCvv.length))
+                            OnCardCopyButton { onCopy(item.cardCvv) }
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         "AY/YIL",
                         color = Color.White.copy(alpha = 0.55f),
                         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.8.sp)
                     )
-                    CardCaption(stringOrDash(item.cardExpiry))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CardCaption(stringOrDash(formatExpiry(item.cardExpiry)))
+                        if (onCopy != null && item.cardExpiry.isNotBlank()) {
+                            OnCardCopyButton { onCopy(formatExpiry(item.cardExpiry)) }
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * Kartın üzerindeki kopyalama düğmesi.
+ *
+ * Zemini kartın kendi degradesi olduğu için düğme yarı saydam beyaz bir daire:
+ * her ağ renginde okunuyor ve hiçbirinde kartın rengiyle çakışmıyor. Dolu bir
+ * yüzey kullanmak, dokuz farklı kart rengi için dokuz farklı düğme rengi
+ * seçmeyi gerektirirdi.
+ */
+@Composable
+private fun OnCardCopyButton(onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(KasaRadius.full))
+            .background(Color.White.copy(alpha = 0.18f))
+            .clickableNoRipple(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            Icons.Rounded.ContentCopy,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.92f),
+            modifier = Modifier.size(14.dp)
+        )
     }
 }
 

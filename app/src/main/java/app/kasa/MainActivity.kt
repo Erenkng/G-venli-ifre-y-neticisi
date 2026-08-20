@@ -69,7 +69,9 @@ class MainActivity : FragmentActivity() {
             KasaTheme(
                 themeMode = settings.theme,
                 dynamicColor = settings.dynamicColor,
-                pureBlack = settings.pureBlack
+                pureBlack = settings.pureBlack,
+                gradientTheme = settings.gradientTheme,
+                gradientFollowsTime = settings.gradientFollowsTime
             ) {
                 CompositionLocalProvider(LocalBiometricGate provides gate) {
                     KasaApp(

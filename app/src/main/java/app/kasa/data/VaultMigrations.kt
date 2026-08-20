@@ -3,7 +3,13 @@ package app.kasa.data
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
@@ -27,7 +33,7 @@ import kotlinx.serialization.json.put
 object VaultMigrations {
 
     /** Uygulamanın yazdığı şema sürümü. */
-    const val CURRENT = 6
+    const val CURRENT = 7
 
     /** Şema alanı olmayan en eski kasalar sürüm 1 sayılır. */
     const val OLDEST_SUPPORTED = 1
@@ -70,7 +76,8 @@ object VaultMigrations {
         2 to ::migrate2to3,
         3 to ::migrate3to4,
         4 to ::migrate4to5,
-        5 to ::migrate5to6
+        5 to ::migrate5to6,
+        6 to ::migrate6to7
     )
 
     /**
@@ -134,6 +141,66 @@ object VaultMigrations {
      * düşmesini engelliyor.
      */
     private fun migrate5to6(root: JsonObject): JsonObject = root
+
+    /**
+     * 6 → 7: "güvenli not" türü kaldırıldı.
+     *
+     * ### Neden kaldırıldı
+     *
+     * Not, tür sisteminin kaçış kapısıydı: alanı olmayan her şey oraya
+     * yazılıyordu ve orada yazılan hiçbir şey aranamıyor, kopyalanamıyor,
+     * gücü ölçülemiyordu. Kullanıcı IBAN'ını nota yazdığında kasa onu bir
+     * IBAN olarak değil, bir metin bloğu olarak tutuyordu.
+     *
+     * Artık her türün kendi alanı var ve serbest metin gerektiğinde her
+     * kaydın zaten bir `notes` alanı bulunuyor. Ayrı bir "not türü"nün
+     * yaptığı tek şey, kullanıcıyı yanlış yere yazmaya davet etmekti.
+     *
+     * ### Hiçbir şey silinmiyor
+     *
+     * Var olan not kayıtları giriş kaydına dönüyor. Ad, not metni, etiketler,
+     * klasör ve ekler olduğu gibi kalıyor; değişen tek şey tür etiketi. Notu
+     * olan kullanıcı uygulamayı güncellediğinde kaydını aynı adla, aynı
+     * içerikle, aynı klasörde buluyor.
+     *
+     * Alternatif — enum'da `NOTE`'u okunur bırakıp yeni not açmayı engellemek
+     * — daha az iş olurdu ama kod tabanında hiç üretilmeyen, yalnızca eski
+     * dosyalar için var olan bir dal bırakırdı. O dal ilk elden test
+     * edilmediği için sessizce bozulan türden.
+     */
+    private fun migrate6to7(root: JsonObject): JsonObject = buildJsonObject {
+        root.forEach { (key, value) ->
+            if (key != "items") {
+                put(key, value)
+                return@forEach
+            }
+            put(
+                key,
+                buildJsonArray {
+                    value.jsonArray.forEach { element ->
+                        val item = element.jsonObject
+                        val category = item["category"]?.jsonPrimitive?.contentOrNull
+                        if (category != NOTE_KEY) {
+                            add(item)
+                            return@forEach
+                        }
+                        add(
+                            buildJsonObject {
+                                item.forEach { (itemKey, itemValue) ->
+                                    if (itemKey != "category") put(itemKey, itemValue)
+                                }
+                                put("category", JsonPrimitive(LOGIN_KEY))
+                            }
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    /** Kaldırılan türün dosyadaki anahtarı; enum'da artık karşılığı yok. */
+    private const val NOTE_KEY = "note"
+    private const val LOGIN_KEY = "login"
 
     private fun JsonObject.withSchema(version: Int): JsonObject = buildJsonObject {
         this@withSchema.forEach { (key, value) -> if (key != "schema") put(key, value) }

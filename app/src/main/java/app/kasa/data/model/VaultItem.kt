@@ -11,7 +11,6 @@ import kotlinx.serialization.Serializable
 enum class Category {
     @SerialName("login") LOGIN,
     @SerialName("card") CARD,
-    @SerialName("note") NOTE,
     @SerialName("otp") OTP,
     @SerialName("identity") IDENTITY,
     @SerialName("bank") BANK,
@@ -223,7 +222,6 @@ data class VaultItem(
         get() = when {
             category.schemaDriven -> CategorySchema.primaryValue(this)
             category == Category.CARD -> cardNumber.ifBlank { password.reveal() }
-            category == Category.NOTE -> notes.ifBlank { password.reveal() }
             else -> password.reveal()
         }
 
@@ -234,7 +232,6 @@ data class VaultItem(
     fun subtitle(): String = when {
         category.schemaDriven -> CategorySchema.subtitle(this)
         category == Category.CARD -> maskedCard()
-        category == Category.NOTE -> notes.lineSequence().firstOrNull()?.take(48).orEmpty()
         category == Category.OTP -> if (totpSecret.isNotBlank()) "TOTP · $totpPeriod sn" else username
         else -> username.ifBlank { url }
     }

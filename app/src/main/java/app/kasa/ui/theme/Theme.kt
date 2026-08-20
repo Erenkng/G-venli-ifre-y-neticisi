@@ -11,6 +11,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import app.kasa.data.GradientTheme
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -126,6 +127,8 @@ fun KasaTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = false,
     pureBlack: Boolean = false,
+    gradientTheme: GradientTheme = GradientTheme.JADE,
+    gradientFollowsTime: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val dark = when (themeMode) {
@@ -148,11 +151,23 @@ fun KasaTheme(
         else -> LightScheme
     }
 
-    val kasaColors = when {
+    val baseColors = when {
         dark && pureBlack -> PureBlackKasaColors
         dark -> DarkKasaColors
         else -> LightKasaColors
     }
+
+    // Zemin gradyanı seçilen aileden ve saatten geliyor; renk şemasının geri
+    // kalanı (mürekkep, rozet renkleri) dokunulmadan kalıyor. Tam siyah
+    // kipinde gradyan hiç değiştirilmiyor: o kip zaten "hiç ışık olmasın"
+    // demek ve AMOLED'de piksel söndürmenin bütün kazancı oradan geliyor.
+    val stops = rememberGradientStops(gradientTheme, dark, gradientFollowsTime)
+    val kasaColors = if (dark && pureBlack) baseColors else baseColors.copy(
+        gradientTopLeft = stops.topLeft,
+        gradientTopRight = stops.topRight,
+        gradientBottom = stops.bottom,
+        gradientBase = stops.base
+    )
 
     val view = LocalView.current
     if (!view.isInEditMode) {

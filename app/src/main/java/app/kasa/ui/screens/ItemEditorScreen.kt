@@ -148,13 +148,20 @@ fun ItemEditorScreen(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp)
         ) {
-            KasaButtonGroup(
-                options = Category.entries.toList(),
-                selected = item.category,
-                label = { categoryFilterLabel(it) },
-                onSelect = { item = item.copy(category = it) },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-            )
+            // Türe özel başlık: yazılan şey anında görünüyor.
+            when (item.category) {
+                Category.LOGIN -> LoginHero(item, Modifier.padding(bottom = 16.dp))
+                Category.OTP -> OtpHero(
+                    item = item,
+                    onScanQr = onScanQr,
+                    onSecretScanned = { secret ->
+                        item = item.copy(totpSecret = secret.uppercase().filter { !it.isWhitespace() })
+                    },
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                Category.IDENTITY -> IdentityHero(item, Modifier.padding(bottom = 16.dp))
+                else -> Unit
+            }
 
             KasaTextField(
                 value = item.name,
@@ -193,54 +200,7 @@ fun ItemEditorScreen(
                     TotpEditor(item = item, onChange = { item = it }, onScanQr = onScanQr)
                 }
 
-                Category.CARD -> {
-                    KasaTextField(
-                        value = item.cardNumber,
-                        onValueChange = { item = item.copy(cardNumber = it) },
-                        label = stringResource(R.string.field_card_number),
-                        keyboardType = KeyboardType.Number,
-                        textStyle = KasaTheme.text.mono
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    KasaTextField(
-                        value = item.cardHolder,
-                        onValueChange = { item = item.copy(cardHolder = it) },
-                        label = stringResource(R.string.field_card_holder)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(Modifier.weight(1f)) {
-                            KasaTextField(
-                                value = item.cardExpiry,
-                                onValueChange = { item = item.copy(cardExpiry = it) },
-                                label = stringResource(R.string.field_card_expiry),
-                                placeholder = stringResource(R.string.editor_expiry_hint),
-                                keyboardType = KeyboardType.Number,
-                                textStyle = KasaTheme.text.mono
-                            )
-                        }
-                        Box(Modifier.weight(1f)) {
-                            KasaTextField(
-                                value = item.cardCvv,
-                                onValueChange = { item = item.copy(cardCvv = it) },
-                                label = stringResource(R.string.field_card_cvv),
-                                keyboardType = KeyboardType.NumberPassword,
-                                textStyle = KasaTheme.text.mono
-                            )
-                        }
-                    }
-                }
-
-                Category.NOTE -> {
-                    KasaTextField(
-                        value = item.notes,
-                        onValueChange = { item = item.copy(notes = it) },
-                        label = stringResource(R.string.field_notes),
-                        singleLine = false,
-                        minLines = 6,
-                        imeAction = ImeAction.Default
-                    )
-                }
+                Category.CARD -> CardEditorFields(item = item, onChange = { item = it })
 
                 Category.OTP -> {
                     KasaTextField(
@@ -262,17 +222,15 @@ fun ItemEditorScreen(
                 )
             }
 
-            if (item.category != Category.NOTE) {
-                Spacer(Modifier.height(8.dp))
-                KasaTextField(
-                    value = item.notes,
-                    onValueChange = { item = item.copy(notes = it) },
-                    label = stringResource(R.string.field_notes),
-                    singleLine = false,
-                    minLines = 3,
-                    imeAction = ImeAction.Default
-                )
-            }
+            Spacer(Modifier.height(8.dp))
+            KasaTextField(
+                value = item.notes,
+                onValueChange = { item = item.copy(notes = it) },
+                label = stringResource(R.string.field_notes),
+                singleLine = false,
+                minLines = 3,
+                imeAction = ImeAction.Default
+            )
 
             Spacer(Modifier.height(8.dp))
             KasaTextField(

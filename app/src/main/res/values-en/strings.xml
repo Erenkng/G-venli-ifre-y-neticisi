@@ -576,4 +576,15 @@
     <string name="stat_with_2fa">with 2FA</string>
     <string name="stat_avg_length">avg. length</string>
     <string name="stat_oldest_days">oldest (days)</string>
+    <string name="intro_1_title">One lock</string>
+    <string name="intro_1_body">Every entry in a single encrypted file. Even how many entries you have stays inside it.</string>
+    <string name="intro_2_title">Every type its own place</string>
+    <string name="intro_2_body">A card looks like a card, an ID like an ID. Each type gets its own screen — nothing is crammed into a note.</string>
+    <string name="intro_3_title">It never leaves the phone</string>
+    <string name="intro_3_body">No server, no account, no sync. And no account to lose.</string>
+    <string name="intro_next">Next</string>
+    <string name="intro_start">Start</string>
+    <string name="intro_skip">Skip</string>
+    <string name="card_expired">This card has expired</string>
+    <string name="otp_empty_hint">Scan the QR code or enter the key by hand. The code starts running here as soon as a key is in.</string>
 </resources>
