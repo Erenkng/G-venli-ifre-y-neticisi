@@ -1,6 +1,8 @@
 package app.kasa.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -26,6 +28,30 @@ fun Modifier.clickableNoRipple(
     enabled = enabled,
     onClickLabel = onClickLabel,
     role = role,
+    onClick = onClick
+)
+
+/**
+ * Dokunma ve basılı tutma, dalga efekti olmadan.
+ *
+ * [clickableNoRipple] ile aynı görsel davranış; tek farkı uzun basışı da
+ * taşıması. Ayrı bir işlev olmasının sebebi `combinedClickable`ın deneysel
+ * olması ve tek bir yerde işaretlenmesinin, her çağrı yerine dağıtmaktan
+ * temiz olması.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.combinedClickableNoRipple(
+    enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
+    role: Role? = null,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit
+): Modifier = this.combinedClickable(
+    interactionSource = interactionSource,
+    indication = null,
+    enabled = enabled,
+    role = role,
+    onLongClick = onLongClick,
     onClick = onClick
 )
 

@@ -30,7 +30,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,6 +88,10 @@ fun VaultScreen(
 
     val categories = remember { listOf<Category?>(null) + Category.entries.toList() }
     val inTrash = view.isTrash
+
+    // Basılı tutulan kayıt. Ayrıntı ekranından ayrı tutuluyor: bu menü kaydın
+    // içeriğini hiç ekrana getirmeden iş bitirmek için var.
+    var actionTarget by remember { mutableStateOf<VaultItem?>(null) }
 
     LazyColumn(
         modifier = modifier
@@ -242,6 +248,7 @@ fun VaultScreen(
                     position = groupPositionOf(index, items.size),
                     folderName = viewModel.folderName(entry.folderId),
                     onClick = { viewModel.select(entry.id) },
+                    onLongClick = { actionTarget = entry },
                     modifier = Modifier.animateItem(
                         fadeInSpec = KasaMotion.effect(),
                         placementSpec = KasaMotion.medium(),
@@ -250,6 +257,19 @@ fun VaultScreen(
                 )
             }
         }
+    }
+
+    actionTarget?.let { target ->
+        RowActionsSheet(
+            item = target,
+            clipboardSeconds = settings.clipboardClearSeconds,
+            onCopySecret = { viewModel.copySecret(it, settings.clipboardClearSeconds) },
+            onCopyPlain = viewModel::copyPlain,
+            onEdit = { viewModel.startEdit(target) },
+            onToggleFavorite = { viewModel.toggleFavorite(target.id) },
+            onDelete = { viewModel.moveToTrash(target) },
+            onDismiss = { actionTarget = null }
+        )
     }
 }
 
@@ -260,12 +280,13 @@ fun VaultRow(
     position: GroupPosition,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    folderName: String? = null
+    folderName: String? = null,
+    onLongClick: (() -> Unit)? = null
 ) {
     val tone = toneOf(item)
     val breachMark = stringResource(R.string.breach_mark)
 
-    KasaTile(position = position, onClick = onClick, modifier = modifier) {
+    KasaTile(position = position, onClick = onClick, onLongClick = onLongClick, modifier = modifier) {
         EntryBadge(item = item)
         Column(Modifier.weight(1f)) {
             Row(

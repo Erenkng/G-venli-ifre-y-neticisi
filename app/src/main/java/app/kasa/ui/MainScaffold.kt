@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.Password
 import androidx.compose.material.icons.rounded.Shield
@@ -76,6 +77,10 @@ import app.kasa.ui.screens.QrScanScreen
 import app.kasa.ui.screens.SearchOverlay
 import app.kasa.ui.screens.SecurityScreen
 import app.kasa.ui.screens.SettingsScreen
+import app.kasa.ui.screens.TrashScreen
+import app.kasa.ui.screens.TypePickerSheet
+import app.kasa.ui.screens.categoryIcon
+import app.kasa.ui.screens.categoryLabel
 import app.kasa.ui.screens.VaultScreen
 import app.kasa.ui.theme.KasaMotion
 
@@ -107,6 +112,10 @@ fun MainScaffold(
     val settingsViewModel: SettingsViewModel = viewModel(factory = factory)
 
     var tab by rememberSaveable { mutableStateOf(TAB_VAULT) }
+    // Çöp kutusu ve tür seçici kendi katmanlarında; kasa listesinin bir
+    // süzgeci değiller. Gerekçe TrashScreen ve TypePickerSheet üzerinde yazılı.
+    var trashOpen by rememberSaveable { mutableStateOf(false) }
+    var typePickerOpen by rememberSaveable { mutableStateOf(false) }
     var fabExpanded by remember { mutableStateOf(false) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var qrTarget by remember { mutableStateOf<((String) -> Unit)?>(null) }
@@ -152,6 +161,7 @@ fun MainScaffold(
 
     // Geri tuşu: en üstteki katmanı kapat, hiçbiri yoksa kasa sekmesine dön.
     BackHandler(enabled = qrTarget != null) { qrTarget = null }
+    BackHandler(enabled = qrTarget == null && trashOpen) { trashOpen = false }
     BackHandler(enabled = qrTarget == null && editing != null) { vaultViewModel.cancelEdit() }
     BackHandler(enabled = qrTarget == null && editing == null && selectedItem != null) {
         vaultViewModel.dismissDetail()
@@ -267,10 +277,7 @@ fun MainScaffold(
                         TAB_SETTINGS -> SettingsScreen(
                             viewModel = settingsViewModel,
                             vaultViewModel = vaultViewModel,
-                            onOpenTrash = {
-                                vaultViewModel.setView(VaultFilter.Smart(SmartFolder.TRASH))
-                                tab = TAB_VAULT
-                            }
+                            onOpenTrash = { trashOpen = true }
                         )
                     }
                 }
@@ -334,24 +341,17 @@ fun MainScaffold(
                     vaultViewModel.haptic(Haptics.Kind.MEDIUM)
                 },
                 icon = Icons.Rounded.Add,
-                actions = listOf(
-                    FabAction(stringResource(R.string.add_login), Icons.Rounded.Password) {
+                // Beş birincil tür menüde, kalan dördü "Diğer" ile açılan
+                // seçicide. Ayrımın gerekçesi Category.primary üzerinde yazılı.
+                actions = Category.primary.map { category ->
+                    FabAction(categoryLabel(category), categoryIcon(category)) {
                         fabExpanded = false
-                        vaultViewModel.startCreate(Category.LOGIN)
-                    },
-                    FabAction(stringResource(R.string.add_card), Icons.Rounded.CreditCard) {
-                        fabExpanded = false
-                        vaultViewModel.startCreate(Category.CARD)
-                    },
-                    FabAction(stringResource(R.string.add_note), Icons.Rounded.Notes) {
-                        fabExpanded = false
-                        vaultViewModel.startCreate(Category.NOTE)
-                    },
-                    FabAction(stringResource(R.string.add_otp), Icons.Rounded.Timer) {
-                        fabExpanded = false
-                        vaultViewModel.startCreate(Category.OTP)
+                        vaultViewModel.startCreate(category)
                     }
-                )
+                } + FabAction(stringResource(R.string.fab_other), Icons.Rounded.MoreHoriz) {
+                    fabExpanded = false
+                    typePickerOpen = true
+                }
             )
         }
 
@@ -407,6 +407,32 @@ fun MainScaffold(
                     onClose = { vaultViewModel.cancelEdit() }
                 )
             }
+        }
+
+        // Çöp kutusu kendi penceresi gibi: tam ekran, kendi geri tuşu, kasa
+        // listesinin süzgeçlerinden bağımsız.
+        AnimatedVisibility(
+            visible = trashOpen,
+            enter = slideInVertically(
+                initialOffsetY = { it / 5 },
+                animationSpec = KasaMotion.large()
+            ) + fadeIn(KasaMotion.enter()),
+            exit = slideOutVertically(
+                targetOffsetY = { it / 5 },
+                animationSpec = KasaMotion.exit()
+            ) + fadeOut(KasaMotion.exit())
+        ) {
+            TrashScreen(viewModel = vaultViewModel, onClose = { trashOpen = false })
+        }
+
+        if (typePickerOpen) {
+            TypePickerSheet(
+                onPick = { category ->
+                    typePickerOpen = false
+                    vaultViewModel.startCreate(category)
+                },
+                onDismiss = { typePickerOpen = false }
+            )
         }
 
         AnimatedVisibility(

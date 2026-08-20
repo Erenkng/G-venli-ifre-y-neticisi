@@ -514,4 +514,30 @@
     <!-- Card view -->
     <string name="field_card_brand">Network</string>
     <string name="card_luhn_warning">Number fails its checksum · a digit may be wrong</string>
+    <string name="type_picker_title">Another type</string>
+    <string name="type_hint_login">Username and password</string>
+    <string name="type_hint_card">Card number, expiry, CVV</string>
+    <string name="type_hint_otp">Two-step verification code generator</string>
+    <string name="type_hint_note">Free text, encrypted</string>
+    <string name="type_hint_bank">IBAN, account and branch number</string>
+    <string name="type_hint_identity">ID, passport, licence number</string>
+    <string name="type_hint_ssh">SSH or API private key</string>
+    <string name="type_hint_license">Software licence key</string>
+    <string name="type_hint_wifi">Network name and password</string>
+    <string name="trash_retention_note">Deleted automatically after 30 days</string>
+    <string name="trash_empty_action">Delete all</string>
+    <string name="trash_days_left">%1$d days left</string>
+    <string name="trash_empty_confirm_title">Empty the trash?</string>
+    <string name="trash_empty_confirm_body">These entries are deleted permanently. This cannot be undone.</string>
+    <string name="fab_other">Other</string>
+    <string name="row_actions">Entry actions</string>
+    <string name="copy_username">Copy username</string>
+    <string name="open_url">Open address</string>
+    <string name="add_to_favorites">Add to favourites</string>
+    <string name="remove_from_favorites">Remove from favourites</string>
+    <string name="copy_password">Copy password</string>
+    <string name="copy_card_number">Copy card number</string>
+    <string name="copy_note">Copy note</string>
+    <string name="copy_code">Copy code</string>
+    <string name="row_clipboard_note">The copied value is cleared from the clipboard after %1$d seconds.</string>
 </resources>

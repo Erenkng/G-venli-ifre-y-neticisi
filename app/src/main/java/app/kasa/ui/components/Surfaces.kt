@@ -69,6 +69,15 @@ fun KasaTile(
     position: GroupPosition,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Basılı tutma.
+     *
+     * Bir kaydı açmadan işlem yapmak — parolayı kopyalamak, sık kullanılana
+     * eklemek, silmek — listeden çıkmayı gerektiriyordu. Basılı tutma bu işleri
+     * satırın olduğu yerde açıyor; öğrenilmesi gereken bir hareket değil,
+     * zaten denenen bir hareket.
+     */
+    onLongClick: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -86,7 +95,12 @@ fun KasaTile(
             .scale(scale)
             .clip(groupShape(position, tight, loose))
             .background(if (pressed) KasaTheme.colors.tilePressed else KasaTheme.colors.tile)
-            .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
+            .combinedClickableNoRipple(
+                interactionSource = interaction,
+                role = Role.Button,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)

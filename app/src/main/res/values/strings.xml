@@ -532,4 +532,30 @@
     <!-- Kart görünümü -->
     <string name="field_card_brand">Ağ</string>
     <string name="card_luhn_warning">Numara sağlamayı geçmiyor · bir hane yanlış olabilir</string>
+    <string name="type_picker_title">Başka bir tür</string>
+    <string name="type_hint_login">Kullanıcı adı ve parola</string>
+    <string name="type_hint_card">Kart numarası, son kullanma, CVV</string>
+    <string name="type_hint_otp">İki adımlı doğrulama kodu üreteci</string>
+    <string name="type_hint_note">Serbest metin, şifreli</string>
+    <string name="type_hint_bank">IBAN, hesap ve şube numarası</string>
+    <string name="type_hint_identity">Kimlik, pasaport, ehliyet numarası</string>
+    <string name="type_hint_ssh">SSH ya da API özel anahtarı</string>
+    <string name="type_hint_license">Yazılım lisans anahtarı</string>
+    <string name="type_hint_wifi">Ağ adı ve parolası</string>
+    <string name="trash_retention_note">30 gün sonra kendiliğinden silinir</string>
+    <string name="trash_empty_action">Hepsini sil</string>
+    <string name="trash_days_left">%1$d gün kaldı</string>
+    <string name="trash_empty_confirm_title">Çöp kutusu boşaltılsın mı?</string>
+    <string name="trash_empty_confirm_body">Buradaki kayıtlar kalıcı olarak silinir. Geri alınamaz.</string>
+    <string name="fab_other">Diğer</string>
+    <string name="row_actions">Kayıt işlemleri</string>
+    <string name="copy_username">Kullanıcı adını kopyala</string>
+    <string name="open_url">Adresi aç</string>
+    <string name="add_to_favorites">Sık kullanılana ekle</string>
+    <string name="remove_from_favorites">Sık kullanılandan çıkar</string>
+    <string name="copy_password">Parolayı kopyala</string>
+    <string name="copy_card_number">Kart numarasını kopyala</string>
+    <string name="copy_note">Notu kopyala</string>
+    <string name="copy_code">Kodu kopyala</string>
+    <string name="row_clipboard_note">Kopyalanan değer %1$d saniye sonra panodan silinir.</string>
 </resources>
