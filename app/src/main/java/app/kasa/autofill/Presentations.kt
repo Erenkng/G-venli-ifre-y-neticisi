@@ -3,12 +3,12 @@ package app.kasa.autofill
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Icon
 import android.service.autofill.InlinePresentation
 import android.widget.RemoteViews
 import android.widget.inline.InlinePresentationSpec
 import androidx.autofill.inline.UiVersions
 import androidx.autofill.inline.v1.InlineSuggestionUi
-import androidx.core.graphics.drawable.IconCompat
 import app.kasa.MainActivity
 import app.kasa.R
 
@@ -82,7 +82,7 @@ object Presentations {
             val content = InlineSuggestionUi.newContentBuilder(attribution)
                 .setTitle(title)
                 .apply { if (!subtitle.isNullOrBlank()) setSubtitle(subtitle) }
-                .setStartIcon(IconCompat.createWithResource(context, R.drawable.ic_launcher_monochrome))
+                .setStartIcon(Icon.createWithResource(context, R.drawable.ic_launcher_monochrome))
                 .build()
 
             InlinePresentation(content.slice, spec, /* pinned = */ false)

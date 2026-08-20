@@ -4,6 +4,7 @@ import android.app.assist.AssistStructure
 import android.text.InputType
 import android.view.View
 import android.view.autofill.AutofillId
+import androidx.autofill.HintConstants
 
 /**
  * Doldurulacak formu bulur.
@@ -132,7 +133,9 @@ class StructureParser(private val structure: AssistStructure) {
      */
     private fun isOneTimeCode(node: AssistStructure.ViewNode): Boolean {
         node.autofillHints?.forEach { hint ->
-            if (hint.equals(View.AUTOFILL_HINT_SMS_OTP, ignoreCase = true)) return true
+            // Tek kullanımlık kod ipucu android.view.View içinde yok;
+            // androidx.autofill kitaplığının sabit listesinde ("smsOTPCode").
+            if (hint.equals(HintConstants.AUTOFILL_HINT_SMS_OTP, ignoreCase = true)) return true
         }
         val autocomplete = node.htmlInfo?.attributes
             ?.firstOrNull { it.first.equals("autocomplete", ignoreCase = true) }
