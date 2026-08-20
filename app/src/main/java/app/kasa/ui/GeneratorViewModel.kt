@@ -55,8 +55,9 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
     private val messages = Channel<UiMessage>(Channel.BUFFERED)
     val messageFlow = messages.receiveAsFlow()
 
+    // Geçmiş ekranda gösterilecek; silinebilir kaptan çıkışı burada, tek yerde.
     val history: StateFlow<List<String>> = container.vaultRepository.data
-        .map { it.generatorHistory }
+        .map { data -> data.generatorHistory.map { it.reveal() } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {

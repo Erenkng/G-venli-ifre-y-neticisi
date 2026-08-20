@@ -2,6 +2,7 @@ package app.kasa.data.model
 
 import app.kasa.core.crypto.Crypto
 import app.kasa.core.crypto.SecretText
+import app.kasa.data.VaultMigrations
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

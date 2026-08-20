@@ -59,6 +59,10 @@ class VaultStore(private val context: Context) {
     /** Yarım kalmış anahtar rotasyonunun izi. */
     private val rotationMarker get() = File(dir, "rotation.pending")
 
+    /** Hızlı PIN katmanı: sarmalayıcı ve kendi deneme sayacı. */
+    private val pinKeyFile get() = File(dir, "pin.key")
+    private val pinAttemptsFile get() = File(dir, "pin.attempts")
+
     /**
      * Bu kasanın şifreleme paketi. Dosya başlığından okunur; sonraki yazmalar
      * aynı paketi kullanır, yoksa kasa her kaydetmede biçim değiştirirdi.
@@ -236,12 +240,34 @@ class VaultStore(private val context: Context) {
         return runCatching {
             val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
             require(magic.contentEquals(MAGIC_BIOMETRIC))
-            input.readByte()
+            val version = input.readByte().toInt()
+            val authClass = readAuthClass(input, version)
             val ivLen = input.readUnsignedByte()
             val iv = ByteArray(ivLen).also { input.readFully(it) }
-            KeystoreKeys.biometricDecryptCipher(iv)
+            KeystoreKeys.biometricDecryptCipher(iv, authClass)
         }.getOrNull()
     }
+
+    /**
+     * Sarmalayıcının hangi doğrulama sınıfıyla kurulduğu.
+     *
+     * Dosyaya yazılıyor çünkü iki sınıfın Keystore takma adı ayrı: hangisiyle
+     * kurulduğunu bilmeden doğru anahtar bulunamaz. Sürüm 1 dosyalarında bu
+     * bayt yoktu; onlar her zaman yalnız-biyometriydi.
+     */
+    private fun readAuthClass(input: DataInputStream, version: Int): KeystoreKeys.AuthClass =
+        if (version >= FORMAT_VERSION) KeystoreKeys.AuthClass.fromId(input.readByte())
+        else KeystoreKeys.AuthClass.BIOMETRIC_ONLY
+
+    /** Kurulu biyometrik sarmalayıcının doğrulama sınıfı; yoksa `null`. */
+    fun biometricAuthClass(): KeystoreKeys.AuthClass? = runCatching {
+        if (!biometricKeyFile.exists()) return@runCatching null
+        val head = ByteArray(MAGIC_LEN + 2)
+        biometricKeyFile.inputStream().use { if (it.read(head) != head.size) return@runCatching null }
+        if (!head.copyOfRange(0, MAGIC_LEN).contentEquals(MAGIC_BIOMETRIC)) return@runCatching null
+        if (head[MAGIC_LEN].toInt() >= FORMAT_VERSION) KeystoreKeys.AuthClass.fromId(head[MAGIC_LEN + 1])
+        else KeystoreKeys.AuthClass.BIOMETRIC_ONLY
+    }.getOrNull()
 
     /** Doğrulanmış şifreleyiciyle sarmalanmış kasa anahtarını çözer. */
     fun unlockWithBiometric(cipher: Cipher): UnlockResult = try {
@@ -249,7 +275,8 @@ class VaultStore(private val context: Context) {
         val input = DataInputStream(ByteArrayInputStream(blob))
         val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
         require(magic.contentEquals(MAGIC_BIOMETRIC)) { "Bozuk biyometrik sarmalayıcı" }
-        input.readByte()
+        val version = input.readByte().toInt()
+        readAuthClass(input, version)
         val ivLen = input.readUnsignedByte()
         input.skipBytes(ivLen)
         val len = input.readInt()
@@ -264,13 +291,18 @@ class VaultStore(private val context: Context) {
     }
 
     /** Biyometrik sarmalayıcıyı yazar. [cipher] doğrulanmış şifreleme şifreleyicisidir. */
-    fun enableBiometric(cipher: Cipher, vaultKey: SecretBytes) {
+    fun enableBiometric(
+        cipher: Cipher,
+        vaultKey: SecretBytes,
+        authClass: KeystoreKeys.AuthClass = KeystoreKeys.AuthClass.BIOMETRIC_ONLY
+    ) {
         val wrapped = cipher.doFinal(vaultKey.raw())
         val iv = cipher.iv
         val out = ByteArrayOutputStream()
         DataOutputStream(out).use { d ->
             d.write(MAGIC_BIOMETRIC)
             d.writeByte(FORMAT_VERSION)
+            d.writeByte(authClass.id.toInt())
             d.writeByte(iv.size)
             d.write(iv)
             d.writeInt(wrapped.size)
@@ -403,6 +435,162 @@ class VaultStore(private val context: Context) {
         KeystoreKeys.deleteBiometricKey()
         rotationMarker.delete()
         activeSuite = runCatching { peekSuiteOnDisk() }.getOrNull()
+    }
+
+    // ---------------------------------------------------------- hızlı PIN
+
+    /**
+     * 4-6 haneli PIN ile kasa anahtarını sarmalar.
+     *
+     * ### Neden PIN
+     *
+     * 20 karakterlik bir ana parola günde on kez yazılmaz. Yazılması istenirse
+     * kullanıcı onu kısaltır — yani "her seferinde ana parola" kuralı,
+     * pratikte ana parolayı zayıflatan kuraldır. Biyometrisi olmayan ya da
+     * çalışmayan cihazda tek makul yol PIN.
+     *
+     * ### PIN'i zayıf olmaktan çıkaran şey
+     *
+     * Dört hanenin on bin olasılığı var; Argon2 bunu çevrimdışı bir
+     * saldırgana karşı kurtarmaz. Koruma iki yerden geliyor:
+     *
+     *  1. **Çift katman.** Kasa anahtarı önce PIN'den türetilen anahtarla,
+     *     sonra Keystore'daki (çoğu cihazda StrongBox) bir anahtarla
+     *     kapatılıyor. Dosyayı telefondan kopyalayan biri dış katmanı
+     *     açamadığı için PIN denemesine hiç başlayamıyor.
+     *  2. **Deneme sayacı.** Cihaz üzerindeki deneme sayılıyor;
+     *     [PIN_MAX_ATTEMPTS] aşıldığında sarmalayıcı ve Keystore anahtarı
+     *     birlikte siliniyor. Kasa kaybolmuyor — ana parola hâlâ açıyor;
+     *     düşen yalnızca kısayol.
+     *
+     * @param params ana parolanınkiyle aynı maliyet, taze tuzla. Aynı tuzu
+     *        paylaşmak, saldırgana tek hesapla iki sarmalayıcıyı birden
+     *        deneme imkânı verirdi.
+     */
+    fun enablePin(pin: SecretBytes, vaultKey: SecretBytes, pinLength: Int, params: Kdf.Params) {
+        require(pinLength in MIN_PIN_LENGTH..MAX_PIN_LENGTH) { "PIN uzunluğu geçersiz" }
+        val cipherSuite = suite
+
+        val header = ByteArrayOutputStream()
+        DataOutputStream(header).use { d ->
+            d.write(MAGIC_PIN)
+            d.writeByte(FORMAT_VERSION)
+            d.writeByte(cipherSuite.id.toInt())
+            d.writeByte(pinLength)
+            params.writeTo(d)
+        }
+        val headerBytes = header.toByteArray()
+
+        Kdf.derive(pin, params).use { kek ->
+            val inner = Crypto.seal(kek.raw(), vaultKey.raw(), headerBytes, cipherSuite)
+            // Dış katman: cihazdan çıkarılamayan Keystore anahtarı.
+            val outer = KeystoreKeys.pinSeal(context, inner)
+            inner.fill(0)
+            val out = ByteArrayOutputStream()
+            DataOutputStream(out).use { d ->
+                d.write(headerBytes)
+                d.writeInt(outer.size)
+                d.write(outer)
+            }
+            writeAtomically(pinKeyFile, out.toByteArray())
+        }
+        writePinAttempts(0)
+    }
+
+    fun pinEnabled(): Boolean = pinKeyFile.exists() && KeystoreKeys.hasPinKey()
+
+    /** Kaç haneli PIN kurulmuş? Tuş takımını çizmek için gerekiyor. 0 = yok. */
+    fun pinLength(): Int = runCatching {
+        if (!pinEnabled()) return@runCatching 0
+        val head = ByteArray(MAGIC_LEN + 3)
+        pinKeyFile.inputStream().use { if (it.read(head) != head.size) return@runCatching 0 }
+        if (!head.copyOfRange(0, MAGIC_LEN).contentEquals(MAGIC_PIN)) return@runCatching 0
+        head[MAGIC_LEN + 2].toInt()
+    }.getOrDefault(0)
+
+    /**
+     * PIN ile açar.
+     *
+     * Yanlış PIN'de sayaç artıyor; sınır aşıldığında PIN katmanı tamamen
+     * düşüyor ve [UnlockResult.WrongSecret] yerine yine `WrongSecret` dönüyor
+     * ama [pinEnabled] artık `false`. Çağıran bunu görüp ana parola ekranına
+     * geçiyor.
+     */
+    fun unlockWithPin(pin: SecretBytes): UnlockResult {
+        if (!pinEnabled()) return UnlockResult.WrongSecret
+        return try {
+            val blob = pinKeyFile.readBytes()
+            val stream = ByteArrayInputStream(blob)
+            val input = DataInputStream(stream)
+            val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
+            require(magic.contentEquals(MAGIC_PIN)) { "Bozuk PIN sarmalayıcısı" }
+            val version = input.readByte().toInt()
+            val fileSuite = readSuite(input, version)
+            input.readByte() // uzunluk: başlığın parçası, burada kullanılmıyor
+            val params = Kdf.Params.readFrom(input)
+            val headerLen = blob.size - stream.available()
+            val headerBytes = blob.copyOfRange(0, headerLen)
+            val len = input.readInt()
+            val outer = ByteArray(len).also { input.readFully(it) }
+
+            val inner = KeystoreKeys.pinOpen(context, outer)
+                ?: return onFailedPin()
+
+            val key = try {
+                Kdf.derive(pin, params).use { kek ->
+                    SecretBytes(Crypto.open(kek.raw(), inner, headerBytes, fileSuite))
+                }
+            } finally {
+                inner.fill(0)
+            }
+            writePinAttempts(0)
+            resetAttempts()
+            UnlockResult.Success(key)
+        } catch (e: AEADBadTagException) {
+            onFailedPin()
+        } catch (e: javax.crypto.BadPaddingException) {
+            onFailedPin()
+        } catch (t: Throwable) {
+            UnlockResult.Failure(t)
+        }
+    }
+
+    private fun onFailedPin(): UnlockResult {
+        val failed = readPinAttempts() + 1
+        if (failed >= PIN_MAX_ATTEMPTS) {
+            disablePin()
+        } else {
+            writePinAttempts(failed)
+        }
+        return UnlockResult.WrongSecret
+    }
+
+    /** Kaç deneme hakkı kaldı? Kullanıcıya göstermek için. */
+    fun pinAttemptsLeft(): Int = (PIN_MAX_ATTEMPTS - readPinAttempts()).coerceAtLeast(0)
+
+    /**
+     * PIN katmanını kaldırır.
+     *
+     * Keystore anahtarı da siliniyor: yalnızca dosyayı silmek, dosyanın bir
+     * kopyasını almış birine dış katmanı açma imkânı bırakırdı.
+     */
+    fun disablePin() {
+        secureDelete(pinKeyFile)
+        secureDelete(pinAttemptsFile)
+        KeystoreKeys.deletePinKey()
+    }
+
+    private fun readPinAttempts(): Int {
+        if (!pinAttemptsFile.exists()) return 0
+        val raw = runCatching { pinAttemptsFile.readBytes() }.getOrNull() ?: return 0
+        val plain = KeystoreKeys.deviceOpen(raw) ?: return 0
+        return runCatching { DataInputStream(ByteArrayInputStream(plain)).readInt() }.getOrDefault(0)
+    }
+
+    private fun writePinAttempts(value: Int) {
+        val out = ByteArrayOutputStream()
+        DataOutputStream(out).use { it.writeInt(value) }
+        runCatching { writeAtomically(pinAttemptsFile, KeystoreKeys.deviceSeal(out.toByteArray())) }
     }
 
     // ------------------------------------------------------------ kasa içeriği
@@ -692,8 +880,10 @@ class VaultStore(private val context: Context) {
 
     /** Kasayı ve tüm anahtarları geri dönüşsüz siler. */
     fun wipe() {
-        listOf(masterKeyFile, recoveryKeyFile, biometricKeyFile, vaultFile, attemptsFile)
-            .forEach { secureDelete(it) }
+        listOf(
+            masterKeyFile, recoveryKeyFile, biometricKeyFile, vaultFile,
+            attemptsFile, pinKeyFile, pinAttemptsFile
+        ).forEach { secureDelete(it) }
         runCatching { attachmentDir.listFiles()?.forEach { secureDelete(it) } }
         runCatching { attachmentDir.delete() }
         KeystoreKeys.deleteAll()
@@ -814,9 +1004,23 @@ class VaultStore(private val context: Context) {
         private val MAGIC_BIOMETRIC = "KASABIO1".toByteArray(Charsets.US_ASCII)
         private val MAGIC_VAULT = "KASAVLT1".toByteArray(Charsets.US_ASCII)
         private val MAGIC_ATTACHMENT = "KASAATT1".toByteArray(Charsets.US_ASCII)
+        private val MAGIC_PIN = "KASAPIN1".toByteArray(Charsets.US_ASCII)
         val MAGIC_EXPORT = "KASAEXP1".toByteArray(Charsets.US_ASCII)
 
         const val EXPORT_EXTENSION = "kasa"
+
+        const val MIN_PIN_LENGTH = 4
+        const val MAX_PIN_LENGTH = 6
+
+        /**
+         * PIN kaç yanlış denemeden sonra düşer.
+         *
+         * Beş, on binlik bir uzayda anlamlı bir tahmin şansı bırakmıyor
+         * (%0,05) ama cebinde telefonu yanlışlıkla dokunmuş bir kullanıcıyı da
+         * ana parolaya göndermiyor. Düşmek kasayı kaybetmek değil: ana parola
+         * her zaman açıyor.
+         */
+        const val PIN_MAX_ATTEMPTS = 5
 
         /** Kullanıcının seçtiği dosyanın gerçekten .kasa olup olmadığını hızlıca söyler. */
         fun looksLikeExport(head: ByteArray): Boolean =

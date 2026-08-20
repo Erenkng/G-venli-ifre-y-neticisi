@@ -55,9 +55,9 @@ class KasaApplication : Application(), Configuration.Provider {
             .onEach { container.autoLocker.autoLockSeconds = it }
             .launchIn(container.scope)
 
-        // Kilit durumu değişince ana ekran aracını tazele.
+        // Kilit durumu değişince ana ekran aracını tazele. StateFlow zaten
+        // aynı değeri iki kez yaymıyor; ayrıca ayıklamaya gerek yok.
         container.vaultRepository.lockState
-            .distinctUntilChanged()
             .onEach { KasaWidgetProvider.refresh(this) }
             .launchIn(container.scope)
 

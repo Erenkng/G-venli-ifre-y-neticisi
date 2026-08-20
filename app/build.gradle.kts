@@ -25,11 +25,16 @@ android {
         versionName = "3.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        resourceConfigurations += listOf("tr", "en")
 
         // Android 16 yalnızca 64 bit cihazlarda çalışıyor; 32 bit ABI'leri
         // paketlemek APK'yı büyütmekten başka bir işe yaramaz.
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+    }
+
+    // Yalnızca gerçekten çevrilmiş diller paketlensin; kitaplıkların getirdiği
+    // yüzlerce dil dizini APK'yı büyütmekten başka işe yaramıyor.
+    androidResources {
+        localeFilters += listOf("tr", "en")
     }
 
     buildTypes {

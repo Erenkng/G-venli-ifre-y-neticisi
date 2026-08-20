@@ -92,7 +92,7 @@ class SecurityAnalyzer(private val breachChecker: BreachChecker) {
         val leaked = updated.filter { it.breached }
         val weak = updated.filter {
             it.password.isNotBlank() &&
-                PasswordStrength.evaluate(it.password).tone == PasswordStrength.Tone.WEAK
+                PasswordStrength.evaluate(it.password.reveal()).tone == PasswordStrength.Tone.WEAK
         }
         val reusedGroups = updated
             .filter { it.password.isNotBlank() }
@@ -144,7 +144,7 @@ class SecurityAnalyzer(private val breachChecker: BreachChecker) {
         if (scored.isEmpty()) return 100
 
         val averageStrength = scored
-            .map { PasswordStrength.evaluate(it.password).score.toDouble() }
+            .map { PasswordStrength.evaluate(it.password.reveal()).score.toDouble() }
             .average()
 
         var value = averageStrength * 100.0

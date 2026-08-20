@@ -4,6 +4,7 @@ import android.content.Context
 import app.kasa.core.crypto.AeadSuite
 import app.kasa.core.crypto.Kdf
 import app.kasa.core.crypto.KdfCalibration
+import app.kasa.core.crypto.KeystoreKeys
 import app.kasa.core.crypto.SecretBytes
 import app.kasa.core.crypto.SecretText
 import app.kasa.core.security.SecureClipboard
@@ -235,18 +236,69 @@ class VaultRepository(
 
     // ------------------------------------------------------------ biyometri
 
-    fun biometricEncryptCipherOrNull(): Cipher? = runCatching {
-        app.kasa.core.crypto.KeystoreKeys.biometricEncryptCipher(context)
+    fun biometricEncryptCipherOrNull(
+        authClass: KeystoreKeys.AuthClass = KeystoreKeys.AuthClass.BIOMETRIC_ONLY
+    ): Cipher? = runCatching {
+        KeystoreKeys.biometricEncryptCipher(context, authClass)
     }.getOrNull()
 
-    suspend fun enableBiometric(cipher: Cipher): Boolean = withContext(Dispatchers.IO) {
+    suspend fun enableBiometric(
+        cipher: Cipher,
+        authClass: KeystoreKeys.AuthClass = KeystoreKeys.AuthClass.BIOMETRIC_ONLY
+    ): Boolean = withContext(Dispatchers.IO) {
         val key = vaultKey ?: return@withContext false
-        runCatching { store.enableBiometric(cipher, key) }.isSuccess
+        runCatching { store.enableBiometric(cipher, key, authClass) }.isSuccess
     }
 
     suspend fun disableBiometric() = withContext(Dispatchers.IO) { store.disableBiometric() }
 
     fun biometricEnrolled(): Boolean = store.biometricEnrolled()
+
+    /** Kurulu sarmalayıcı hangi doğrulamayı istiyor? Ayarlarda gösteriliyor. */
+    fun biometricAuthClass(): KeystoreKeys.AuthClass? = store.biometricAuthClass()
+
+    // ---------------------------------------------------------- hızlı PIN
+
+    fun pinEnabled(): Boolean = store.pinEnabled()
+
+    fun pinLength(): Int = store.pinLength()
+
+    fun pinAttemptsLeft(): Int = store.pinAttemptsLeft()
+
+    /**
+     * PIN katmanını kurar. Kasa açık olmalı: sarmalanan şey kasa anahtarının
+     * kendisi, ana parola değil — yani PIN'i bilen biri ana parolayı öğrenmiyor.
+     *
+     * Maliyet ana parolanınkiyle aynı ([VaultStore.currentKdfParams]); taze
+     * tuzla. Ayrı bir "PIN için daha ucuz" ayarı bilerek yok: PIN zaten kısa,
+     * bir de türetmeyi ucuzlatmak iki zayıflığı üst üste koymak olurdu.
+     */
+    suspend fun enablePin(pin: CharArray, pinLength: Int): Boolean = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val key = vaultKey
+            try {
+                if (key == null) return@withLock false
+                SecretBytes.ofUtf8(pin).use { secret ->
+                    val params = (store.currentKdfParams() ?: Kdf.defaultParams()).withFreshSalt()
+                    runCatching { store.enablePin(secret, key, pinLength, params) }.isSuccess
+                }
+            } finally {
+                pin.fill('\u0000')
+            }
+        }
+    }
+
+    suspend fun unlockWithPin(pin: CharArray): UnlockOutcome = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            try {
+                SecretBytes.ofUtf8(pin).use { secret -> adopt(store.unlockWithPin(secret)) }
+            } finally {
+                pin.fill('\u0000')
+            }
+        }
+    }
+
+    suspend fun disablePin() = withContext(Dispatchers.IO) { store.disablePin() }
 
     // -------------------------------------------------------------- kayıtlar
 
