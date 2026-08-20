@@ -9,7 +9,7 @@
 [![Android](https://img.shields.io/badge/Android-16%2B%20%C2%B7%20API%2036-0B5347?style=for-the-badge&logo=android&logoColor=A6F0DE&labelColor=04241F)](#kurulum)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-0B5347?style=for-the-badge&logo=kotlin&logoColor=A6F0DE&labelColor=04241F)](#mimari)
 [![Compose](https://img.shields.io/badge/Compose-2025.04-0B5347?style=for-the-badge&logo=jetpackcompose&logoColor=A6F0DE&labelColor=04241F)](#tasarım-dili)
-[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-1.1-0B5347?style=for-the-badge&labelColor=04241F)](#sürüm-yayımlama)
+[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-1.3-0B5347?style=for-the-badge&labelColor=04241F)](#sürüm-yayımlama)
 
 [![CI](https://github.com/Erenkng/G-venli-ifre-y-neticisi/actions/workflows/android.yml/badge.svg?branch=claude%2Fandroid-app-design-features-awluov)](https://github.com/Erenkng/G-venli-ifre-y-neticisi/actions/workflows/android.yml)
 
@@ -20,7 +20,7 @@ Hesap yok, sunucu yok, eşitleme yok — kaybedilecek bir hesap da yok.
 
 <br>
 
-[**Kurulum**](#kurulum) · [**Güvenlik**](#güvenlik-mimarisi) · [**Özellikler**](#özellikler) · [**Tasarım**](#tasarım-dili) · [**Mimari**](#mimari) · [**Dosya biçimi**](#dosya-biçimleri)
+[**Ekranlar**](#ekranlar) · [**Kurulum**](#kurulum) · [**Güvenlik**](#güvenlik-mimarisi) · [**Özellikler**](#özellikler) · [**Tasarım**](#tasarım-dili) · [**Mimari**](#mimari) · [**Dosya biçimi**](#dosya-biçimleri)
 
 </div>
 
@@ -42,6 +42,76 @@ Hesap yok, sunucu yok, eşitleme yok — kaybedilecek bir hesap da yok.
 > [!IMPORTANT]
 > Kasa **yalnızca Android 16 (API 36) ve üstünde** çalışır: `minSdk = targetSdk = compileSdk = 36`.
 > Tek hedefe inmenin karşılığı, kod tabanında tek bir `Build.VERSION` dalının bile kalmaması.
+
+
+---
+
+## Ekranlar
+
+<div align="center">
+
+<img src="docs/screens.svg" alt="Kasa listesi, kart ayrıntısı ve üreteç ekranları" width="100%">
+
+<sub><b>Bunlar ekran görüntüsü değil, çizim.</b> Bu depo yazılırken cihaz ve emülatör erişimi yoktu;
+görseller uygulamanın kendi ölçüleri, renkleri ve bileşenleri kullanılarak elle çizildi.
+Gerçek ekran görüntüleri bir cihazda alınabildiğinde bunların yerini alacak.</sub>
+
+</div>
+
+| | |
+|:--|:--|
+| **Kasa** | Site logoları baş harfin yerinde, kartlar minyatür kart olarak. Gezinme çubuğunun altındaki içerik kademeli bulanıklaşıyor, üstte durum çubuğunun altında ince bir cam var. |
+| **Kart** | Kayıt açıldığında ilk görülen şey kartın kendisi. Kopyalama düğmeleri değerlerin yanında; güvenlik kodu kartın yüzünde hiçbir zaman açık yazmıyor. |
+| **Üret** | Kadran güce göre biçim değiştiriyor: zayıf parolada dikenli ve hızlı, güçlüde yumuşak ve yavaş. Altı kip — parola, sözcük dizisi, söylenebilir, PIN, kullanıcı adı, onaltılık anahtar. |
+
+---
+
+## İşaret
+
+<div align="center">
+
+<img src="docs/mark.svg" alt="Kasa simgesi farklı boylarda ve tek renkli hâliyle" width="100%">
+
+</div>
+
+Asma kilit, parola yöneticisi simgelerinin ortak klişesi: telefonda yan yana duran üç uygulamadan
+hangisinin hangisi olduğu anlaşılmıyor. Uygulamanın adı zaten **Kasa** ve gerçek bir kasanın
+kapağında asma kilit değil **kadran** bulunuyor — işaret hem adı hem nesneyi söylüyor. Üç kollu
+olması da rastgele değil: direksiyon ve dişli simgeleri dört kollu, gerçek kasa volanları üç kollu.
+
+Açılışta bu gradyanlı yüz görünüyor ve animasyonun son 350 ms'sinde uygulamanın içinde kullanılan
+düz tona çözülüyor. Aynı işaretin iki farklı yüzü olması iki farklı işaret gibi geliyordu; geçişi
+göstermek ikisini de koruyor.
+
+---
+
+## Gradyan aileleri
+
+<div align="center">
+
+<img src="docs/themes.svg" alt="Üç gradyan ailesi, günün beş dilimine göre" width="100%">
+
+</div>
+
+Zemin sabahtan geceye doğru kayıyor ve değişim **fark edilmeyecek kadar yavaş** olmak zorunda:
+kullanıcı bunu fark ederse etki kaybolur ve "ekran neden renk değiştirdi" sorusuna dönüşür.
+İki komşu dilim arasında geçiş sürekli, yani hiçbir anda sıçrama yok. Aile ayarlardan seçiliyor,
+saate uyum kapatılabiliyor.
+
+---
+
+## Tanınan kart ağları
+
+<div align="center">
+
+<img src="docs/brands.svg" alt="Visa, Mastercard, Troy, Amex, Maestro, JCB, UnionPay ve Diners işaretleri" width="100%">
+
+</div>
+
+Numaranın ön eki ağı belirliyor; ağ da kartın rengini, işaretini, numara öbeklemesini
+(Visa 4-4-4-4, Amex 4-6-5) ve güvenlik kodunun hane sayısını. İşaretler markanın kendi dosyaları
+değil, uygulamanın çizdiği geometri — kartı sahibine tanıtmak için ağın işaretini göstermek,
+markayı sahiplenmek değil.
 
 ---
 

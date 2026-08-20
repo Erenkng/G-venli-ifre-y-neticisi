@@ -9,6 +9,23 @@
       <stop offset="0" stop-color="#2FD9B6" stop-opacity="0.20"/>
       <stop offset="1" stop-color="#2FD9B6" stop-opacity="0"/>
     </radialGradient>
+
+    <!-- Simgenin kendi gradyanları: ic_launcher_foreground ile aynı duraklar -->
+    <linearGradient id="ring" x1="26" y1="26" x2="82" y2="82" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#EAFFF8"/>
+      <stop offset="0.55" stop-color="#A6F0DE"/>
+      <stop offset="1" stop-color="#3FBFA4"/>
+    </linearGradient>
+    <linearGradient id="spoke" x1="50.5" y1="31.5" x2="57.5" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#EAFFF8"/>
+      <stop offset="1" stop-color="#5FD3B8"/>
+    </linearGradient>
+    <radialGradient id="hub" cx="49" cy="49" r="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.45" stop-color="#B7F4E4"/>
+      <stop offset="1" stop-color="#40C0A6"/>
+    </radialGradient>
+
     <clipPath id="card">
       <rect x="0" y="0" width="1200" height="360" rx="30"/>
     </clipPath>
@@ -26,16 +43,14 @@
       <circle cx="1128" cy="180" r="288"/>
     </g>
 
-    <!-- Kasa kadranı: uygulamanın simgesiyle aynı geometri -->
+    <!-- Kasa kadranı: uygulamanın simgesiyle aynı geometri ve aynı gradyanlar -->
     <g transform="translate(238 190) scale(2.42) translate(-54 -54)">
-      <circle cx="54" cy="54" r="28" fill="none" stroke="#A6F0DE" stroke-width="8"/>
-      <g fill="#A6F0DE">
-        <path transform="rotate(30 54 54)"  d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
-        <path transform="rotate(150 54 54)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
-        <path transform="rotate(270 54 54)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
-      </g>
+      <circle cx="54" cy="54" r="28" fill="none" stroke="url(#ring)" stroke-width="8"/>
+      <path transform="rotate(30 54 54)"  fill="url(#spoke)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
+      <path transform="rotate(150 54 54)" fill="url(#spoke)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
+      <path transform="rotate(270 54 54)" fill="url(#spoke)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
       <!-- Göbek: mil deliği gerçek bir delik (evenodd), zemin içinden görünüyor -->
-      <path fill="#A6F0DE" fill-rule="evenodd"
+      <path fill="url(#hub)" fill-rule="evenodd"
             d="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z
                M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
     </g>
