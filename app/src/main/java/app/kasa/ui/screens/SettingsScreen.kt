@@ -421,6 +421,12 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setOnlineBreachCheck,
                     first = true
                 )
+                ToggleRow(
+                    title = stringResource(R.string.set_autofill_verify),
+                    subtitle = stringResource(R.string.set_autofill_verify_sub),
+                    checked = settings.autofillVerifyDomains,
+                    onCheckedChange = viewModel::setAutofillVerifyDomains
+                )
 
                 // ── bağlama duyarlı kilit süresi ──────────────────────────
                 ToggleRow(

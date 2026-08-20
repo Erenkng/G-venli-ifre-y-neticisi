@@ -128,6 +128,20 @@ data class VaultItem(
     /** Şema tabanlı türlerin alanları: [CategorySchema] anahtarları → değer. */
     val extras: Map<String, String> = emptyMap(),
     val tags: List<String> = emptyList(),
+    /**
+     * Bu kaydın hangi Android uygulamalarına ait olduğu.
+     *
+     * Biçim: `paket adı|imza sertifikasının SHA-256 parmak izi`. İkisi birlikte
+     * duruyor çünkü tek başına paket adı yetmiyor: uygulama kaldırılıp aynı
+     * paket adıyla başka bir imzayla yeniden kurulabilir ve o artık aynı
+     * uygulama değildir.
+     *
+     * Bağ iki yoldan kuruluyor: kullanıcı o uygulamada kaydı bir kez elle
+     * seçtiğinde, ya da uygulamada yeni bir parola kaydettiğinde. Otomatik
+     * doldurmanın uygulama eşleştirmesi **yalnızca** buna bakıyor; ad
+     * benzerliğine değil.
+     */
+    val linkedApps: List<String> = emptyList(),
     val customFields: List<CustomField> = emptyList(),
     val attachments: List<Attachment> = emptyList(),
     val passkeys: List<Passkey> = emptyList(),

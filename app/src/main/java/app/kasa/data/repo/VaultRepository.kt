@@ -1063,24 +1063,137 @@ class VaultRepository(
      * altına aldığını sandığı parolayı en geniş kapıdan vermek olurdu. Kayıt
      * uygulamanın içinden, doğrulamanın ardından kopyalanabiliyor.
      */
-    fun matchesFor(packageName: String?, webDomain: String?): List<VaultItem> {
-        val items = _data.value.liveItems
-            .filter { (it.category == Category.LOGIN || it.category == Category.OTP) && !it.requireAuth }
-        val domain = webDomain?.lowercase()?.removePrefix("www.")
-        val appToken = packageName?.substringAfterLast('.')?.lowercase()
+    // ── otomatik doldurma ────────────────────────────────────────────────
 
-        return items.filter { item ->
-            val host = item.host()
-            when {
-                domain != null && host != null &&
-                    (host == domain || host.endsWith(".$domain") || domain.endsWith(".$host")) -> true
-                domain != null && item.name.lowercase(TR).let { domain.contains(it) || it.contains(domain.substringBefore('.')) } -> true
-                appToken != null && appToken.length >= 3 &&
-                    (item.name.lowercase(TR).contains(appToken) || host?.contains(appToken) == true) -> true
-                packageName != null && item.tags.any { it.equals(packageName, ignoreCase = true) } -> true
-                else -> false
+    /**
+     * Otomatik doldurmaya aday kayıtlar.
+     *
+     * Eşleştirme kararı burada değil [app.kasa.autofill.AutofillMatcher]
+     * içinde; burada yalnızca o anki liste veriliyor. Ayrım bilerek: hangi
+     * kaydın hangi uygulamaya gösterileceği bir **güven** kararı ve deponun
+     * işi değil.
+     */
+    fun autofillCandidates(): List<VaultItem> = _data.value.liveItems
+
+    /**
+     * Kayıt ile uygulama arasında kalıcı bağ kurar.
+     *
+     * Kullanıcı bir uygulamada kaydı elle seçtiğinde ya da o uygulamada yeni
+     * parola kaydettiğinde çağrılıyor. İkinci seferde eşleşme kendiliğinden
+     * geliyor; ad benzerliğine dayanan tahminin yerini alan şey bu.
+     *
+     * @param token `paket adı|imza parmak izi`
+     */
+    suspend fun linkApp(itemId: String, token: String): Boolean = mutate { current ->
+        val existing = current.items.firstOrNull { it.id == itemId } ?: return@mutate current
+        if (existing.linkedApps.any { it.equals(token, ignoreCase = true) }) return@mutate current
+        current.copy(
+            items = current.items.map {
+                if (it.id == itemId) it.copy(
+                    linkedApps = it.linkedApps + token,
+                    updatedAt = System.currentTimeMillis()
+                ) else it
             }
-        }.sortedByDescending { it.lastUsedAt }
+        )
+    }
+
+    /** Bir kayıttan uygulama bağını kaldırır (ayrıntı ekranından). */
+    suspend fun unlinkApp(itemId: String, token: String): Boolean = mutate { current ->
+        current.copy(
+            items = current.items.map {
+                if (it.id == itemId) it.copy(
+                    linkedApps = it.linkedApps.filterNot { link -> link.equals(token, ignoreCase = true) },
+                    updatedAt = System.currentTimeMillis()
+                ) else it
+            }
+        )
+    }
+
+    /** [saveFromAutofill] ne yaptı? Arayüzde gösterilecek iletiyi bu belirliyor. */
+    enum class AutofillSaveOutcome { CREATED, UPDATED, UNCHANGED, FAILED }
+
+    /**
+     * Otomatik doldurma kaydetme akışı: güncelle mi, yeni mi?
+     *
+     * ### Neden ayrım gerekiyordu
+     *
+     * Önceki hâl her kaydetme isteğinde yeni kayıt açıyordu. Sonucu, aynı
+     * sitenin parolasını üçüncü kez değiştiren kullanıcının kasasında üç kayıt
+     * olması; hangisinin geçerli olduğu ise ancak hepsi denenerek anlaşılıyor.
+     * Parola yöneticisinin çözmesi gereken sorunun kendisi bu.
+     *
+     * ### Karar
+     *
+     * Aday, aynı uygulamaya/alan adına ait **ve aynı kullanıcı adını taşıyan**
+     * kayıt. Bulunursa:
+     *
+     *  - parola aynıysa hiçbir şey yazılmıyor ([AutofillSaveOutcome.UNCHANGED]);
+     *  - farklıysa güncelleniyor ve **eski parola geçmişe** yazılıyor.
+     *
+     * Kullanıcı adı farklıysa bu gerçekten yeni bir hesap — aynı sitede ikinci
+     * bir hesap açmak sıradan bir şey ve onu var olanın üzerine yazmak veri
+     * kaybı olurdu.
+     *
+     * Kullanıcı adı boş geldiğinde (yalnızca parola alanı olan form) aday,
+     * aynı bağa sahip **tek** kayıt olmak zorunda; birden çoksa hangisinin
+     * kastedildiği bilinemez ve yeni kayıt açılıyor. Yanlış kaydın parolasını
+     * ezmek, fazladan bir kayıttan çok daha pahalı.
+     */
+    suspend fun saveFromAutofill(
+        name: String,
+        username: String,
+        password: SecretText,
+        url: String,
+        linkToken: String?
+    ): AutofillSaveOutcome {
+        if (password.isBlank()) return AutofillSaveOutcome.FAILED
+
+        val candidates = _data.value.liveItems.filter { item ->
+            if (item.category != Category.LOGIN) return@filter false
+            val linked = linkToken != null && item.linkedApps.any { it.equals(linkToken, ignoreCase = true) }
+            // url burada tarayıcıdan gelen çıplak alan adı (küçük harf, "www."
+            // ayıklanmış); ayrıca ayrıştırmaya gerek yok.
+            val sameHost = url.isNotBlank() &&
+                app.kasa.autofill.AutofillMatcher.sameSite(item.host(), url)
+            linked || sameHost
+        }
+
+        val target = if (username.isNotBlank()) {
+            candidates.firstOrNull { it.username.equals(username, ignoreCase = true) }
+        } else {
+            candidates.singleOrNull()
+        }
+
+        if (target != null) {
+            if (target.password == password) {
+                // Yalnızca giriş yapıldı, parola değişmedi. Yine de bağ
+                // kurulsun ki bir daha eşleşme sorulmasın.
+                linkToken?.let { linkApp(target.id, it) }
+                return AutofillSaveOutcome.UNCHANGED
+            }
+            val ok = upsert(
+                target.copy(
+                    password = password,
+                    username = username.ifBlank { target.username },
+                    linkedApps = if (linkToken != null && target.linkedApps.none { it.equals(linkToken, true) }) {
+                        target.linkedApps + linkToken
+                    } else target.linkedApps
+                )
+            )
+            return if (ok) AutofillSaveOutcome.UPDATED else AutofillSaveOutcome.FAILED
+        }
+
+        val ok = upsert(
+            VaultItem(
+                name = name,
+                category = Category.LOGIN,
+                username = username,
+                password = password,
+                url = url,
+                linkedApps = listOfNotNull(linkToken)
+            )
+        )
+        return if (ok) AutofillSaveOutcome.CREATED else AutofillSaveOutcome.FAILED
     }
 
     companion object {

@@ -41,7 +41,9 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import app.kasa.KasaApplication
 import app.kasa.R
+import app.kasa.core.util.Totp
 import app.kasa.data.SettingsStore
+import app.kasa.data.model.Category
 import app.kasa.data.model.VaultItem
 import app.kasa.data.repo.VaultRepository
 import app.kasa.ui.BiometricGate
@@ -126,14 +128,25 @@ class AutofillUnlockActivity : FragmentActivity() {
 
         val parsed = StructureParser(structure).parse()
         val repository = KasaApplication.container(this).vaultRepository
-        val matches = repository.matchesFor(parsed.packageName, parsed.webDomain)
-            // Eşleşme yoksa son kayıtlar sunuluyor; ek kilitli olanlar burada
-            // da dışarıda kalıyor.
-            .ifEmpty { repository.data.value.liveItems.filter { !it.requireAuth }.take(8) }
+        val caller = CallerIdentity.of(this, parsed.packageName, parsed.webDomain, parsed.isBrowser)
+        val candidates = repository.autofillCandidates()
+
+        val matched = AutofillMatcher.offline(candidates, caller).map { it.item }
+
+        // Eşleşme yoksa kullanıcı kendi seçsin diye son kullanılan kayıtlar
+        // listeleniyor. Bu liste bir **öneri** değil, bir seçim ekranı: buraya
+        // gelinmiş olması zaten hiçbir güvenilir bağın kurulamadığı anlamına
+        // geliyor ve kullanıcı hangi uygulamanın istediğini görerek seçiyor.
+        val offered = matched.ifEmpty {
+            candidates
+                .filter { !it.requireAuth && it.category == Category.LOGIN }
+                .sortedByDescending { it.lastUsedAt }
+                .take(8)
+        }
 
         val builder = FillResponse.Builder()
         var added = 0
-        matches.forEach { item ->
+        offered.forEach { item ->
             val dataset = buildDataset(parsed, item) ?: return@forEach
             builder.addDataset(dataset)
             added++
@@ -145,21 +158,60 @@ class AutofillUnlockActivity : FragmentActivity() {
             return
         }
 
+        // Kullanıcı bu ekrandan bir kayıt seçtiğinde hangisini seçtiğini sistem
+        // bize söylemiyor; seçim doğrudan hedef uygulamaya gidiyor. Bu yüzden
+        // bağ, eşleşme bulunamamış olsa bile **sunulan tek kayıt** varsa
+        // kuruluyor: orada belirsizlik yok. Birden çok kayıt sunulduğunda bağ
+        // kaydetme akışında kuruluyor (saveFromAutofill).
+        val token = caller.linkToken()
+        if (token != null && matched.isEmpty() && offered.size == 1) {
+            val id = offered.first().id
+            lifecycleScope.launch { repository.linkApp(id, token) }
+        }
+
         val result = Intent().putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, builder.build())
         setResult(Activity.RESULT_OK, result)
         finish()
     }
 
+    /**
+     * Tek kayıttan veri kümesi.
+     *
+     * Kod alanı varsa ve kayıtta TOTP anahtarı bulunuyorsa kod da yazılıyor;
+     * servisin doldurma yoluyla aynı davranış, çünkü kullanıcı için ikisi
+     * arasında bir fark yok.
+     */
     private fun buildDataset(parsed: StructureParser.Result, item: VaultItem): Dataset? {
-        if (parsed.usernameId == null && parsed.passwordId == null) return null
+        val code = if (parsed.otpId != null && item.totpSecret.isNotBlank()) {
+            Totp.code(item.totpSecret, item.totpDigits, item.totpPeriod, item.totpAlgorithm)
+        } else null
+
+        if (parsed.otpOnly && code == null) return null
+
         val presentation = RemoteViews(packageName, R.layout.autofill_dataset).apply {
             setTextViewText(R.id.autofill_title, item.name)
-            setTextViewText(R.id.autofill_subtitle, item.username.ifBlank { item.host().orEmpty() })
+            setTextViewText(
+                R.id.autofill_subtitle,
+                if (parsed.otpOnly) getString(R.string.af_otp_subtitle)
+                else item.username.ifBlank { item.host().orEmpty() }
+            )
         }
-        return Dataset.Builder().apply {
-            parsed.usernameId?.let { setValue(it, AutofillValue.forText(item.username), presentation) }
-            parsed.passwordId?.let { setValue(it, AutofillValue.forText(item.password.reveal()), presentation) }
-        }.build()
+
+        var wrote = false
+        val builder = Dataset.Builder()
+        fun put(id: android.view.autofill.AutofillId?, value: String?) {
+            if (id == null || value == null) return
+            builder.setValue(id, AutofillValue.forText(value), presentation)
+            wrote = true
+        }
+
+        if (!parsed.otpOnly) {
+            put(parsed.usernameId, item.username.takeIf { it.isNotBlank() })
+            put(parsed.passwordId, item.password.reveal().takeIf { it.isNotBlank() })
+        }
+        put(parsed.otpId, code)
+
+        return if (wrote) builder.build() else null
     }
 
     @Composable

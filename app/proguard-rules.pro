@@ -11,6 +11,20 @@
 }
 -keep,includedescriptorclasses class app.kasa.data.model.**$$serializer { *; }
 
+# Otomatik doldurmanın alan adı doğrulama önbelleği de serileştiriliyor;
+# sınıf data/model altında olmadığı için yukarıdaki kural kapsamıyor.
+-keepclassmembers class app.kasa.autofill.** {
+    *** Companion;
+}
+-keepclasseswithmembers class app.kasa.autofill.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep,includedescriptorclasses class app.kasa.autofill.**$$serializer { *; }
+
+# Satır içi öneri arayüzü Slice üzerinden yansımayla kuruluyor
+-keep class androidx.autofill.inline.** { *; }
+-dontwarn androidx.autofill.**
+
 # Argon2Kt yerel köprüsü
 -keep class com.lambdapioneer.argon2kt.** { *; }
 

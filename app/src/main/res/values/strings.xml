@@ -525,6 +525,9 @@
     <string name="set_group_crypto">Kriptografi</string>
     <string name="set_key_storage">Anahtar deposu</string>
     <string name="af_browse_entry">Kasa\'dan seç</string>
+    <string name="af_otp_subtitle">Doğrulama kodu</string>
+    <string name="set_autofill_verify">Uygulama–alan adı bağını doğrula</string>
+    <string name="set_autofill_verify_sub">Yerli bir uygulama, kasadaki bir alan adının parolasını istediğinde o alan adının beyanı (assetlinks.json) sorulur. Bir ağ isteği: alan adının sunucusuna, sizde o siteye ait bir kayıt olduğu bilgisi gider. Kapalıyken uygulama eşleşmesi yalnızca sizin elle kurduğunuz bağlarla çalışır.</string>
 
     <!-- Kart görünümü -->
     <string name="field_card_brand">Ağ</string>

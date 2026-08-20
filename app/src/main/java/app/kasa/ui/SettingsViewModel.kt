@@ -68,6 +68,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setAutoLockSeconds(value: Int) = launchSetting { settingsStore.setAutoLockSeconds(value) }
     fun setWipeAfterAttempts(value: Int) = launchSetting { settingsStore.setWipeAfterAttempts(value) }
     fun setOnlineBreachCheck(value: Boolean) = launchSetting { settingsStore.setOnlineBreachCheck(value) }
+    fun setAutofillVerifyDomains(value: Boolean) = launchSetting { settingsStore.setAutofillVerifyDomains(value) }
 
     private fun launchSetting(block: suspend () -> Unit) {
         container.haptics.play(Haptics.Kind.TOGGLE)

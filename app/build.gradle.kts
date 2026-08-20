@@ -130,6 +130,8 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.biometric)
+    // Klavye şeridindeki satır içi öneriler için (InlineSuggestionUi).
+    implementation(libs.androidx.autofill)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.work.runtime.ktx)
 

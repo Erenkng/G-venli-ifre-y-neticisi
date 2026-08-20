@@ -25,14 +25,21 @@ class StructureParser(private val structure: AssistStructure) {
     data class Result(
         val usernameId: AutofillId?,
         val passwordId: AutofillId?,
+        /** Tek kullanımlık kod alanı; iki adımlı doğrulamanın ikinci ekranı. */
+        val otpId: AutofillId?,
         val packageName: String?,
-        val webDomain: String?
+        val webDomain: String?,
+        val isBrowser: Boolean
     ) {
-        val usable: Boolean get() = usernameId != null || passwordId != null
+        val usable: Boolean get() = usernameId != null || passwordId != null || otpId != null
+
+        /** Yalnızca kod isteyen ekran: parola alanı yok, kod alanı var. */
+        val otpOnly: Boolean get() = otpId != null && passwordId == null
     }
 
     private var usernameId: AutofillId? = null
     private var passwordId: AutofillId? = null
+    private var otpId: AutofillId? = null
     private var webDomain: String? = null
 
     fun parse(): Result {
@@ -40,13 +47,16 @@ class StructureParser(private val structure: AssistStructure) {
         for (i in 0 until structure.windowNodeCount) {
             traverse(structure.getWindowNodeAt(i).rootViewNode)
         }
+        val browser = isBrowser(packageName)
         return Result(
             usernameId = usernameId,
             passwordId = passwordId,
+            otpId = otpId,
             packageName = packageName,
             // Alan adı yalnızca tarayıcıdan geliyorsa kabul ediliyor; gerekçesi
             // [isBrowser] üzerinde yazılı.
-            webDomain = if (isBrowser(packageName)) webDomain else null
+            webDomain = if (browser) webDomain else null,
+            isBrowser = browser
         )
     }
 
@@ -64,7 +74,10 @@ class StructureParser(private val structure: AssistStructure) {
         val id = node.autofillId
         if (id != null && node.autofillType == View.AUTOFILL_TYPE_TEXT) {
             when {
+                // Sıra önemli: parola sınaması önce geliyor, çünkü bir parola
+                // alanının ipucu metninde "kod" geçebiliyor ("güvenlik kodu").
                 isPassword(node) -> if (passwordId == null) passwordId = id
+                isOneTimeCode(node) -> if (otpId == null) otpId = id
                 isUsername(node) -> if (usernameId == null) usernameId = id
             }
         }
@@ -101,6 +114,35 @@ class StructureParser(private val structure: AssistStructure) {
         ) return true
 
         return matchesKeyword(node, USERNAME_KEYWORDS)
+    }
+
+    /**
+     * Tek kullanımlık kod alanı mı?
+     *
+     * Buradaki asıl zorluk yanlış pozitif. "code" sözcüğü posta kodunda, ülke
+     * kodunda, indirim kodunda da geçiyor ve oraya TOTP kodu önermek en hafif
+     * tabirle şaşırtıcı olurdu. Bu yüzden iki ayrı yol var:
+     *
+     *  - **Açık beyan** — `AUTOFILL_HINT_SMS_OTP` ya da HTML'de
+     *    `autocomplete="one-time-code"`. Uygulama/sayfa ne istediğini
+     *    söylemiş; başka sınamaya gerek yok.
+     *  - **Tahmin** — anahtar sözcük eşleşmesi, ama yalnızca alan gerçekten
+     *    kısa bir koda benziyorsa: uzunluk sınırı 4-10 arası. Sınırı olmayan
+     *    bir metin alanına tek kullanımlık kod önerilmiyor.
+     */
+    private fun isOneTimeCode(node: AssistStructure.ViewNode): Boolean {
+        node.autofillHints?.forEach { hint ->
+            if (hint.equals(View.AUTOFILL_HINT_SMS_OTP, ignoreCase = true)) return true
+        }
+        val autocomplete = node.htmlInfo?.attributes
+            ?.firstOrNull { it.first.equals("autocomplete", ignoreCase = true) }
+            ?.second
+            ?.lowercase()
+        if (autocomplete != null && autocomplete.contains("one-time-code")) return true
+
+        val length = node.maxTextLength
+        if (length !in OTP_LENGTHS) return false
+        return matchesKeyword(node, OTP_KEYWORDS)
     }
 
     private fun matchesKeyword(node: AssistStructure.ViewNode, keywords: Array<String>): Boolean {
@@ -174,6 +216,19 @@ class StructureParser(private val structure: AssistStructure) {
             "password", "passwd", "pwd",
             "sifre", "şifre", "parola"
         )
+        /**
+         * Tahmin yoluyla kod alanı sayılacak uzunluk sınırı aralığı.
+         * Altı hane yaygın, sekiz de var; on üstü artık kod değil.
+         */
+        val OTP_LENGTHS = 4..10
+
+        val OTP_KEYWORDS = arrayOf(
+            "otp", "one-time", "onetime", "totp", "2fa", "mfa", "authenticator",
+            "verification", "verify",
+            "dogrulama", "doğrulama", "tek kullanimlik", "tek kullanımlık", "guvenlik kodu",
+            "güvenlik kodu", "sms kodu", "onay kodu"
+        )
+
         val USERNAME_KEYWORDS = arrayOf(
             "username", "user", "login", "email", "e-mail", "account", "identifier",
             "kullanici", "kullanıcı", "eposta", "e-posta", "hesap", "giris", "giriş", "telefon"

@@ -47,6 +47,20 @@ class SettingsStore(private val context: Context) {
         val autoLockSeconds: Int = 60,
         val wipeAfterAttempts: Int = 0,
         val onlineBreachCheck: Boolean = true,
+        /**
+         * Otomatik doldurmada uygulama–alan adı bağını doğrula.
+         *
+         * Açıkken, yerli bir uygulama kasadaki bir alan adının kimlik
+         * bilgisini isteyince alan adının `assetlinks.json` beyanına
+         * bakılıyor. Bu bir ağ isteği ve bedeli açık: alan adının sunucusuna
+         * "bu IP'de sizin için kayıtlı bir kimlik bilgisi var" diyor. Giden
+         * bilgi, kimlik bilgisinin zaten ait olduğu tarafa gidiyor ve sonuç
+         * bir hafta önbelleklendiği için her doldurmada tekrarlanmıyor.
+         *
+         * Kapatıldığında uygulama eşleşmesi yalnızca kullanıcının elle kurduğu
+         * bağlarla çalışıyor; hiçbir zaman ad benzerliğiyle değil.
+         */
+        val autofillVerifyDomains: Boolean = true,
         val onboardingDone: Boolean = false,
         val lastScanAt: Long = 0L,
         val integrityWarningShown: Boolean = false,
@@ -78,6 +92,7 @@ class SettingsStore(private val context: Context) {
             autoLockSeconds = prefs[KEY_AUTOLOCK] ?: 60,
             wipeAfterAttempts = prefs[KEY_WIPE_ATTEMPTS] ?: 0,
             onlineBreachCheck = prefs[KEY_ONLINE_CHECK] ?: true,
+            autofillVerifyDomains = prefs[KEY_AF_VERIFY] ?: true,
             onboardingDone = prefs[KEY_ONBOARDING] ?: false,
             lastScanAt = prefs[KEY_LAST_SCAN] ?: 0L,
             integrityWarningShown = prefs[KEY_INTEGRITY_SHOWN] ?: false,
@@ -103,6 +118,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setTrustedNetworkHash(value: String) = put(KEY_TRUSTED_NETWORK, value)
     suspend fun setContextLockSeconds(value: Int) = put(KEY_CONTEXT_SECONDS, value)
     suspend fun setBlockScreenshots(value: Boolean) = put(KEY_BLOCK_SHOTS, value)
+    suspend fun setAutofillVerifyDomains(value: Boolean) = put(KEY_AF_VERIFY, value)
     suspend fun setClipboardClearSeconds(value: Int) = put(KEY_CLIP_SECONDS, value)
     suspend fun setAutoLockSeconds(value: Int) = put(KEY_AUTOLOCK, value)
     suspend fun setWipeAfterAttempts(value: Int) = put(KEY_WIPE_ATTEMPTS, value)
@@ -157,6 +173,7 @@ class SettingsStore(private val context: Context) {
         val KEY_AUTOLOCK = intPreferencesKey("autolock_seconds")
         val KEY_WIPE_ATTEMPTS = intPreferencesKey("wipe_attempts")
         val KEY_ONLINE_CHECK = booleanPreferencesKey("online_breach_check")
+        val KEY_AF_VERIFY = booleanPreferencesKey("autofill_verify_domains")
         val KEY_ONBOARDING = booleanPreferencesKey("onboarding_done")
         val KEY_LAST_SCAN = longPreferencesKey("last_scan_at")
         val KEY_INTEGRITY_SHOWN = booleanPreferencesKey("integrity_warning_shown")

@@ -27,7 +27,7 @@ import kotlinx.serialization.json.put
 object VaultMigrations {
 
     /** Uygulamanın yazdığı şema sürümü. */
-    const val CURRENT = 4
+    const val CURRENT = 5
 
     /** Şema alanı olmayan en eski kasalar sürüm 1 sayılır. */
     const val OLDEST_SUPPORTED = 1
@@ -68,7 +68,8 @@ object VaultMigrations {
     private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(
         1 to ::migrate1to2,
         2 to ::migrate2to3,
-        3 to ::migrate3to4
+        3 to ::migrate3to4,
+        4 to ::migrate4to5
     )
 
     /**
@@ -108,6 +109,20 @@ object VaultMigrations {
      * durum tam olarak bu.
      */
     private fun migrate3to4(root: JsonObject): JsonObject = root
+
+    /**
+     * 4 → 5: kayıt–uygulama bağı.
+     *
+     * `VaultItem.linkedApps` eklendi, varsayılanı boş liste. Alan taşınmıyor;
+     * bağlar kullanıcı uygulamada kaydı ilk kez seçtiğinde ya da yeni parola
+     * kaydettiğinde kuruluyor.
+     *
+     * Sürümün ilerlemesi burada da bir şeyi koruyor: bağları olan bir kasa,
+     * alanı tanımayan eski bir sürümde açılıp kaydedilseydi bağlar silinir ve
+     * otomatik doldurma sessizce eşleşmeyi bırakırdı. Kullanıcı bunu bir kusur
+     * olarak değil, "artık çalışmıyor" olarak görürdü.
+     */
+    private fun migrate4to5(root: JsonObject): JsonObject = root
 
     private fun JsonObject.withSchema(version: Int): JsonObject = buildJsonObject {
         this@withSchema.forEach { (key, value) -> if (key != "schema") put(key, value) }
