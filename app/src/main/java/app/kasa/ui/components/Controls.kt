@@ -1,5 +1,6 @@
 package app.kasa.ui.components
 
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.animateColorAsState
@@ -132,7 +133,9 @@ fun KasaButton(
                 else Modifier
             )
             .clickableNoRipple(enabled = enabled, interactionSource = interaction, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 26.dp),
+            // 26dp gösterişliydi ama dar kaplarda etiketin yerini yiyordu:
+            // düğmenin kendisi sığıyor, içindeki yazı sığmıyordu.
+            .padding(horizontal = 20.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -142,7 +145,15 @@ fun KasaButton(
                 color = foreground.copy(alpha = alpha),
                 style = MaterialTheme.typography.labelLarge,
                 textAlign = TextAlign.Center,
-                maxLines = 1
+                maxLines = 1,
+                // Yazı yine de sığmazsa kelimenin ortasından kesilmesin.
+                //
+                // "Vazgeç" dar bir kapta "Vaz" olarak çiziliyordu ve bu
+                // sessiz bir kusurdu: kırpıldığına dair hiçbir işaret yok,
+                // kullanıcı düğmede yazan şeyin o olduğunu sanıyor. Üç nokta
+                // en azından "burada devamı var" diyor.
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
         }
     }

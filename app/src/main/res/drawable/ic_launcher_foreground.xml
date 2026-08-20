@@ -13,6 +13,22 @@
     kollu, gerçek kasa volanları üç kollu. Tek başına küçük ama simgeyi
     "ayarlar" ikonuyla karıştırılmaktan kurtaran ayrıntı bu.
 
+    ### Neden gradyan
+
+    Biçim değişmedi; değişen tek şey yüzey. Düz tonlu bir işaret küçük boyda
+    yassı duruyor: başlatıcıda simge 48dp civarında çiziliyor ve o ölçekte
+    gölge, kenar, doku gibi ipuçlarının hiçbiri yok — hacmi taşıyabilecek tek
+    şey rengin kendi içindeki değişim.
+
+    Gradyanın yönü ışığın yönüyle aynı: sol üstten sağ alta. Arka plan katmanı
+    da aynı yönde koyulaşıyor, yani ön plan ve arka plan aynı ışığı paylaşıyor.
+    Ters yönde bir gradyan ikisini iki ayrı sahne gibi gösterirdi.
+
+    Geçiş **kısa aralıkta**: en açık uç ile en koyu uç arasında iki durak var
+    ve ikisi de aynı renk ailesinden. Uzun aralıklı bir gradyan küçültüldüğünde
+    ortalama bir renge çöküyor ve "gradyan efekti" olarak okunmaya başlıyor;
+    dar aralıklı olan ise yalnızca hacim veriyor.
+
     ### Ölçüler
 
     Uyarlanabilir simgede 108×108'lik tuvalin yalnızca ortadaki 72'lik dairesi
@@ -22,6 +38,7 @@
     ve yuvarlak maskeli başlatıcılarda köşeleri kesiliyordu.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
@@ -29,35 +46,85 @@
 
     <!-- Kadran çemberi: iç kenar 24, dış kenar 32 -->
     <path
-        android:strokeColor="#A6F0DE"
         android:strokeWidth="8"
         android:fillColor="#00000000"
-        android:pathData="M26,54 A28,28 0 0,1 82,54 A28,28 0 0,1 26,54 Z" />
+        android:pathData="M26,54 A28,28 0 0,1 82,54 A28,28 0 0,1 26,54 Z">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="26" android:startY="26"
+                android:endX="82" android:endY="82">
+                <item android:offset="0.0" android:color="#EAFFF8" />
+                <item android:offset="0.55" android:color="#A6F0DE" />
+                <item android:offset="1.0" android:color="#3FBFA4" />
+            </gradient>
+        </aapt:attr>
+    </path>
 
     <!-- Üç kol: 30°, 150°, 270°. Saat 12 yönü boş bırakıldı ki
-         çember üstte kesintisiz okunsun. -->
+         çember üstte kesintisiz okunsun.
+
+         Gradyanın uçları her kolun kendi yerel eksenine göre veriliyor:
+         gruplar döndürüldüğü için ışık da kolla birlikte dönüyor ve üç kol
+         merkezden dışa doğru aynı yönde açılıyor. -->
     <group android:pivotX="54" android:pivotY="54" android:rotation="30">
-        <path
-            android:fillColor="#A6F0DE"
-            android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+        <path android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="50.5" android:startY="31.5"
+                    android:endX="57.5" android:endY="48">
+                    <item android:offset="0.0" android:color="#EAFFF8" />
+                    <item android:offset="1.0" android:color="#5FD3B8" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
     <group android:pivotX="54" android:pivotY="54" android:rotation="150">
-        <path
-            android:fillColor="#A6F0DE"
-            android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+        <path android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="50.5" android:startY="31.5"
+                    android:endX="57.5" android:endY="48">
+                    <item android:offset="0.0" android:color="#EAFFF8" />
+                    <item android:offset="1.0" android:color="#5FD3B8" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
     <group android:pivotX="54" android:pivotY="54" android:rotation="270">
-        <path
-            android:fillColor="#A6F0DE"
-            android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+        <path android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="50.5" android:startY="31.5"
+                    android:endX="57.5" android:endY="48">
+                    <item android:offset="0.0" android:color="#EAFFF8" />
+                    <item android:offset="1.0" android:color="#5FD3B8" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
 
-    <!-- Göbek -->
-    <path
-        android:fillColor="#A6F0DE"
-        android:pathData="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z" />
+    <!-- Göbek. Işık kaynağı sol üstte olduğu için parlak nokta merkezde değil,
+         merkezin sol üstünde: ortalanmış bir parlaklık düz bir daire gibi
+         okunuyor, kaydırılmış olan küre gibi. -->
+    <path android:pathData="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="49" android:centerY="49"
+                android:gradientRadius="20">
+                <item android:offset="0.0" android:color="#FFFFFF" />
+                <item android:offset="0.45" android:color="#B7F4E4" />
+                <item android:offset="1.0" android:color="#40C0A6" />
+            </gradient>
+        </aapt:attr>
+    </path>
 
-    <!-- Mil deliği: arka plan rengiyle aynı, bu yüzden delik gibi okunuyor -->
+    <!-- Mil deliği: arka plan rengiyle aynı, bu yüzden delik gibi okunuyor.
+         Gradyanı yok — delik bir yüzey değil, yüzeyin yokluğu. -->
     <path
         android:fillColor="#00695C"
         android:pathData="M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" />

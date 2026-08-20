@@ -55,19 +55,31 @@ fun ConfirmDialog(
             Spacer(Modifier.height(22.dp))
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                // ── neden eşit paylaşım ────────────────────────────────
+                //
+                // Ağırlıksız bir Row çocuklarını sırayla ölçüyor: ilk düğme
+                // istediği genişliği alıyor, ikinciye kalanı kalıyor. İki
+                // etiket birlikte sığmadığında **ikinci** düğme eziliyordu ve
+                // "Vazgeç" ekranda "Vaz" olarak duruyordu — hata her zaman
+                // aynı düğmede, yani fark edilmesi de zor.
+                //
+                // Eşit ağırlıkla ikisi de aynı genişliği alıyor ve hangi
+                // etiketin uzun olduğu düzeni değiştirmiyor.
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 KasaButton(
                     text = confirmText,
                     onClick = onConfirm,
                     tone = if (destructive) ButtonTone.OUTLINED else ButtonTone.FILLED,
-                    height = 46.dp
+                    height = 46.dp,
+                    modifier = Modifier.weight(1f)
                 )
                 KasaButton(
                     text = dismissText,
                     onClick = onDismiss,
                     tone = if (destructive) ButtonTone.FILLED else ButtonTone.TONAL,
-                    height = 46.dp
+                    height = 46.dp,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -134,13 +146,24 @@ fun PasswordPromptDialog(
             Spacer(Modifier.height(20.dp))
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                // ── neden eşit paylaşım ────────────────────────────────
+                //
+                // Ağırlıksız bir Row çocuklarını sırayla ölçüyor: ilk düğme
+                // istediği genişliği alıyor, ikinciye kalanı kalıyor. İki
+                // etiket birlikte sığmadığında **ikinci** düğme eziliyordu ve
+                // "Vazgeç" ekranda "Vaz" olarak duruyordu — hata her zaman
+                // aynı düğmede, yani fark edilmesi de zor.
+                //
+                // Eşit ağırlıkla ikisi de aynı genişliği alıyor ve hangi
+                // etiketin uzun olduğu düzeni değiştirmiyor.
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 KasaButton(
                     text = stringResource(R.string.cancel),
                     onClick = onDismiss,
                     tone = ButtonTone.TONAL,
-                    height = 46.dp
+                    height = 46.dp,
+                    modifier = Modifier.weight(1f)
                 )
                 KasaButton(
                     text = confirmText,
@@ -151,7 +174,8 @@ fun PasswordPromptDialog(
                         onConfirm(chars)
                     },
                     enabled = valid,
-                    height = 46.dp
+                    height = 46.dp,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -186,19 +210,31 @@ fun TypeToConfirmDialog(
             Spacer(Modifier.height(20.dp))
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                // ── neden eşit paylaşım ────────────────────────────────
+                //
+                // Ağırlıksız bir Row çocuklarını sırayla ölçüyor: ilk düğme
+                // istediği genişliği alıyor, ikinciye kalanı kalıyor. İki
+                // etiket birlikte sığmadığında **ikinci** düğme eziliyordu ve
+                // "Vazgeç" ekranda "Vaz" olarak duruyordu — hata her zaman
+                // aynı düğmede, yani fark edilmesi de zor.
+                //
+                // Eşit ağırlıkla ikisi de aynı genişliği alıyor ve hangi
+                // etiketin uzun olduğu düzeni değiştirmiyor.
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 KasaButton(
                     text = confirmText,
                     onClick = onConfirm,
                     enabled = typed.trim().equals(word, ignoreCase = false),
                     tone = ButtonTone.OUTLINED,
-                    height = 46.dp
+                    height = 46.dp,
+                    modifier = Modifier.weight(1f)
                 )
                 KasaButton(
                     text = stringResource(R.string.cancel),
                     onClick = onDismiss,
-                    height = 46.dp
+                    height = 46.dp,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
