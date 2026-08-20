@@ -21,13 +21,15 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteForever
-import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.BuildConfig
 import app.kasa.R
+import app.kasa.core.crypto.KeystoreKeys
 import app.kasa.data.ThemeMode
 import app.kasa.data.model.Folder
 import app.kasa.ui.LocalBiometricGate
@@ -61,8 +64,11 @@ import app.kasa.ui.components.KasaBadge
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaButtonGroup
 import app.kasa.ui.components.KasaCard
+import app.kasa.ui.components.KasaPasswordField
+import app.kasa.ui.components.KasaPinField
 import app.kasa.ui.components.KasaTile
 import app.kasa.ui.components.SectionLabel
+import app.kasa.ui.components.WavyProgress
 import app.kasa.ui.components.groupPositionOf
 import app.kasa.ui.theme.KasaTheme
 
@@ -93,6 +99,17 @@ fun SettingsScreen(
     var showImport by remember { mutableStateOf(false) }
     var showWipe by remember { mutableStateOf(false) }
     var showFolders by remember { mutableStateOf(false) }
+    var showPinSetup by remember { mutableStateOf(false) }
+    var showRotate by remember { mutableStateOf(false) }
+    var showRecalibrate by remember { mutableStateOf(false) }
+    var showDuress by remember { mutableStateOf(false) }
+    var pinOn by remember { mutableStateOf(viewModel.pinEnabled) }
+
+    val calibrationProgress by viewModel.calibrationProgress.collectAsStateWithLifecycle()
+
+    val locationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) viewModel.trustCurrentNetwork() }
 
     val folders by vaultViewModel.folders.collectAsStateWithLifecycle()
     val vaultData by vaultViewModel.data.collectAsStateWithLifecycle()
@@ -160,6 +177,20 @@ fun SettingsScreen(
             background = KasaTheme.colors.badgeBlueBg,
             foreground = KasaTheme.colors.badgeBlueFg
         ) { showImport = true },
+        VaultAction(
+            icon = Icons.Rounded.Autorenew,
+            title = stringResource(R.string.rotate_title),
+            subtitle = stringResource(R.string.rotate_sub),
+            background = KasaTheme.colors.badgeStrongBg,
+            foreground = KasaTheme.colors.badgeStrongFg
+        ) { showRotate = true },
+        VaultAction(
+            icon = Icons.Rounded.Shield,
+            title = stringResource(R.string.duress_title),
+            subtitle = stringResource(R.string.duress_sub),
+            background = KasaTheme.colors.badgeMidBg,
+            foreground = KasaTheme.colors.badgeMidFg
+        ) { showDuress = true },
         VaultAction(
             icon = Icons.Rounded.DeleteForever,
             title = stringResource(R.string.set_wipe),
@@ -250,21 +281,47 @@ fun SettingsScreen(
                         if (gate?.available == false) R.string.set_bio_unavailable else R.string.set_bio_sub
                     ),
                     checked = settings.biometricUnlock,
-                    enabled = gate?.available == true,
+                    enabled = gate?.available == true && viewModel.securityActionsAllowed,
                     onCheckedChange = { enable ->
                         if (!enable) {
                             viewModel.disableBiometric()
                         } else {
-                            val cipher = viewModel.biometricAvailableCipher()
-                            if (cipher != null && gate != null) {
-                                gate.authenticate(
-                                    title = context.getString(R.string.onb_biometric_title),
-                                    subtitle = context.getString(R.string.onb_biometric_sub),
-                                    negativeButton = context.getString(R.string.cancel),
-                                    cipher = cipher,
-                                    onSuccess = viewModel::onBiometricEnrolled
-                                )
-                            }
+                            enrollBiometric(
+                                viewModel, gate, context,
+                                if (settings.deviceCredentialUnlock) KeystoreKeys.AuthClass.DEVICE_CREDENTIAL
+                                else KeystoreKeys.AuthClass.BIOMETRIC_ONLY
+                            )
+                        }
+                    }
+                )
+                ToggleRow(
+                    title = stringResource(R.string.set_device_credential),
+                    subtitle = stringResource(
+                        if (settings.deviceCredentialUnlock) R.string.set_device_credential_warn
+                        else R.string.set_device_credential_sub
+                    ),
+                    checked = settings.deviceCredentialUnlock,
+                    enabled = viewModel.securityActionsAllowed,
+                    onCheckedChange = { enable ->
+                        // Sarmalayıcı yeniden kurulmak zorunda: iki sınıfın
+                        // Keystore anahtarı ayrı ve bir anahtarın doğrulama
+                        // koşulu üretimden sonra değiştirilemiyor.
+                        enrollBiometric(
+                            viewModel, gate, context,
+                            if (enable) KeystoreKeys.AuthClass.DEVICE_CREDENTIAL
+                            else KeystoreKeys.AuthClass.BIOMETRIC_ONLY
+                        )
+                    }
+                )
+                ToggleRow(
+                    title = stringResource(R.string.pin_title),
+                    subtitle = stringResource(R.string.pin_sub),
+                    checked = pinOn,
+                    enabled = viewModel.securityActionsAllowed,
+                    onCheckedChange = { enable ->
+                        if (enable) showPinSetup = true else {
+                            viewModel.clearPin()
+                            pinOn = false
                         }
                     }
                 )
@@ -365,11 +422,112 @@ fun SettingsScreen(
                     first = true
                 )
 
+                // ── bağlama duyarlı kilit süresi ──────────────────────────
+                ToggleRow(
+                    title = stringResource(R.string.set_context_lock),
+                    subtitle = stringResource(
+                        if (settings.trustedNetworkHash.isBlank()) R.string.set_context_none
+                        else R.string.set_context_trusted
+                    ),
+                    checked = settings.contextLockEnabled && settings.trustedNetworkHash.isNotBlank(),
+                    onCheckedChange = { enable ->
+                        if (!enable) viewModel.forgetTrustedNetwork()
+                        else if (viewModel.locationPermissionGranted) viewModel.trustCurrentNetwork()
+                        else {
+                            viewModel.suppressAutoLockForPermission()
+                            locationLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                    }
+                )
+                if (settings.contextLockEnabled && settings.trustedNetworkHash.isNotBlank()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.set_context_lock_seconds),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = KasaTheme.colors.ink
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    KasaButtonGroup(
+                        options = listOf(60, 300, 900, 1800),
+                        selected = settings.contextLockSeconds,
+                        label = { durationLabel(it) },
+                        onSelect = viewModel::setContextLockSeconds,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    KasaButton(
+                        text = stringResource(R.string.set_context_trust_current),
+                        onClick = { viewModel.trustCurrentNetwork() },
+                        tone = ButtonTone.TONAL,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.set_context_permission),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KasaTheme.colors.ink3
+                )
+
                 Spacer(Modifier.height(10.dp))
                 KasaButton(
                     text = stringResource(R.string.set_lock_now),
                     onClick = viewModel::lockNow,
                     tone = ButtonTone.TONAL,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // ── kriptografi ───────────────────────────────────────────────────
+        item(key = "crypto") {
+            Spacer(Modifier.height(14.dp))
+            KasaCard {
+                Text(
+                    stringResource(R.string.set_group_crypto),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = KasaTheme.colors.ink
+                )
+                Spacer(Modifier.height(14.dp))
+                CryptoFact(
+                    label = stringResource(R.string.calib_title),
+                    value = viewModel.kdfSummary()
+                )
+                Spacer(Modifier.height(10.dp))
+                CryptoFact(
+                    label = stringResource(R.string.set_cipher_suite),
+                    value = viewModel.cipherSuiteLabel
+                )
+                Spacer(Modifier.height(10.dp))
+                CryptoFact(
+                    label = stringResource(R.string.set_hardware_key),
+                    value = stringResource(
+                        if (viewModel.hardwareBackedKey) R.string.set_hardware_key
+                        else R.string.set_software_key
+                    )
+                )
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    stringResource(R.string.calib_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KasaTheme.colors.ink3
+                )
+                if (calibrationProgress != null) {
+                    Spacer(Modifier.height(10.dp))
+                    WavyProgress(
+                        progress = calibrationProgress ?: 0f,
+                        color = KasaTheme.colors.badgeStrongBg,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                KasaButton(
+                    text = stringResource(
+                        if (calibrationProgress != null) R.string.calib_running else R.string.calib_title
+                    ),
+                    onClick = { showRecalibrate = true },
+                    tone = ButtonTone.TONAL,
+                    enabled = calibrationProgress == null && viewModel.securityActionsAllowed,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -487,6 +645,61 @@ fun SettingsScreen(
             onRename = { id, name -> vaultViewModel.renameFolder(id, name) },
             onDelete = { id -> vaultViewModel.deleteFolder(id) },
             onDismiss = { showFolders = false }
+        )
+    }
+
+    if (showPinSetup) {
+        PinSetupDialog(
+            onConfirm = { pin, length ->
+                showPinSetup = false
+                pinOn = true
+                viewModel.setPin(pin, length)
+            },
+            onDismiss = { showPinSetup = false }
+        )
+    }
+
+    if (showRecalibrate) {
+        PasswordPromptDialog(
+            title = stringResource(R.string.calib_title),
+            description = stringResource(R.string.calib_body),
+            label = stringResource(R.string.lock_master),
+            confirmText = stringResource(R.string.calib_title),
+            minLength = 1,
+            onConfirm = { password ->
+                showRecalibrate = false
+                viewModel.recalibrate(password)
+            },
+            onDismiss = { showRecalibrate = false }
+        )
+    }
+
+    if (showRotate) {
+        PasswordPromptDialog(
+            title = stringResource(R.string.rotate_title),
+            description = stringResource(R.string.rotate_body),
+            label = stringResource(R.string.lock_master),
+            confirmText = stringResource(R.string.rotate_title),
+            minLength = 1,
+            onConfirm = { password ->
+                showRotate = false
+                viewModel.rotateVaultKey(password)
+            },
+            onDismiss = { showRotate = false }
+        )
+    }
+
+    if (showDuress) {
+        DuressDialog(
+            onSet = { password ->
+                showDuress = false
+                viewModel.setDuressPassword(password)
+            },
+            onClear = {
+                showDuress = false
+                viewModel.clearDuressPassword()
+            },
+            onDismiss = { showDuress = false }
         )
     }
 
@@ -851,5 +1064,242 @@ private fun FolderManagerDialog(
             },
             onDismiss = { deleting = null }
         )
+    }
+}
+
+/**
+ * Biyometrik sarmalayıcıyı istenen doğrulama sınıfıyla (yeniden) kurar.
+ *
+ * Sınıf değiştiğinde şifreleyici yeni takma addan geliyor ve eski anahtar
+ * siliniyor; iki sınıfın aynı anda geçerli kalması, kapatıldığı sanılan bir
+ * yolu açık bırakmak olurdu.
+ */
+private fun enrollBiometric(
+    viewModel: SettingsViewModel,
+    gate: app.kasa.ui.BiometricGate?,
+    context: android.content.Context,
+    authClass: KeystoreKeys.AuthClass
+) {
+    val cipher = viewModel.biometricAvailableCipher(authClass) ?: return
+    if (gate == null) return
+    gate.authenticate(
+        title = context.getString(R.string.onb_biometric_title),
+        subtitle = context.getString(R.string.onb_biometric_sub),
+        negativeButton = context.getString(R.string.cancel),
+        cipher = cipher,
+        onSuccess = { authenticated -> viewModel.onBiometricEnrolled(authenticated, authClass) }
+    )
+}
+
+/** Etiket solda, değer sağda duran tek satırlık kripto bilgisi. */
+@Composable
+private fun CryptoFact(label: String, value: String) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = KasaTheme.colors.ink2)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = KasaTheme.colors.ink)
+    }
+}
+
+/**
+ * PIN kurma penceresi.
+ *
+ * PIN iki kez isteniyor: yanlış yazılmış bir PIN'in bedeli, beş denemede
+ * katmanın düşmesi ve kullanıcının ana parolaya dönmek zorunda kalması.
+ */
+@Composable
+private fun PinSetupDialog(
+    onConfirm: (CharArray, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var length by remember { mutableStateOf(6) }
+    var first by remember { mutableStateOf("") }
+    var second by remember { mutableStateOf("") }
+
+    val complete = first.length == length && second.length == length
+    val mismatch = complete && first != second
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .padding(24.dp)
+        ) {
+            Text(
+                stringResource(R.string.pin_setup_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = KasaTheme.colors.ink
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(R.string.pin_setup_body, length),
+                style = MaterialTheme.typography.bodyMedium,
+                color = KasaTheme.colors.ink2
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.pin_length),
+                style = MaterialTheme.typography.titleSmall,
+                color = KasaTheme.colors.ink
+            )
+            Spacer(Modifier.height(8.dp))
+            KasaButtonGroup(
+                options = listOf(4, 5, 6),
+                selected = length,
+                label = { it.toString() },
+                onSelect = {
+                    length = it
+                    first = ""
+                    second = ""
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(14.dp))
+            KasaPinField(
+                value = first,
+                onValueChange = { if (it.length <= length) first = it },
+                label = stringResource(R.string.pin_title)
+            )
+            Spacer(Modifier.height(8.dp))
+            KasaPinField(
+                value = second,
+                onValueChange = { if (it.length <= length) second = it },
+                label = stringResource(R.string.pin_confirm_title),
+                isError = mismatch,
+                supportingText = if (mismatch) stringResource(R.string.pin_mismatch) else null
+            )
+            Spacer(Modifier.height(14.dp))
+            Text(
+                stringResource(R.string.pin_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3
+            )
+            Spacer(Modifier.height(18.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+            ) {
+                KasaButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = onDismiss,
+                    tone = ButtonTone.TONAL,
+                    height = 46.dp
+                )
+                KasaButton(
+                    text = stringResource(R.string.save),
+                    onClick = {
+                        val chars = first.toCharArray()
+                        first = ""
+                        second = ""
+                        onConfirm(chars, chars.size)
+                    },
+                    enabled = complete && !mismatch,
+                    height = 46.dp
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Zorlama parolası penceresi.
+ *
+ * Kurulu olup olmadığı **gösterilmiyor** — gösterecek bir bilgi de yok, çünkü
+ * dosyada saklanmıyor. Ekran her iki eylemi de sunuyor: yeni bir parola
+ * belirlemek ya da var olanı kaldırmak. Bu belirsizlik özelliğin kendisi;
+ * "kurulu" yazan bir satır, telefona bakan zorlayıcıya cevabı verirdi.
+ */
+@Composable
+private fun DuressDialog(
+    onSet: (CharArray) -> Unit,
+    onClear: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var revealed by remember { mutableStateOf(false) }
+
+    val mismatch = confirm.isNotEmpty() && password != confirm
+    val valid = password.length >= 8 && password == confirm
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(32.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .padding(24.dp)
+        ) {
+            Text(
+                stringResource(R.string.duress_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = KasaTheme.colors.ink
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(R.string.duress_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = KasaTheme.colors.ink2
+            )
+            Spacer(Modifier.height(16.dp))
+            KasaPasswordField(
+                value = password,
+                onValueChange = { password = it },
+                label = stringResource(R.string.duress_set),
+                revealed = revealed,
+                onRevealToggle = { revealed = !revealed }
+            )
+            Spacer(Modifier.height(8.dp))
+            KasaPasswordField(
+                value = confirm,
+                onValueChange = { confirm = it },
+                label = stringResource(R.string.exp_password_again),
+                revealed = revealed,
+                onRevealToggle = { revealed = !revealed },
+                isError = mismatch,
+                supportingText = if (mismatch) stringResource(R.string.onb_mismatch) else null
+            )
+            Spacer(Modifier.height(14.dp))
+            Text(
+                stringResource(R.string.duress_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3
+            )
+            Spacer(Modifier.height(18.dp))
+            KasaButton(
+                text = stringResource(R.string.duress_set),
+                onClick = {
+                    val chars = password.toCharArray()
+                    password = ""
+                    confirm = ""
+                    onSet(chars)
+                },
+                enabled = valid,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+            ) {
+                KasaButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = onDismiss,
+                    tone = ButtonTone.TONAL,
+                    height = 46.dp
+                )
+                KasaButton(
+                    text = stringResource(R.string.duress_clear),
+                    onClick = onClear,
+                    tone = ButtonTone.TONAL,
+                    height = 46.dp
+                )
+            }
+        }
     }
 }

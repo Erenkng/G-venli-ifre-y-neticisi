@@ -477,7 +477,7 @@
     <string name="pin_enabled">PIN kuruldu</string>
     <string name="pin_disabled">PIN kaldırıldı</string>
     <string name="pin_unlock_title">PIN ile aç</string>
-    <string name="pin_wrong">PIN yanlış · %1$d hakkın kaldı</string>
+    <string name="pin_wrong">PIN yanlış</string>
     <string name="pin_dropped">Çok fazla yanlış deneme. PIN kaldırıldı, ana parolanı gir.</string>
     <string name="pin_use_master">Ana parola kullan</string>
     <string name="pin_note">PIN, kasa anahtarını cihazın güvenli donanımında sarmalar. Dosyayı kopyalayan biri PIN denemesine hiç başlayamaz; cihaz üzerinde beş yanlış denemede PIN düşer.</string>
@@ -497,4 +497,30 @@
     <string name="set_context_permission">Bağlı Wi-Fi\'ın adını okumak için konum izni gerekiyor. Ağ adı hiçbir yere gönderilmez; yalnızca özeti cihazda tutulur.</string>
     <string name="set_context_saved">Bu ağ güvenilen ağ olarak kaydedildi</string>
     <string name="set_context_failed">Ağ okunamadı · Wi-Fi\'a bağlı olduğundan ve izni verdiğinden emin ol</string>
+
+    <!-- Zorlama parolası -->
+    <string name="duress_title">Zorlama parolası</string>
+    <string name="duress_sub">Zorla açtırıldığında verilecek ikinci parola</string>
+    <string name="duress_body">Bu parola girildiğinde gerçek kasan değil, ayrı bir kasa açılır. İçinde örnek kayıtlar bulunur; onları kendine benzeyecek şekilde düzenlemen en inandırıcısıdır. Gerçek kasan aynı dosyada durur ve bu paroladan etkilenmez.</string>
+    <string name="duress_note">Zorlama parolasının kurulu olup olmadığı dosyaya bakılarak anlaşılamaz: sarmalayıcı her kasada aynı boyutta bulunur. Buna karşın Kasa\'nın bu özelliğe sahip olduğu herkesçe bilinebilir; "ikinci parolayı da ver" diyen birine karşı hiçbir yazılım koruma sağlayamaz.</string>
+    <string name="duress_set">Zorlama parolası belirle</string>
+    <string name="duress_clear">Zorlama parolasını kaldır</string>
+    <string name="duress_saved">Zorlama parolası kaydedildi</string>
+    <string name="duress_cleared">Zorlama parolası kaldırıldı</string>
+    <string name="duress_same_as_master">Ana parolanla aynı olamaz</string>
+
+    <!-- Anahtar rotasyonu ve ölçüm -->
+    <string name="rotate_title">Kasa anahtarını yenile</string>
+    <string name="rotate_sub">Yeni anahtar üret ve kasayı baştan şifrele</string>
+    <string name="rotate_body">Ana parolayı değiştirmek yalnızca sarmalayıcıyı yeniler; kasa anahtarı kurulumdan beri aynıdır. Yedeğin sızdıysa ya da cihazın elden çıktıysa gereken bu: yeni anahtar üretilir, kasa baştan şifrelenir ve eski kopya bir daha açılamaz.\n\nBiyometrik kilit sıfırlanır, yeniden kurman gerekir. Yeni bir kurtarma kodu verilir; eskisi geçersiz olur.</string>
+    <string name="rotate_done">Kasa anahtarı yenilendi</string>
+    <string name="rotate_failed">Ana parola doğrulanamadı</string>
+    <string name="calib_title">Anahtar türetmeyi yeniden ölçümle</string>
+    <string name="calib_sub">%1$s</string>
+    <string name="calib_body">Anahtar türetme maliyeti bu cihazda ölçülür ve kasa başlığına yazılır. Ölçüm birkaç saniye sürer; sonuçta kilit açma yaklaşık 0,8 saniyeye ayarlanır.</string>
+    <string name="calib_running">Ölçülüyor…</string>
+    <string name="calib_done">Yeni maliyet ayarlandı · %1$d ms</string>
+    <string name="calib_failed">Ölçüm yapılamadı</string>
+    <string name="set_cipher_suite">Şifreleme paketi</string>
+    <string name="set_group_crypto">Kriptografi</string>
 </resources>

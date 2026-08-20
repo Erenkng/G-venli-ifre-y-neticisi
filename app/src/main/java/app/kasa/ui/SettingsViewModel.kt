@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.kasa.AppContainer
 import app.kasa.R
 import app.kasa.core.crypto.KeystoreKeys
+import app.kasa.core.security.TrustedNetwork
 import app.kasa.core.security.SecureClipboard
 import app.kasa.core.util.Haptics
 import app.kasa.data.SettingsStore
@@ -74,17 +75,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     // ------------------------------------------------------------- biyometri
 
-    fun biometricAvailableCipher(): Cipher? = repository.biometricEncryptCipherOrNull()
-
-    fun onBiometricEnrolled(cipher: Cipher) {
-        viewModelScope.launch {
-            if (repository.enableBiometric(cipher)) {
-                settingsStore.setBiometricUnlock(true)
-                container.haptics.play(Haptics.Kind.SUCCESS)
-            }
-        }
-    }
-
     fun disableBiometric() {
         viewModelScope.launch {
             repository.disableBiometric()
@@ -142,6 +132,174 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun dismissRecoveryCode() {
         _recoveryCode.value = null
     }
+
+    // ---------------------------------------------------------- hızlı PIN
+
+    val pinEnabled: Boolean get() = repository.pinEnabled()
+
+    fun setPin(pin: CharArray, length: Int) {
+        viewModelScope.launch {
+            _busy.value = true
+            val ok = repository.enablePin(pin, length)
+            _busy.value = false
+            container.haptics.play(if (ok) Haptics.Kind.SUCCESS else Haptics.Kind.WARNING)
+            messages.send(UiMessage(if (ok) R.string.pin_enabled else R.string.imp_failed))
+        }
+    }
+
+    fun clearPin() {
+        viewModelScope.launch {
+            repository.disablePin()
+            container.haptics.play(Haptics.Kind.TOGGLE)
+            messages.send(UiMessage(R.string.pin_disabled))
+        }
+    }
+
+    // ------------------------------------------------- cihaz kimlik bilgisi
+
+    val authClass: KeystoreKeys.AuthClass?
+        get() = repository.biometricAuthClass()
+
+    /**
+     * Biyometrik sarmalayıcı için şifreleyici üretir.
+     *
+     * Sınıf değiştiğinde eski Keystore anahtarı siliniyor ve sarmalayıcı
+     * yeniden yazılıyor — "hem eskisi hem yenisi geçerli" durumu, kapatıldığı
+     * sanılan bir yolu açık bırakmak olurdu.
+     */
+    fun biometricAvailableCipher(authClass: KeystoreKeys.AuthClass): Cipher? =
+        repository.biometricEncryptCipherOrNull(authClass)
+
+    fun onBiometricEnrolled(cipher: Cipher, authClass: KeystoreKeys.AuthClass) {
+        viewModelScope.launch {
+            if (repository.enableBiometric(cipher, authClass)) {
+                settingsStore.setBiometricUnlock(true)
+                settingsStore.setDeviceCredentialUnlock(
+                    authClass == KeystoreKeys.AuthClass.DEVICE_CREDENTIAL
+                )
+                container.haptics.play(Haptics.Kind.SUCCESS)
+            }
+        }
+    }
+
+    // ------------------------------------------------- bağlama duyarlı kilit
+
+    fun setContextLock(value: Boolean) = launchSetting { settingsStore.setContextLockEnabled(value) }
+
+    fun setContextLockSeconds(value: Int) = launchSetting { settingsStore.setContextLockSeconds(value) }
+
+    val locationPermissionGranted: Boolean
+        get() = TrustedNetwork.hasPermission(container.appContext)
+
+    /**
+     * Şu anki Wi-Fi ağını güvenilen ağ olarak kaydeder.
+     *
+     * Saklanan şey ağın adı değil, adının ve donanım kimliğinin özeti.
+     * Okunamadıysa sessizce başarısız oluyor: ağ adı için konum izni gerekiyor
+     * ve izin yoksa sistem değeri maskeliyor.
+     */
+    fun trustCurrentNetwork() {
+        viewModelScope.launch {
+            val fingerprint = TrustedNetwork.currentFingerprint(container.appContext)
+            if (fingerprint == null) {
+                messages.send(UiMessage(R.string.set_context_failed))
+                return@launch
+            }
+            settingsStore.setTrustedNetworkHash(fingerprint)
+            settingsStore.setContextLockEnabled(true)
+            container.haptics.play(Haptics.Kind.SUCCESS)
+            messages.send(UiMessage(R.string.set_context_saved))
+        }
+    }
+
+    fun forgetTrustedNetwork() = launchSetting {
+        settingsStore.setTrustedNetworkHash("")
+        settingsStore.setContextLockEnabled(false)
+    }
+
+    /** Seçici/izin penceresi açılırken otomatik kilit tetiklenmesin. */
+    fun suppressAutoLockForPermission() {
+        container.autoLocker.suppressNextBackground()
+    }
+
+    // ------------------------------------------------------ zorlama parolası
+
+    /**
+     * Yem oturumdayken güvenlik ayarları kapalı.
+     *
+     * Ekranda bunun sebebi yazmıyor ve yazmamalı: "şu an yem kasadasın"
+     * uyarısı, omzunun üstünden bakan zorlayıcıya durumu doğrudan söylerdi.
+     * Düğmeler sadece iş görmüyor.
+     */
+    val securityActionsAllowed: Boolean get() = !repository.inDuressSession
+
+    fun setDuressPassword(password: CharArray) {
+        viewModelScope.launch {
+            _busy.value = true
+            val ok = repository.setDuressPassword(password)
+            _busy.value = false
+            messages.send(UiMessage(if (ok) R.string.duress_saved else R.string.imp_failed))
+        }
+    }
+
+    fun clearDuressPassword() {
+        viewModelScope.launch {
+            _busy.value = true
+            repository.clearDuressPassword()
+            _busy.value = false
+            messages.send(UiMessage(R.string.duress_cleared))
+        }
+    }
+
+    // ------------------------------------------------------- kasa anahtarı
+
+    /**
+     * Kasa anahtarını yeniler: yeni anahtar, kasa baştan şifrelenir, üç
+     * sarmalayıcı da yeniden yazılır. Dönen değer yeni kurtarma kodu.
+     */
+    fun rotateVaultKey(masterPassword: CharArray) {
+        viewModelScope.launch {
+            _busy.value = true
+            val code = repository.rotateVaultKey(masterPassword)
+            _busy.value = false
+            if (code == null) {
+                container.haptics.play(Haptics.Kind.WARNING)
+                messages.send(UiMessage(R.string.rotate_failed))
+            } else {
+                container.haptics.play(Haptics.Kind.SUCCESS)
+                settingsStore.setBiometricUnlock(false)
+                _recoveryCode.value = code
+                messages.send(UiMessage(R.string.rotate_done))
+            }
+        }
+    }
+
+    /** Anahtar türetme maliyetini bu cihaza göre yeniden ölçer. */
+    fun recalibrate(masterPassword: CharArray) {
+        viewModelScope.launch {
+            _busy.value = true
+            _calibrationProgress.value = 0f
+            val result = repository.recalibrateKdf(masterPassword) { _calibrationProgress.value = it }
+            _busy.value = false
+            _calibrationProgress.value = null
+            if (result == null) {
+                messages.send(UiMessage(R.string.calib_failed))
+            } else {
+                messages.send(
+                    UiMessage(R.string.calib_done, listOf(result.measuredMillis.toInt()))
+                )
+            }
+        }
+    }
+
+    private val _calibrationProgress = MutableStateFlow<Float?>(null)
+    val calibrationProgress: StateFlow<Float?> = _calibrationProgress.asStateFlow()
+
+    /** Kasa hangi şifreleme paketiyle yazılmış? Ayarlarda gösteriliyor. */
+    val cipherSuiteLabel: String get() = repository.cipherSuite().label
+
+    /** Diskteki anahtar türetme maliyeti, okunabilir hâlde. */
+    fun kdfSummary(): String = repository.kdfSummary()
 
     // ------------------------------------------------------------ dışa aktarma
 

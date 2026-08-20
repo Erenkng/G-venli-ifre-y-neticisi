@@ -39,6 +39,7 @@ import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaPasswordField
+import app.kasa.ui.components.KasaPinField
 import app.kasa.ui.components.KasaTextField
 import app.kasa.ui.components.MorphDial
 import app.kasa.ui.theme.KasaTheme
@@ -68,6 +69,14 @@ fun UnlockScreen(
     var recoveryInput by remember { mutableStateOf("") }
     var revealed by remember { mutableStateOf(false) }
     var biometricTried by remember { mutableStateOf(false) }
+
+    /**
+     * PIN kuruluysa açılış PIN ile başlıyor: günde on kez yazılacak olan bu.
+     * Ana parola bir dokunuş uzakta ve her zaman çalışıyor.
+     */
+    val pinLength = viewModel.pinLength
+    var pinMode by remember { mutableStateOf(pinLength > 0) }
+    var pin by remember { mutableStateOf("") }
 
     val blocked = state.cooldownMillis > 0
     val attemptsLeft = viewModel.attemptsLeft(settings.wipeAfterAttempts)
@@ -113,7 +122,36 @@ fun UnlockScreen(
         )
         Spacer(Modifier.height(28.dp))
 
-        if (state.recoveryMode) {
+        if (pinMode && !state.recoveryMode) {
+            KasaPinField(
+                value = pin,
+                onValueChange = {
+                    if (it.length <= pinLength) pin = it
+                    if (state.error != null) viewModel.clearError()
+                    // Son hane girildiğinde kendiliğinden dene: dört haneli bir
+                    // PIN'den sonra ayrıca bir düğmeye basmak gereksiz sürtünme.
+                    if (it.length == pinLength) {
+                        val chars = it.toCharArray()
+                        pin = ""
+                        viewModel.unlockWithPin(chars)
+                    }
+                },
+                label = stringResource(R.string.pin_unlock_title),
+                isError = state.error != null,
+                supportingText = state.error?.let { stringResource(it) }
+            )
+            Spacer(Modifier.height(20.dp))
+            KasaButton(
+                text = stringResource(R.string.pin_use_master),
+                onClick = {
+                    pinMode = false
+                    pin = ""
+                    viewModel.clearError()
+                },
+                tone = ButtonTone.TONAL,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else if (state.recoveryMode) {
             KasaTextField(
                 value = recoveryInput,
                 onValueChange = { recoveryInput = it },

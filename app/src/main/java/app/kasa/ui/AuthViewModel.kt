@@ -138,6 +138,33 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /** Kurulu PIN kaç haneli? 0 ise PIN katmanı yok. */
+    val pinLength: Int get() = repository.pinLength()
+
+    /**
+     * PIN ile açar.
+     *
+     * Yanlış PIN'de kalan hak gösteriliyor; sıfırlandığında katman düşüyor ve
+     * kullanıcı ana parolaya yönlendiriliyor. Kasa kaybolmuyor — düşen yalnızca
+     * kısayol.
+     */
+    fun unlockWithPin(pin: CharArray) {
+        viewModelScope.launch {
+            _unlock.value = _unlock.value.copy(busy = true, error = null)
+            val outcome = repository.unlockWithPin(pin)
+            if (outcome is VaultRepository.UnlockOutcome.WrongSecret) {
+                container.haptics.play(Haptics.Kind.WARNING)
+                val left = repository.pinAttemptsLeft()
+                _unlock.value = _unlock.value.copy(
+                    busy = false,
+                    error = if (left <= 0) app.kasa.R.string.pin_dropped else app.kasa.R.string.pin_wrong
+                )
+            } else {
+                handleOutcome(outcome)
+            }
+        }
+    }
+
     fun unlockWithRecovery(code: String) {
         viewModelScope.launch {
             _unlock.value = _unlock.value.copy(busy = true, error = null)

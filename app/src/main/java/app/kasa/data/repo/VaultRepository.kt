@@ -713,6 +713,7 @@ class VaultRepository(
     ): KdfCalibration.Result? = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
+                if (inDuressSession) return@withLock null
                 val calibration = KdfCalibration.calibrate(context, onProgress = onProgress)
                 val ok = SecretBytes.ofUtf8(masterPassword).use { secret ->
                     SecretBytes.ofUtf8(masterPassword).use { same ->
@@ -872,6 +873,26 @@ class VaultRepository(
         store.wipe()
         settings.clear()
         hardReset()
+    }
+
+    /** Kasanın diskteki şifreleme paketi. Ayarlar ekranında gösteriliyor. */
+    fun cipherSuite(): AeadSuite = store.peekSuiteOnDisk() ?: AeadSuite.DEFAULT
+
+    /**
+     * Anahtar türetme maliyetinin okunabilir özeti.
+     *
+     * Ölçümle bulunan değer kasa başlığında duruyor; kullanıcıya göstermek,
+     * "bu cihazda ne kadar korunuyorum" sorusunu somut kılıyor.
+     */
+    fun kdfSummary(): String {
+        val params = store.currentKdfParams() ?: return "—"
+        return when (params.algorithm) {
+            Kdf.ALG_ARGON2ID ->
+                "Argon2id · " + (params.memoryKib / 1024) + " MiB · " + params.iterations + " tur"
+            Kdf.ALG_PBKDF2_SHA512 ->
+                "PBKDF2-SHA512 · " + params.iterations + " tur"
+            else -> "—"
+        }
     }
 
     fun masterKeyChangedAt(): Long = store.masterKeyChangedAt()

@@ -257,6 +257,37 @@ fun KasaPasswordField(
     )
 }
 
+/**
+ * Yalnızca rakam kabul eden, gizlenmiş PIN alanı.
+ *
+ * Klavye türü [KeyboardType.NumberPassword]: hem tuş takımı sayısal geliyor
+ * hem de sistem alanı parola alanı sayıp önerileri ve panoyu devre dışı
+ * bırakıyor. Rakam dışındaki her karakter girişte eleniyor — kullanıcıya hata
+ * göstermek yerine yazılamaz kılmak, dört haneli bir alanda daha az sürtünme.
+ */
+@Composable
+fun KasaPinField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+    supportingText: String? = null
+) {
+    KasaTextField(
+        value = value,
+        onValueChange = { raw -> onValueChange(raw.filter { it.isDigit() }) },
+        label = label,
+        modifier = modifier,
+        keyboardType = KeyboardType.NumberPassword,
+        imeAction = ImeAction.Done,
+        visualTransformation = PasswordVisualTransformation('\u2022'),
+        textStyle = KasaTheme.text.mono,
+        isError = isError,
+        supportingText = supportingText
+    )
+}
+
 @Composable
 fun RevealButton(revealed: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     KasaIconButton(onClick = onClick, modifier = modifier, size = 36.dp) {

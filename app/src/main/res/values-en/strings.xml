@@ -459,7 +459,7 @@
     <string name="pin_enabled">PIN set</string>
     <string name="pin_disabled">PIN removed</string>
     <string name="pin_unlock_title">Unlock with PIN</string>
-    <string name="pin_wrong">Wrong PIN · %1$d attempts left</string>
+    <string name="pin_wrong">Wrong PIN</string>
     <string name="pin_dropped">Too many wrong attempts. The PIN was removed; enter your master password.</string>
     <string name="pin_use_master">Use master password</string>
     <string name="pin_note">The PIN wraps the vault key inside the device\'s secure hardware. Someone who copies the file cannot even start guessing; on the device, five wrong attempts drop the PIN.</string>
@@ -479,4 +479,30 @@
     <string name="set_context_permission">Reading the connected Wi-Fi name needs location permission. The name never leaves the device; only a digest is kept locally.</string>
     <string name="set_context_saved">This network is now trusted</string>
     <string name="set_context_failed">Could not read the network · make sure you are on Wi-Fi and granted the permission</string>
+
+    <!-- Duress password -->
+    <string name="duress_title">Duress password</string>
+    <string name="duress_sub">A second password to hand over under coercion</string>
+    <string name="duress_body">Entering this password opens a separate vault, not your real one. It comes with sample entries; editing them to look like your own life makes it most convincing. Your real vault stays in the same file and is unaffected.</string>
+    <string name="duress_note">Whether a duress password is set cannot be told from the file: the wrapper is present in every vault, at the same size. That said, the fact that Kasa has this feature is public; no software can protect you from someone who says \"give me the second password too\".</string>
+    <string name="duress_set">Set duress password</string>
+    <string name="duress_clear">Remove duress password</string>
+    <string name="duress_saved">Duress password saved</string>
+    <string name="duress_cleared">Duress password removed</string>
+    <string name="duress_same_as_master">Cannot be the same as your master password</string>
+
+    <!-- Key rotation and calibration -->
+    <string name="rotate_title">Renew vault key</string>
+    <string name="rotate_sub">Generate a new key and re-encrypt the vault</string>
+    <string name="rotate_body">Changing the master password only rewraps the key; the vault key itself has been the same since setup. If a backup leaked or a device was lost, this is what you need: a new key is generated, the vault is re-encrypted, and the old copy can never be opened again.\n\nBiometric unlock is reset and must be set up again. You get a new recovery code; the old one stops working.</string>
+    <string name="rotate_done">Vault key renewed</string>
+    <string name="rotate_failed">Could not verify the master password</string>
+    <string name="calib_title">Re-measure key derivation</string>
+    <string name="calib_sub">%1$s</string>
+    <string name="calib_body">The key derivation cost is measured on this device and written into the vault header. It takes a few seconds; the result targets roughly 0.8 seconds per unlock.</string>
+    <string name="calib_running">Measuring…</string>
+    <string name="calib_done">New cost set · %1$d ms</string>
+    <string name="calib_failed">Measurement failed</string>
+    <string name="set_cipher_suite">Cipher suite</string>
+    <string name="set_group_crypto">Cryptography</string>
 </resources>
