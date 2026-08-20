@@ -37,11 +37,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
 import app.kasa.data.SettingsStore
+import app.kasa.data.model.VaultItem
 import app.kasa.data.repo.SecurityAnalyzer
+import app.kasa.data.model.Category
 import app.kasa.data.model.SmartFolder
 import app.kasa.ui.SecurityViewModel
 import app.kasa.ui.components.EmptyState
@@ -71,6 +74,8 @@ fun SecurityScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val vaultData by viewModel.items.collectAsStateWithLifecycle()
+    val vaultItems = vaultData.liveItems
     val report = state.report
     val score = report?.score ?: 0
     val animatedScore by animateFloatAsState(score / 100f, label = "score")
@@ -189,6 +194,21 @@ fun SecurityScreen(
             }
         }
 
+        // ── kasa istatistikleri ───────────────────────────────────────────
+        //
+        // Güvenlik ekranı şimdiye kadar yalnızca **yanlış** olanı gösteriyordu:
+        // sızmış, zayıf, eski. Bir kasanın neye benzediği ise hiçbir yerde
+        // yoktu. İstatistik kartı bunu veriyor ve bulgusuz kasada ekranın boş
+        // kalmamasını da sağlıyor — "hiçbir bulgu yok" tek başına bir ekranı
+        // doldurmuyor.
+        item(key = "stats-label") {
+            Spacer(Modifier.height(12.dp))
+            SectionLabel(stringResource(R.string.sec_stats))
+        }
+        item(key = "stats") {
+            VaultStatsCard(items = vaultItems)
+        }
+
         val findings = report?.findings.orEmpty()
         item(key = "findings-label") {
             Spacer(Modifier.height(12.dp))
@@ -214,6 +234,64 @@ fun SecurityScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * Kasanın sayılarla özeti.
+ *
+ * Seçilen dört ölçü, kullanıcının kasası hakkında gerçekten merak ettiği
+ * şeyler: kaç kayıt var, kaçında iki adımlı doğrulama var, ortalama parola ne
+ * kadar uzun ve en eski parola kaç yaşında. "Kaç klasör var" gibi bir sayı
+ * doğru ama işe yaramaz olurdu.
+ */
+@Composable
+private fun VaultStatsCard(items: List<VaultItem>) {
+    val logins = remember(items) { items.filter { it.category == Category.LOGIN } }
+    val withTotp = remember(items) { items.count { it.totpSecret.isNotBlank() } }
+    val averageLength = remember(logins) {
+        val lengths = logins.map { it.password.length }.filter { it > 0 }
+        if (lengths.isEmpty()) 0 else lengths.sum() / lengths.size
+    }
+    val oldestDays = remember(logins) {
+        val oldest = logins.filter { it.password.isNotBlank() }.minOfOrNull { it.passwordChangedAt }
+        if (oldest == null) 0
+        else ((System.currentTimeMillis() - oldest) / SecurityAnalyzer.DAY_MILLIS).toInt().coerceAtLeast(0)
+    }
+
+    KasaCard {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            StatCell(items.size.toString(), stringResource(R.string.stat_entries))
+            StatCell(withTotp.toString(), stringResource(R.string.stat_with_2fa))
+            StatCell(
+                if (averageLength == 0) "—" else averageLength.toString(),
+                stringResource(R.string.stat_avg_length)
+            )
+            StatCell(
+                if (oldestDays == 0) "—" else oldestDays.toString(),
+                stringResource(R.string.stat_oldest_days)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatCell(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            value,
+            style = MaterialTheme.typography.headlineSmall,
+            color = KasaTheme.colors.ink
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = KasaTheme.colors.ink3,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

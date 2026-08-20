@@ -568,4 +568,12 @@
     <string name="set_lock_screen_off">Lock when the screen turns off</string>
     <string name="set_lock_screen_off_sub">Turning the screen off is a deliberate act: the vault closes without waiting. Turn this off and only the auto-lock delay applies.</string>
     <string name="duplicate">Duplicate</string>
+    <string name="wifi_qr_action">Show QR code</string>
+    <string name="wifi_qr_sub">Let the other phone scan it; the password is never spoken.</string>
+    <string name="wifi_qr_failed">Could not build the QR code. The network name or password may be too long.</string>
+    <string name="sec_stats">Vault summary</string>
+    <string name="stat_entries">entries</string>
+    <string name="stat_with_2fa">with 2FA</string>
+    <string name="stat_avg_length">avg. length</string>
+    <string name="stat_oldest_days">oldest (days)</string>
 </resources>

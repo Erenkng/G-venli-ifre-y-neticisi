@@ -94,6 +94,7 @@ fun VaultScreen(
     // içeriğini hiç ekrana getirmeden iş bitirmek için var.
     var actionTarget by remember { mutableStateOf<VaultItem?>(null) }
     var listMenuOpen by remember { mutableStateOf(false) }
+    var qrTarget by remember { mutableStateOf<VaultItem?>(null) }
 
     // Sıralama listede uygulanıyor, depoda değil: süzgeç sonucu zaten burada
     // ve sıralama bir görüntüleme tercihi — kasanın içeriğine ait değil.
@@ -278,6 +279,10 @@ fun VaultScreen(
         )
     }
 
+    qrTarget?.let { target ->
+        WifiQrDialog(item = target, onDismiss = { qrTarget = null })
+    }
+
     actionTarget?.let { target ->
         RowActionsSheet(
             item = target,
@@ -286,6 +291,7 @@ fun VaultScreen(
             onCopyPlain = viewModel::copyPlain,
             onEdit = { viewModel.startEdit(target) },
             onDuplicate = { viewModel.duplicate(target) },
+            onShowWifiQr = { qrTarget = target },
             onToggleFavorite = { viewModel.toggleFavorite(target.id) },
             onDelete = { viewModel.moveToTrash(target) },
             onDismiss = { actionTarget = null }

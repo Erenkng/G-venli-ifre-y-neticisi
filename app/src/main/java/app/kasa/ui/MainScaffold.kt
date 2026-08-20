@@ -100,6 +100,7 @@ fun MainScaffold(
     settings: SettingsStore.Settings,
     factory: ViewModelProvider.Factory,
     startAction: String?,
+    startItemId: String? = null,
     onActionConsumed: () -> Unit
 ) {
     val authViewModel: AuthViewModel = viewModel(factory = factory)
@@ -130,6 +131,16 @@ fun MainScaffold(
     val editing by vaultViewModel.editing.collectAsStateWithLifecycle()
     val vaultView by vaultViewModel.view.collectAsStateWithLifecycle()
     val vaultData by vaultViewModel.data.collectAsStateWithLifecycle()
+
+    // Kısayoldan gelen kayıt: kasa zaten açık olduğu için (bu bileşen yalnızca
+    // açık kasada çiziliyor) doğrudan ayrıntı açılıyor.
+    LaunchedEffect(startItemId) {
+        if (startItemId != null) {
+            tab = TAB_VAULT
+            vaultViewModel.select(startItemId)
+            onActionConsumed()
+        }
+    }
 
     // Kısayol ve döşemeden gelen eylemler.
     LaunchedEffect(startAction) {

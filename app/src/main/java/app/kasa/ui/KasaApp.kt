@@ -32,6 +32,7 @@ import app.kasa.ui.theme.KasaMotion
 fun KasaApp(
     settings: SettingsStore.Settings,
     startAction: String?,
+    startItemId: String?,
     onActionConsumed: () -> Unit
 ) {
     val factory = rememberKasaViewModelFactory()
@@ -68,6 +69,7 @@ fun KasaApp(
                             settings = settings,
                             factory = factory,
                             startAction = startAction,
+                            startItemId = startItemId,
                             onActionConsumed = onActionConsumed
                         )
                 }

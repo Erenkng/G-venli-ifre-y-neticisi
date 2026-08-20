@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import app.kasa.core.util.RecentShortcuts
 import app.kasa.data.SettingsStore
 import app.kasa.ui.BiometricGate
 import app.kasa.ui.KasaApp
@@ -35,6 +36,9 @@ class MainActivity : FragmentActivity() {
 
     private var pendingAction by mutableStateOf<String?>(null)
 
+    /** Kısayoldan gelen kayıt kimliği; kasa açıldıktan sonra o kayıt açılıyor. */
+    private var pendingItemId by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handOffSplashScreen()
@@ -42,6 +46,7 @@ class MainActivity : FragmentActivity() {
 
         val container = (application as KasaApplication).container
         pendingAction = intent?.action
+        pendingItemId = intent?.getStringExtra(RecentShortcuts.EXTRA_ITEM_ID)
 
         // Ekran koruması ayarı değiştiğinde pencere bayrağını güncelle.
         lifecycleScope.launch {
@@ -70,7 +75,11 @@ class MainActivity : FragmentActivity() {
                     KasaApp(
                         settings = settings,
                         startAction = pendingAction,
-                        onActionConsumed = { pendingAction = null }
+                        startItemId = pendingItemId,
+                        onActionConsumed = {
+                            pendingAction = null
+                            pendingItemId = null
+                        }
                     )
                 }
             }
@@ -139,6 +148,7 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingAction = intent.action
+        pendingItemId = intent.getStringExtra(RecentShortcuts.EXTRA_ITEM_ID)
     }
 
     companion object {

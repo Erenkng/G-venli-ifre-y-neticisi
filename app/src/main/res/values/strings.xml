@@ -586,4 +586,12 @@
     <string name="set_lock_screen_off">Ekran kapanınca kilitle</string>
     <string name="set_lock_screen_off_sub">Ekranı kapatmak bilinçli bir hareket: kasa süreyi beklemeden kapanır. Kapatırsan yalnızca otomatik kilit süresi geçerli olur.</string>
     <string name="duplicate">Çoğalt</string>
+    <string name="wifi_qr_action">Karekod göster</string>
+    <string name="wifi_qr_sub">Karşıdaki telefon kamerayla okusun; parola söylenmiyor.</string>
+    <string name="wifi_qr_failed">Karekod üretilemedi. Ağ adı ya da parola çok uzun olabilir.</string>
+    <string name="sec_stats">Kasa özeti</string>
+    <string name="stat_entries">kayıt</string>
+    <string name="stat_with_2fa">2FA\'li</string>
+    <string name="stat_avg_length">ort. uzunluk</string>
+    <string name="stat_oldest_days">en eski (gün)</string>
 </resources>

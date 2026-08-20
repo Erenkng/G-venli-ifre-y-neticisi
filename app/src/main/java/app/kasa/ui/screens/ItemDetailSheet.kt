@@ -27,6 +27,8 @@ import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -593,9 +596,18 @@ private fun SecretFieldBlock(
     compact: Boolean = false,
     multiline: Boolean = false
 ) {
-    val shown = if (revealed) value else maskedText ?: "•".repeat(value.length.coerceAtMost(18))
+    // Basılı tutarken göster, bırakınca gizle.
+    //
+    // Gizli değere bakmanın çoğu sebebi bir saniyelik: "sonu 47 miydi?".
+    // Göster'e basıp okuyup tekrar basmak iki dokunuş ve arada parola ekranda
+    // açık kalıyor — kullanıcı unutursa kasa kilitlenene kadar öyle kalıyor.
+    // Basılı tutma parmağın kalktığı anda kapanıyor; açık kalması imkânsız.
+    var peeking by remember { mutableStateOf(false) }
+    val visible = revealed || peeking
+
+    val shown = if (visible) value else maskedText ?: "•".repeat(value.length.coerceAtMost(18))
     val color by animateColorAsState(
-        if (revealed) KasaTheme.colors.ink else KasaTheme.colors.ink2,
+        if (visible) KasaTheme.colors.ink else KasaTheme.colors.ink2,
         label = "secretColor"
     )
 
@@ -611,9 +623,25 @@ private fun SecretFieldBlock(
                     else -> 2
                 },
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .pointerInput(value) {
+                        // awaitPointerEventScope: basış başladığında aç,
+                        // bittiğinde (parmak kalkınca ya da hareket iptal
+                        // olunca) kapat. detectTapGestures'ın onPress'i de
+                        // aynısını yapıyor ama tıklama/uzun basma ayrımına
+                        // giriyor; burada gereken tek şey temasın süresi.
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitFirstDown(requireUnconsumed = false)
+                                peeking = true
+                                waitForUpOrCancellation()
+                                peeking = false
+                            }
+                        }
+                    }
             )
-            app.kasa.ui.components.RevealButton(revealed = revealed, onClick = onToggleReveal)
+            app.kasa.ui.components.RevealButton(revealed = visible, onClick = onToggleReveal)
             if (!compact) CopyButton(accent = true, onClick = onCopy)
         }
     }

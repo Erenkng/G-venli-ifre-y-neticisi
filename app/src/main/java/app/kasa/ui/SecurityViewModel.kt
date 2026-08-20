@@ -23,6 +23,10 @@ import kotlinx.coroutines.launch
  */
 class SecurityViewModel(private val container: AppContainer) : ViewModel() {
 
+    /** İstatistik kartı için canlı kayıt listesi. */
+    val items = container.vaultRepository.data
+
+
     data class State(
         val scanning: Boolean = false,
         val progress: Float = 0f,

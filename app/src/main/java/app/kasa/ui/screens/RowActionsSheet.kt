@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import app.kasa.R
+import app.kasa.core.util.WifiQr
 import app.kasa.data.model.Category
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.components.GroupPosition
@@ -71,6 +73,7 @@ fun RowActionsSheet(
     onCopyPlain: (String) -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
+    onShowWifiQr: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
@@ -97,6 +100,16 @@ fun RowActionsSheet(
                     label = stringResource(R.string.copy_username),
                     icon = Icons.Rounded.Person
                 ) { onCopyPlain(item.username) }
+            )
+        }
+        // Wi-Fi karekodu yalnızca ağ adı olan kayıtta; kilitliyse parola
+        // karekodun içinde olacağı için gösterilmiyor.
+        if (!locked && item.category == Category.WIFI && WifiQr.isEncodable(item)) {
+            add(
+                RowAction(
+                    label = stringResource(R.string.wifi_qr_action),
+                    icon = Icons.Rounded.QrCode2
+                ) { onShowWifiQr() }
             )
         }
         if (host != null) {

@@ -13,6 +13,7 @@ import app.kasa.data.VaultStore
 import app.kasa.data.net.BreachChecker
 import app.kasa.data.repo.SecurityAnalyzer
 import app.kasa.data.repo.VaultRepository
+import app.kasa.core.util.RecentShortcuts
 import app.kasa.widget.KasaWidgetProvider
 import app.kasa.work.SecurityScanWorker
 import kotlinx.coroutines.CoroutineScope
@@ -75,7 +76,24 @@ class KasaApplication : Application(), Configuration.Provider {
         // Kilit durumu değişince ana ekran aracını tazele. StateFlow zaten
         // aynı değeri iki kez yaymıyor; ayrıca ayıklamaya gerek yok.
         container.vaultRepository.lockState
-            .onEach { KasaWidgetProvider.refresh(this) }
+            .onEach { state ->
+                KasaWidgetProvider.refresh(this)
+                // Kısayollar sistem başlatıcısında, kasanın dışında duruyor ve
+                // kilit kapalıyken de görünüyor: kilitli bir kasa dışarıya
+                // isim sızdırmamalı. Gerekçenin uzunu RecentShortcuts üzerinde.
+                if (state !is app.kasa.data.repo.VaultRepository.LockState.Unlocked) {
+                    RecentShortcuts.clear(this)
+                }
+            }
+            .launchIn(container.scope)
+
+        // Kasa açıkken son kullanılan kayıtlar kısayol oluyor.
+        container.vaultRepository.data
+            .onEach { data ->
+                if (container.vaultRepository.isUnlocked) {
+                    RecentShortcuts.refresh(this, data.liveItems)
+                }
+            }
             .launchIn(container.scope)
 
         container.autoLocker.start()
