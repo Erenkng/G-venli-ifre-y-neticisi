@@ -217,24 +217,57 @@ class VaultRepository(
 
     // ------------------------------------------------------------- kilitleme
 
-    /** Anahtarı ve çözülmüş veriyi bellekten siler. */
+    /**
+     * Anahtarı ve çözülmüş veriyi bellekten siler.
+     *
+     * ### İki aşamalı olmasının sebebi
+     *
+     * Erişim **hemen** kesiliyor: anahtar referansı düşüyor, veri boşalıyor,
+     * kilit durumu değişiyor. Buraya kadarı senkron, çünkü ekran kapandığı
+     * anda arayüzün gizli veriye ulaşabiliyor olması kabul edilemez.
+     *
+     * Ama fiziksel silme bekliyor. Sebebi somut bir veri kaybı: kullanıcı bir
+     * kaydı düzenleyip kaydettiği anda uygulamayı kapattığında, yazma işi
+     * arka planda sürerken buradaki `shredSecrets` aynı [SecretText]
+     * nesnelerini sıfırlıyordu — yazma tamamlandığında dosyaya boş parolalar
+     * gidiyordu. Nesneler kayıt kopyaları arasında paylaşıldığı için sessizce
+     * ve kalıcı olarak.
+     *
+     * Bu yüzden silme, süren yazmayla aynı kilidi bekliyor. Bedeli birkaç yüz
+     * milisaniye daha bellekte kalmak; karşılığı kullanıcının parolalarının
+     * silinmemesi.
+     */
     fun lock() {
-        vaultKey?.wipe()
+        val key = vaultKey
+        val snapshot = _data.value
+
         vaultKey = null
         activeSection = VaultStore.SECTION_REAL
-        shredSecrets(_data.value)
         _data.value = VaultData()
         _pendingRecoveryCode.value = null
         _lockState.value = if (store.vaultExists()) LockState.Locked else LockState.NeedsSetup
         SecureClipboard.clearNow(context)
         SecureClipboard.cancelScheduledClear(context)
+
+        scope.launch {
+            mutex.withLock {
+                key?.wipe()
+                shredSecrets(snapshot)
+            }
+        }
     }
 
     private fun hardReset() {
-        vaultKey?.wipe()
+        val key = vaultKey
+        val snapshot = _data.value
         vaultKey = null
         activeSection = VaultStore.SECTION_REAL
-        shredSecrets(_data.value)
+        scope.launch {
+            mutex.withLock {
+                key?.wipe()
+                shredSecrets(snapshot)
+            }
+        }
         _data.value = VaultData()
         _pendingRecoveryCode.value = null
         _lockState.value = LockState.NeedsSetup

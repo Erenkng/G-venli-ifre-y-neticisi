@@ -96,7 +96,7 @@ fun GeneratorScreen(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = navBarSpacing())
+        contentPadding = listContentPadding()
     ) {
         item(key = "hero") {
             HeroHeader(

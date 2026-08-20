@@ -82,9 +82,18 @@ class SecretText private constructor(private val chars: CharArray) {
         }
     }
 
-    /** Karakterleri sıfırlar. Çağrıdan sonra bu gizli veri boş görünür. */
+    /**
+     * Karakterleri sıfırlar. Çağrıdan sonra bu gizli veri boş görünür.
+     *
+     * [EMPTY] silinmiyor. O örnek paylaşılıyor: parolası olmayan her kayıt
+     * aynı nesneyi taşıyor, dolayısıyla tek bir kaydın silinmesi hepsini
+     * "silinmiş" işaretlerdi. Silinmiş iki gizli veri birbirine eşit sayıldığı
+     * için de bu, yeniden kullanılan parola bulgusunu bozardı: parolasız
+     * kayıtlar birbirinin aynısı görünürdü. Zaten boş bir diziyi sıfırlamanın
+     * kazandırdığı bir şey de yok.
+     */
     fun wipe() {
-        if (wiped) return
+        if (wiped || chars.isEmpty()) return
         wiped = true
         chars.fill(0.toChar())
         cachedHash = 0

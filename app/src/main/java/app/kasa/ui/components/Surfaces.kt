@@ -79,8 +79,11 @@ fun KasaTile(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.965f else 1f, SpatialSpring, label = "tileScale")
-    val loose by animateDpAsState(if (pressed) KasaRadius.l else KasaRadius.l, SpatialDpSpring, label = "tileLoose")
-    val tight by animateDpAsState(if (pressed) KasaRadius.l else KasaRadius.xs, SpatialDpSpring, label = "tileTight")
+    // Yarıçap animasyonları [animatedCorner] üzerinden: yaylı hareket hedefi
+    // aşıyor ve gölgenin kullandığı platform Outline'ı negatif yarıçapta
+    // istisna atıyor.
+    val loose = animatedCorner(KasaRadius.l, SpatialDpSpring, label = "tileLoose")
+    val tight = animatedCorner(if (pressed) KasaRadius.l else KasaRadius.xs, SpatialDpSpring, label = "tileTight")
 
     Row(
         modifier = modifier
@@ -233,7 +236,7 @@ fun RecentCard(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, SpatialSpring, label = "recentScale")
-    val radius by animateDpAsState(if (pressed) KasaRadius.l else KasaRadius.m, SpatialDpSpring, label = "recentRadius")
+    val radius = animatedCorner(if (pressed) KasaRadius.l else KasaRadius.m, SpatialDpSpring, label = "recentRadius")
 
     Column(
         modifier = modifier

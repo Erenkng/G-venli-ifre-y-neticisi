@@ -18,20 +18,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,18 +42,23 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -99,44 +105,33 @@ fun KasaNavBar(
     backdrop: GraphicsLayer? = null
 ) {
     val colors = KasaTheme.colors
-    val blurLayer = rememberGraphicsLayer()
-    val blurRadius = with(LocalDensity.current) { 26.dp.toPx() }
-    var barTop by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .onGloballyPositioned { barTop = it.positionInParent().y }
-            .drawBehind {
-                if (backdrop == null) return@drawBehind
-                // Kaydedilmiş kopyayı çubuğun tepesi kadar yukarı kaydırıp
-                // çiziyoruz: katmanın sınırları çubuk kadar olduğu için
-                // yalnızca altta kalan parça giriyor.
-                runCatching {
-                    blurLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
-                    blurLayer.clip = true
-                    blurLayer.record {
-                        translate(top = -barTop) { drawLayer(backdrop) }
-                    }
-                    drawLayer(blurLayer)
-                }
-            }
             .background(
                 Brush.verticalGradient(
                     0.00f to colors.navScrim.copy(alpha = 0f),
-                    0.28f to colors.navScrim.copy(alpha = 0.52f),
-                    0.55f to colors.navScrim.copy(alpha = 0.88f),
-                    1.00f to colors.navScrim.copy(alpha = 0.96f)
+                    0.30f to colors.navScrim.copy(alpha = 0.30f),
+                    0.62f to colors.navScrim.copy(alpha = 0.78f),
+                    1.00f to colors.navScrim.copy(alpha = 0.94f)
                 )
             )
     ) {
+        Backdrop(
+            backdrop = backdrop,
+            modifier = Modifier.matchParentSize(),
+            gradientStart = { Offset(0f, 0f) },
+            gradientEnd = { Offset(0f, it.height) }
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 // Yalnızca içerik yukarı alınıyor; arka plan sistem çubuğunun
                 // altına kadar iniyor.
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(start = 12.dp, end = 12.dp, top = 22.dp, bottom = 12.dp),
+                .padding(start = 12.dp, end = 12.dp, top = FADE_RUNWAY, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             destinations.forEach { destination ->
@@ -150,6 +145,136 @@ fun KasaNavBar(
         }
     }
 }
+
+/**
+ * Yatay moddaki gezinme rayı.
+ *
+ * Telefon yan çevrildiğinde dikey alan zaten yarıya iniyor; oraya bir de alt
+ * çubuk koymak, kalan içeriği okunamayacak kadar daraltıyor. Ray aynı işi
+ * yatayda yapıyor ve dikey alanın tamamını içeriğe bırakıyor.
+ *
+ * Bulanıklık ve solma aynı: yalnızca yön değişiyor, soldan sağa.
+ */
+@Composable
+fun KasaNavRail(
+    destinations: List<NavDestination>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    backdrop: GraphicsLayer? = null
+) {
+    val colors = KasaTheme.colors
+
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(RAIL_WIDTH)
+            .background(
+                Brush.horizontalGradient(
+                    0.00f to colors.navScrim.copy(alpha = 0.94f),
+                    0.55f to colors.navScrim.copy(alpha = 0.72f),
+                    1.00f to colors.navScrim.copy(alpha = 0f)
+                )
+            )
+    ) {
+        Backdrop(
+            backdrop = backdrop,
+            modifier = Modifier.matchParentSize(),
+            // Ray solda: bulanıklık solda tam, sağa doğru siliniyor.
+            gradientStart = { Offset(it.width, 0f) },
+            gradientEnd = { Offset(0f, 0f) }
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(start = 8.dp, end = FADE_RUNWAY, top = 12.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            destinations.forEach { destination ->
+                NavItem(
+                    destination = destination,
+                    selected = destination.key == selected,
+                    onClick = { onSelect(destination.key) }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Gezinme yüzeyinin altındaki bulanık arka plan.
+ *
+ * ### Neden ayrı bir katman
+ *
+ * Bulanıklığın kendisi maskelenmek zorunda. Önceki hâlinde bulanık görüntü
+ * çubuğun tamamına eşit güçte çiziliyordu ve üst kenarında **keskin bir çizgi**
+ * oluşuyordu: bir piksel üstü net, bir piksel altı tam bulanık. Degradeyi
+ * bulanıklığın üstüne koymak bunu gizlemiyor, çünkü sorun rengin değil
+ * bulanıklığın kendisinin sert başlaması.
+ *
+ * Çözüm, bulanık görüntüyü kendi çevrimdışı katmanında çizip üzerine
+ * [BlendMode.DstIn] ile bir saydamlık degradesi geçirmek: bulanıklık artık
+ * yavaşça beliriyor. Çevrimdışı katman şart — aynı katmanda çizilseydi maske
+ * gezinme simgelerini de silerdi.
+ *
+ * @param gradientStart maskenin saydam (bulanıklığın olmadığı) ucu
+ * @param gradientEnd maskenin opak (bulanıklığın tam olduğu) ucu
+ */
+@Composable
+private fun Backdrop(
+    backdrop: GraphicsLayer?,
+    modifier: Modifier,
+    gradientStart: (Size) -> Offset,
+    gradientEnd: (Size) -> Offset
+) {
+    if (backdrop == null) return
+
+    val blurLayer = rememberGraphicsLayer()
+    val blurRadius = with(LocalDensity.current) { 24.dp.toPx() }
+    var origin by remember { mutableStateOf(Offset.Zero) }
+
+    Box(
+        modifier = modifier
+            .onGloballyPositioned { origin = it.positionInParent() }
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawBehind {
+                runCatching {
+                    blurLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
+                    blurLayer.clip = true
+                    blurLayer.record {
+                        translate(left = -origin.x, top = -origin.y) { drawLayer(backdrop) }
+                    }
+                    drawLayer(blurLayer)
+
+                    // Bulanıklığı sert bir kenar bırakmadan sonlandıran maske.
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            0f to Color.Transparent,
+                            0.42f to Color.Black.copy(alpha = 0.55f),
+                            1f to Color.Black,
+                            start = gradientStart(size),
+                            end = gradientEnd(size)
+                        ),
+                        blendMode = BlendMode.DstIn
+                    )
+                }
+            }
+    )
+}
+
+/**
+ * Gezinme yüzeyinin üst kenarında bulanıklığın belirmesi için ayrılan boşluk.
+ *
+ * Solma bu mesafeye yayılıyor: kısa tutulduğunda geçiş yine sert görünüyor,
+ * uzattıkça yumuşuyor ama içerik gereksiz yer kaybediyor.
+ */
+private val FADE_RUNWAY = 34.dp
+
+/** Yatay moddaki rayın genişliği. */
+private val RAIL_WIDTH = 92.dp
 
 @Composable
 private fun NavItem(
@@ -231,9 +356,12 @@ fun FabMenu(
         spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow),
         label = "fabRotation"
     )
-    val fabRadius by animateDpAsState(
-        if (expanded) KasaRadius.full else 22.dp,
-        spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow),
+    // Tam yuvarlak = düğmenin yarısı (66/2). Eskiden hedef KasaRadius.full
+    // (999dp) idi ve yay 999'dan 22'ye inerken hedefi aşıp negatif yarıçap
+    // üretiyordu; gölgenin kullandığı platform Outline'ı negatif yarıçapta
+    // istisna atıyor ve menü **kapanırken** uygulama çöküyordu.
+    val fabRadius = animatedCorner(
+        if (expanded) FAB_SIZE / 2 else 22.dp,
         label = "fabRadius"
     )
     val interaction = remember { MutableInteractionSource() }
@@ -261,7 +389,7 @@ fun FabMenu(
         Spacer(Modifier.height(2.dp))
         Box(
             modifier = Modifier
-                .size(66.dp)
+                .size(FAB_SIZE)
                 .scale(scale)
                 .shadow(6.dp, RoundedCornerShape(fabRadius), clip = false)
                 .clip(RoundedCornerShape(fabRadius))
@@ -331,6 +459,9 @@ fun Scrim(
         )
     }
 }
+
+/** Ana eylem düğmesinin çapı. Köşe animasyonunun hedefi buradan türetiliyor. */
+private val FAB_SIZE = 66.dp
 
 /** Gölge boyu için tasarım ölçekleri. */
 object KasaElevation {

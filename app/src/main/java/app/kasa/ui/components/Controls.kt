@@ -1,6 +1,7 @@
 package app.kasa.ui.components
 
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -53,10 +54,44 @@ private val SpatialSpring = spring<Float>(
     stiffness = Spring.StiffnessMediumLow
 )
 
-private val SpatialDpSpring = spring<Dp>(
+internal val SpatialDpSpring = spring<Dp>(
     dampingRatio = 0.55f,
     stiffness = Spring.StiffnessMediumLow
 )
+
+/**
+ * Köşe yarıçapı animasyonu — sonucu asla sıfırın altına inmiyor.
+ *
+ * ### Neden ayrı bir işlev gerekti
+ *
+ * Yaylı animasyonun sönümleme oranı 1'in altında olduğunda değer hedefi
+ * **aşıyor**: bu, hareketi canlı kılan şey. Ama köşe yarıçapında aşma
+ * tehlikeli, çünkü yarıçap negatife inebiliyor.
+ *
+ * [KasaRadius.full] 999dp; gerçek bir ölçü değil, "tam yuvarlak" demek için
+ * kullanılan bir sınır değeri. Yaya hedef olarak 999'dan 22'ye inen bir
+ * aralık verildiğinde aşma payı aralığın yüzdesi kadar oluyor — yani yüzlerce
+ * dp — ve değer eksiye düşüyor.
+ *
+ * `android.graphics.Outline.setRoundRect` negatif yarıçapta istisna atıyor.
+ * Gölgesi olan bir bileşende ([Modifier.shadow] platformun Outline'ını
+ * kullanıyor) bu, animasyonun ortasında çökme demek. Açılışta görünmüyor
+ * çünkü orada aşma yukarı doğru ve büyük bir yarıçap zararsızca kırpılıyor;
+ * yalnızca **kapanışta** çöküyor.
+ *
+ * İki koruma birlikte uygulanıyor: çağıranlar hedef olarak bileşenin kendi
+ * yarısını veriyor (aralık küçülüyor, aşma görünmez hâle geliyor) ve burada
+ * sonuç ayrıca sıfırda kesiliyor.
+ */
+@Composable
+fun animatedCorner(
+    target: Dp,
+    animationSpec: AnimationSpec<Dp> = SpatialDpSpring,
+    label: String = "corner"
+): Dp {
+    val value by animateDpAsState(target, animationSpec, label = label)
+    return value.coerceAtLeast(0.dp)
+}
 
 enum class ButtonTone { FILLED, TONAL, OUTLINED, TEXT }
 
@@ -82,7 +117,7 @@ fun KasaButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, SpatialSpring, label = "btnScale")
-    val radius by animateDpAsState(if (pressed) pressedRadius else restingRadius, SpatialDpSpring, label = "btnRadius")
+    val radius = animatedCorner(if (pressed) pressedRadius else restingRadius, label = "btnRadius")
 
     val background = when (tone) {
         ButtonTone.FILLED -> MaterialTheme.colorScheme.primary
@@ -472,7 +507,9 @@ fun KasaIconButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.86f else 1f, SpatialSpring, label = "iconScale")
-    val radius by animateDpAsState(if (pressed) 13.dp else KasaRadius.full, SpatialDpSpring, label = "iconRadius")
+    // Hedef "tam yuvarlak" için 999dp değil, bileşenin kendi yarısı: aralık
+    // küçük kalınca yayın aşma payı da görünmez oluyor.
+    val radius = animatedCorner(if (pressed) 13.dp else size / 2, label = "iconRadius")
 
     Box(
         modifier = modifier

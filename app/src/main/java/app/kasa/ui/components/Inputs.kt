@@ -59,6 +59,8 @@ import app.kasa.ui.theme.KasaTheme
  * başlamak, klavye açıldığında listeyi yarıya düşürürdü; tam ekran arama hem
  * daha fazla sonuç gösteriyor hem de tek elle kullanımda daha rahat.
  */
+private val SEARCH_HEIGHT = 58.dp
+
 @Composable
 fun SearchBarButton(
     placeholder: String,
@@ -68,16 +70,14 @@ fun SearchBarButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.975f else 1f, label = "searchScale")
-    val radius by animateDpAsState(
-        if (pressed) 22.dp else KasaRadius.full,
-        spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow),
-        label = "searchRadius"
-    )
+    // Tam yuvarlak = yüksekliğin yarısı. 999dp hedefiyle yay, basış bırakılınca
+    // negatif yarıçapa iniyordu ve gölgesi olan bu bileşende çökme yapıyordu.
+    val radius = animatedCorner(if (pressed) 22.dp else SEARCH_HEIGHT / 2, label = "searchRadius")
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .height(SEARCH_HEIGHT)
             .scale(scale)
             .shadow(1.dp, RoundedCornerShape(radius), clip = false)
             .clip(RoundedCornerShape(radius))
