@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -46,6 +47,7 @@ import app.kasa.ui.theme.KasaTheme
  * aranan bir kayıt. Kimlik, SSH anahtarı, lisans ve Wi-Fi ayda bir açılıyor ve
  * bir dokunuş uzakta olmaları bir şey kaybettirmiyor.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TypePickerSheet(
     onPick: (Category) -> Unit,

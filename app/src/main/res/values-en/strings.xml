@@ -540,4 +540,6 @@
     <string name="copy_note">Copy note</string>
     <string name="copy_code">Copy code</string>
     <string name="row_clipboard_note">The copied value is cleared from the clipboard after %1$d seconds.</string>
+    <string name="restore">Restore</string>
+    <string name="delete_forever">Delete forever</string>
 </resources>

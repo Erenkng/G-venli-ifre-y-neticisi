@@ -558,4 +558,6 @@
     <string name="copy_note">Notu kopyala</string>
     <string name="copy_code">Kodu kopyala</string>
     <string name="row_clipboard_note">Kopyalanan değer %1$d saniye sonra panodan silinir.</string>
+    <string name="restore">Geri al</string>
+    <string name="delete_forever">Kalıcı sil</string>
 </resources>

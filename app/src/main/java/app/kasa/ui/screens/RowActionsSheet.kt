@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -61,6 +62,7 @@ import app.kasa.ui.theme.KasaTheme
  * bir kestirmeyle atlatılabilen koruma, koruma değildir; o kayıtlar ayrıntı
  * ekranından, doğrulamanın ardından açılıyor.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RowActionsSheet(
     item: VaultItem,

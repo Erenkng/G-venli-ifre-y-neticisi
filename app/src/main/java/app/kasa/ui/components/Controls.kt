@@ -377,18 +377,30 @@ fun ExpressiveSlider(
     var dragging by remember { mutableStateOf(false) }
 
     val fraction = ((value - range.first).toFloat() / (range.last - range.first).toFloat()).coerceIn(0f, 1f)
-    val thumbHeight by animateDpAsState(if (dragging) 52.dp else 44.dp, KasaMotion.small(), label = "sliderThumbH")
-    val thumbWidth by animateDpAsState(if (dragging) 3.dp else 6.dp, KasaMotion.small(), label = "sliderThumbW")
+
+    // Tutamak sürüklenirken incelip uzuyor: parmağın altında kalan şey
+    // daralınca değerin tam olarak nerede olduğu görünür kalıyor.
+    val handleWidth by animateDpAsState(if (dragging) 4.dp else 6.dp, KasaMotion.small(), label = "sliderHandleW")
+    val handleHeight by animateDpAsState(if (dragging) 52.dp else 40.dp, KasaMotion.small(), label = "sliderHandleH")
 
     fun valueFor(x: Float): Int {
-        val f = (x / width).coerceIn(0f, 1f)
+        // Dokunulan nokta rayın tamamına değil, tutamağın gezebildiği alana
+        // göre okunuyor; yoksa iki uçtaki yarım tutamak genişliği kadar bölge
+        // hiçbir zaman seçilemiyordu.
+        val handlePx = with(density) { handleWidth.toPx() }
+        val travel = (width - handlePx).coerceAtLeast(1f)
+        val f = ((x - handlePx / 2f) / travel).coerceIn(0f, 1f)
         return (range.first + f * (range.last - range.first)).roundToInt().coerceIn(range.first, range.last)
     }
+
+    val widthDp = with(density) { width.toDp() }
+    val travelDp = (widthDp - handleWidth).coerceAtLeast(0.dp)
+    val handleX = travelDp * fraction
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(56.dp)
             .pointerInput(range, width) {
                 detectTapGestures(onTap = { onValueChange(valueFor(it.x)) })
             }
@@ -403,18 +415,17 @@ fun ExpressiveSlider(
             },
         contentAlignment = Alignment.CenterStart
     ) {
-        // ray
+        // Boş ray ve üzerindeki adım noktaları.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(16.dp)
+                .height(TRACK_HEIGHT)
                 .clip(RoundedCornerShape(KasaRadius.full))
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .onSizeChangedPx { width = it }
         ) {
-            // adım noktaları
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -428,25 +439,45 @@ fun ExpressiveSlider(
                 }
             }
         }
-        // dolu kısım
+
+        // Dolu kısım tutamağın ortasına kadar geliyor.
         Box(
             modifier = Modifier
-                .fillMaxWidth(fraction.coerceAtLeast(0.001f))
-                .height(16.dp)
+                .width((handleX + handleWidth / 2).coerceAtLeast(TRACK_HEIGHT))
+                .height(TRACK_HEIGHT)
                 .clip(RoundedCornerShape(KasaRadius.full))
                 .background(MaterialTheme.colorScheme.primary)
         )
-        // tutamak
+
+        // Tutamağın iki yanındaki boşluk.
+        //
+        // Eskiden burada `border(4.dp)` vardı ve tutamak 6dp genişliğindeydi:
+        // 4 + 4 = 8 > 6, yani çerçeve tutamağın tamamını yiyordu ve ekranda
+        // görünen şey ana renkli bir tutamak değil, zemin renginde bir çubuktu.
+        // Sürüklerken 3dp'ye inince durum büsbütün tersine dönüyordu. Boşluk
+        // artık ayrı bir katman: tutamak kendi rengini koruyor.
         Box(
             modifier = Modifier
-                .offset(x = with(density) { (width * fraction).toDp() } - thumbWidth / 2)
-                .size(width = thumbWidth, height = thumbHeight)
+                .offset(x = handleX - HANDLE_GAP)
+                .size(width = handleWidth + HANDLE_GAP * 2, height = handleHeight)
+                .clip(RoundedCornerShape(KasaRadius.full))
+                .background(MaterialTheme.colorScheme.surface)
+        )
+
+        Box(
+            modifier = Modifier
+                .offset(x = handleX)
+                .size(width = handleWidth, height = handleHeight)
                 .clip(RoundedCornerShape(KasaRadius.full))
                 .background(MaterialTheme.colorScheme.primary)
-                .border(4.dp, MaterialTheme.colorScheme.surface, RoundedCornerShape(KasaRadius.full))
         )
     }
 }
+
+private val TRACK_HEIGHT = 16.dp
+
+/** Tutamakla rayın arasındaki nefes payı. */
+private val HANDLE_GAP = 5.dp
 
 /** Küçük, ana hat çizgili eylem çipi. */
 @Composable

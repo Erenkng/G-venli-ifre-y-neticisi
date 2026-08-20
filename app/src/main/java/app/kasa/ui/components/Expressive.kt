@@ -178,20 +178,51 @@ fun MorphDial(
     )
     val angle = if (spin && !reduced) rotation * (1.2f - 0.85f * strength) else 0.4f
 
+    // Şeklin kendisi net, uçları dağılıyor.
+    //
+    // Düz dolgu, dönen bir biçimi kâğıttan kesilmiş gibi gösteriyordu: kenarı
+    // keskin olduğu için hareket de mekanik okunuyordu. Kenarı dışa doğru
+    // çözmek, biçime hacim ve hız hissi veriyor — dönen şey artık bir nesne
+    // değil, bir alan.
+    //
+    // Bulanıklık gerçek bir BlurEffect ile değil, iç içe geçmiş üç halkayla
+    // yapılıyor: şekil her karede yeniden hesaplandığı için katman
+    // bulanıklaştırma her karede yeni bir arabellek demek olurdu. Aynı yolu
+    // büyüterek ve saydamlığını düşürerek çizmek, aynı görünümü tek geçişte
+    // veriyor.
+    val glowLayers = if (reduced) 0 else GLOW_LAYERS
+
     Canvas(modifier = modifier) {
+        val center = Offset(size.width / 2f, size.height / 2f)
         val radius = min(size.width, size.height) / 2f * 0.88f
-        val path = buildMorphPath(
-            centerX = size.width / 2f,
-            centerY = size.height / 2f,
-            radius = radius,
+
+        fun path(scale: Float) = buildMorphPath(
+            centerX = center.x,
+            centerY = center.y,
+            radius = radius * scale,
             points = points,
             spike = 0.30f * (1f - strength),
             round = 0.14f + 0.36f * strength,
             rotation = angle
         )
-        drawPath(path, color)
+
+        // Dıştan içe: en dıştaki halka en saydam.
+        for (layer in glowLayers downTo 1) {
+            val t = layer.toFloat() / glowLayers
+            drawPath(
+                path = path(1f + GLOW_SPREAD * t),
+                color = color.copy(alpha = 0.16f * (1f - t) + 0.04f)
+            )
+        }
+        drawPath(path(1f), color)
     }
 }
+
+/** Kenarın çözüldüğü halka sayısı. Üçün üstü fark edilmiyor, altı sert kalıyor. */
+private const val GLOW_LAYERS = 3
+
+/** En dış halkanın yarıçapı ne kadar aşacağı. */
+private const val GLOW_SPREAD = 0.14f
 
 /**
  * Tarama göstergesi: sürekli biçim değiştiren yükleyici. [scanning] açıkken
