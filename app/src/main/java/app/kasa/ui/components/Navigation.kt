@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -54,7 +56,7 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -186,7 +188,11 @@ fun KasaNavRail(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .windowInsetsPadding(WindowInsets.navigationBars)
+                // Yatayda çentik ekranın bir yanında duruyor ve ray da yanda:
+                // ikisi aynı kenara denk geldiğinde simgeler çentiğin altına
+                // giriyordu. Sistem çubuğuyla çentiğin birleşimi alınıyor,
+                // hangisi daha genişse o kadar içeri kaçılıyor.
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout))
                 .padding(start = 8.dp, end = FADE_RUNWAY, top = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -205,21 +211,29 @@ fun KasaNavRail(
 /**
  * Gezinme yüzeyinin altındaki bulanık arka plan.
  *
- * ### Neden ayrı bir katman
+ * ### Bulanıklık kademeli
  *
- * Bulanıklığın kendisi maskelenmek zorunda. Önceki hâlinde bulanık görüntü
- * çubuğun tamamına eşit güçte çiziliyordu ve üst kenarında **keskin bir çizgi**
- * oluşuyordu: bir piksel üstü net, bir piksel altı tam bulanık. Degradeyi
- * bulanıklığın üstüne koymak bunu gizlemiyor, çünkü sorun rengin değil
- * bulanıklığın kendisinin sert başlaması.
+ * Tek bir bulanıklık yarıçapını saydamlıkla söndürmek yetmiyor. Yarı saydam
+ * bir noktada ekranda **iki görüntü üst üste** duruyor: net içerik ve 24dp
+ * bulanıklaştırılmış kopyası. Göz bunu yumuşak bir geçiş olarak değil, hayalet
+ * bir çift görüntü olarak okuyor. Buzlu camın gerçekte yaptığı şey saydamlığını
+ * değil **kalınlığını** değiştirmek.
  *
- * Çözüm, bulanık görüntüyü kendi çevrimdışı katmanında çizip üzerine
- * [BlendMode.DstIn] ile bir saydamlık degradesi geçirmek: bulanıklık artık
- * yavaşça beliriyor. Çevrimdışı katman şart — aynı katmanda çizilseydi maske
- * gezinme simgelerini de silerdi.
+ * Bu yüzden iki geçiş var. İçeriğe yakın kenarda ince bir bulanıklık
+ * ([BLUR_NEAR]), yüzeyin derinlerinde kalın olan ([BLUR_FAR]); maskeleri
+ * birbirinin içine geçiyor, yani bulanıklık kademe kademe artıyor. İkisi de
+ * kenardan sıfırla başlıyor — biri sıfırdan başlamasaydı gidermeye çalıştığımız
+ * keskin çizgi geri gelirdi.
  *
- * @param gradientStart maskenin saydam (bulanıklığın olmadığı) ucu
- * @param gradientEnd maskenin opak (bulanıklığın tam olduğu) ucu
+ * ### Neden her geçiş kendi katmanında
+ *
+ * Bulanık görüntü maskelenmek zorunda ve maske ancak kendi çevrimdışı
+ * katmanında [BlendMode.DstIn] ile uygulanabiliyor; aynı katmanda çizilseydi
+ * maske gezinme simgelerini de silerdi. İki geçiş üst üste sıradan biçimde
+ * (SrcOver) besteleniyor.
+ *
+ * @param gradientStart maskenin içerik tarafındaki ucu (bulanıklığın olmadığı)
+ * @param gradientEnd maskenin yüzey tarafındaki ucu (bulanıklığın tam olduğu)
  */
 @Composable
 private fun Backdrop(
@@ -230,15 +244,54 @@ private fun Backdrop(
 ) {
     if (backdrop == null) return
 
+    Box(modifier) {
+        // Sıra önemli: kalın olan altta, ince olan üstünde. Üstteki kenara
+        // yakın yerde opak olduğu için orada ince bulanıklık görünüyor;
+        // saydamlaştığı yerde alttaki kalın bulanıklık ortaya çıkıyor.
+        BlurBand(backdrop, Modifier.matchParentSize(), BLUR_FAR, FAR_STOPS, gradientStart, gradientEnd)
+        BlurBand(backdrop, Modifier.matchParentSize(), BLUR_NEAR, NEAR_STOPS, gradientStart, gradientEnd)
+    }
+}
+
+/**
+ * Tek bir bulanıklık geçişi: kaydedilmiş ekran kopyasının bu yüzeyin altına
+ * düşen parçası, [radius] kadar bulanıklaştırılıp [stops] maskesiyle çiziliyor.
+ *
+ * ### Konum kökten alınıyor
+ *
+ * [backdrop] ekranın tamamını, kök düzenin (0,0) noktasından başlayarak
+ * tutuyor. Bu yüzey ise ekranın bir kenarında duruyor; kopyanın doğru parçasını
+ * göstermek için **kökteki** konumu kadar ters yöne kaydırmak gerekiyor.
+ *
+ * Burada eskiden `positionInParent` kullanılıyordu ve bu sessiz bir kusurdu:
+ * yüzey kendi kabını tamamen doldurduğu için o değer her zaman (0,0) çıkıyor,
+ * kaydırma hiç olmuyor ve gezinme çubuğunun altında **ekranın sol üst köşesi**
+ * bulanıklaştırılmış olarak duruyordu. Yanlış olduğu belli olmuyordu, çünkü
+ * bulanık bir görüntünün hangi bölgeye ait olduğu bakışla anlaşılmıyor.
+ */
+@Composable
+private fun BlurBand(
+    backdrop: GraphicsLayer,
+    modifier: Modifier,
+    radius: Dp,
+    stops: List<Pair<Float, Float>>,
+    gradientStart: (Size) -> Offset,
+    gradientEnd: (Size) -> Offset
+) {
     val blurLayer = rememberGraphicsLayer()
-    val blurRadius = with(LocalDensity.current) { 24.dp.toPx() }
+    val blurRadius = with(LocalDensity.current) { radius.toPx() }
+    val colorStops = remember(stops) {
+        stops.map { (position, alpha) -> position to Color.Black.copy(alpha = alpha) }.toTypedArray()
+    }
     var origin by remember { mutableStateOf(Offset.Zero) }
 
     Box(
         modifier = modifier
-            .onGloballyPositioned { origin = it.positionInParent() }
+            .onGloballyPositioned { origin = it.positionInRoot() }
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
             .drawBehind {
+                // Katman kaydı besteleme sırasında serbest bırakılmış olabilir;
+                // o durumda bu geçiş sessizce atlanıyor, ekran kaybolmuyor.
                 runCatching {
                     blurLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
                     blurLayer.clip = true
@@ -247,12 +300,9 @@ private fun Backdrop(
                     }
                     drawLayer(blurLayer)
 
-                    // Bulanıklığı sert bir kenar bırakmadan sonlandıran maske.
                     drawRect(
                         brush = Brush.linearGradient(
-                            0f to Color.Transparent,
-                            0.42f to Color.Black.copy(alpha = 0.55f),
-                            1f to Color.Black,
+                            *colorStops,
                             start = gradientStart(size),
                             end = gradientEnd(size)
                         ),
@@ -262,6 +312,34 @@ private fun Backdrop(
             }
     )
 }
+
+/** İçeriğe yakın kenardaki ince bulanıklık. */
+private val BLUR_NEAR = 9.dp
+
+/** Yüzeyin derinlerindeki kalın bulanıklık. */
+private val BLUR_FAR = 30.dp
+
+/**
+ * Kalın geçişin maskesi: kenarda yok, ortada zayıf, sonda tam.
+ * (konum, saydamlık) çiftleri; konum kenardan yüzeyin ucuna doğru.
+ */
+private val FAR_STOPS = listOf(
+    0.00f to 0.00f,
+    0.38f to 0.18f,
+    0.72f to 0.86f,
+    1.00f to 1.00f
+)
+
+/**
+ * İnce geçişin maskesi: kenarda yok, hemen ardından tam, sonra sönüyor —
+ * çünkü orada yerini kalın geçişe bırakıyor.
+ */
+private val NEAR_STOPS = listOf(
+    0.00f to 0.00f,
+    0.20f to 0.92f,
+    0.58f to 0.80f,
+    1.00f to 0.00f
+)
 
 /**
  * Gezinme yüzeyinin üst kenarında bulanıklığın belirmesi için ayrılan boşluk.

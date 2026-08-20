@@ -1,0 +1,114 @@
+name: Sürüm
+
+# Bir "v" etiketi itildiğinde çalışır: v1.0, v1.1, v2.0 …
+#
+# Etiket sürümün tek kaynağı değil — asıl sürüm app/build.gradle.kts içindeki
+# versionName. İş akışı ikisini karşılaştırıyor ve tutmuyorsa duruyor: yanlış
+# sürüm numarası taşıyan bir APK'yı geri almanın yolu yok, kullanıcının
+# telefonunda o numarayla kurulu kalıyor.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: APK üret ve yayımla
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+
+      - name: SDK 36 bilesenleri
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" || \
+          sdkmanager "platforms;android-36"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Sürüm numarasını doğrula
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          name=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          echo "Etiket: $tag / build.gradle.kts: $name"
+          if [ "$tag" != "$name" ]; then
+            echo "::error::Etiket ($tag) ile versionName ($name) uyuşmuyor."
+            exit 1
+          fi
+
+      # Anahtar deposu gizli anahtarlardan geliyor. Tanımlı değilse bu adım
+      # sessizce atlanıyor ve APK imzasız çıkıyor; sürüm notunda söyleniyor.
+      - name: İmzalama anahtarını çöz
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KASA_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/kasa.jks"
+            echo "path=$RUNNER_TEMP/kasa.jks" >> "$GITHUB_OUTPUT"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "İmzalama anahtarı tanımlı değil; APK imzasız üretilecek."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sürüm derlemesi
+        env:
+          KASA_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          KASA_KEYSTORE_PASSWORD: ${{ secrets.KASA_KEYSTORE_PASSWORD }}
+          KASA_KEY_ALIAS: ${{ secrets.KASA_KEY_ALIAS }}
+          KASA_KEY_PASSWORD: ${{ secrets.KASA_KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          if ! ./gradlew --no-daemon assembleRelease 2>&1 | tee build.log; then
+            echo "===== KOTLIN HATALARI ====="
+            grep -E "^e: " build.log || echo "(e: satiri yok)"
+            echo "===== SON ====="
+            exit 1
+          fi
+
+      # İmzalanmamış bir APK kurulamıyor. Anahtar yokken de denenebilir bir şey
+      # kalsın diye hata ayıklama derlemesi de üretiliyor; uygulama kimliği
+      # ".debug" ekiyle ayrı olduğu için gerçek sürümün üzerine yazmıyor.
+      - name: Hata ayıklama derlemesi
+        if: steps.keystore.outputs.signed != 'true'
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Çıktıları topla
+        run: |
+          mkdir -p dist
+          find app/build/outputs/apk -name "*.apk" -exec cp {} dist/ \;
+          ls -la dist
+
+      # Üçüncü taraf bir eylem yerine runner'da hazır gelen gh kullanılıyor:
+      # sürüm yayımlamak depoya yazma yetkisi istiyor ve o yetkiyi bakımı
+      # başkasında olan bir eyleme vermek gereksiz bir güven halkası olurdu.
+      - name: Sürümü yayımla
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNED: ${{ steps.keystore.outputs.signed }}
+        run: |
+          notes=$(mktemp)
+          cat .github/RELEASE_BODY.md > "$notes"
+          if [ "$SIGNED" != "true" ]; then
+            cat .github/RELEASE_UNSIGNED.md >> "$notes"
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/*.apk \
+            --title "Kasa $GITHUB_REF_NAME" \
+            --notes-file "$notes"

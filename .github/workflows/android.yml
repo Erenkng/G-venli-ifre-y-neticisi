@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: Derle (assembleDebug)
+    name: Derle (debug + release)
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -47,6 +47,22 @@ jobs:
           if ! ./gradlew --no-daemon assembleDebug 2>&1 | tee build.log; then
             echo "===== KOTLIN HATALARI ====="
             grep -E "^e: |^w: .*error" build.log || echo "(e: satiri yok)"
+            echo "===== SON ====="
+            exit 1
+          fi
+
+      # Sürüm derlemesi ayrıca sınanıyor. R8 küçültmesi yalnızca burada
+      # çalışıyor ve hata ayıklama derlemesinde görünmeyen kusurları ortaya
+      # çıkarıyor: yansımayla (reflection) erişilen serileştiriciler, passkey
+      # sağlayıcısı ve Credential Manager sınıfları, kaynak küçültmesinin
+      # kullanılmıyor sandığı çizimler. Bunlar ancak sürüm APK'sı üretilirken
+      # anlaşılıyor — ve o an, kullanıcıya gidecek APK'nın üretildiği an.
+      - name: Sürüm derlemesi (R8)
+        run: |
+          set -o pipefail
+          if ! ./gradlew --no-daemon assembleRelease 2>&1 | tee release.log; then
+            echo "===== SÜRÜM DERLEME HATALARI ====="
+            grep -E "^e: |R8|Missing class|AGPBI" release.log | tail -40 || echo "(satir yok)"
             echo "===== SON ====="
             exit 1
           fi

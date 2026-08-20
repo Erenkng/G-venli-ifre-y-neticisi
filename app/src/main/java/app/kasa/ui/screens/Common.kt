@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Badge
@@ -327,7 +329,9 @@ fun durationLabel(seconds: Int): String = when {
 @Composable
 fun listContentPadding(extraBottom: Dp = 0.dp): PaddingValues {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val system = WindowInsets.navigationBars.asPaddingValues()
+    // Yatayda çentik yan kenarda duruyor; sistem çubuğuyla birleştirilmezse
+    // liste içeriği çentiğin altına giriyor.
+    val system = WindowInsets.navigationBars.union(WindowInsets.displayCutout).asPaddingValues()
     val layout = LocalLayoutDirection.current
 
     return if (landscape) {

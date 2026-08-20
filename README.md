@@ -4,6 +4,8 @@
 Kotlin + Jetpack Compose, Material 3 Expressive, tamamen çevrimdışı ve
 uçtan uca şifreli bir yerel kasa.
 
+**Sürüm 1.0** · Android 16 (API 36) ve üstü, 64 bit.
+
 ---
 
 ## Derleme
@@ -34,9 +36,40 @@ ELF program başlıklarından doğrulandı; 32 bit ABI'ler paketlenmiyor.
 
 Depo yazılırken kullanılan ortamda Android SDK indirmesi engelliydi, bu yüzden
 derleme doğrulaması **GitHub Actions**'a taşındı: `.github/workflows/android.yml`
-her itmede `assembleDebug` ve `lintDebug` çalıştırıp APK'yı yapı çıktısı olarak
-yüklüyor. Derleme başarısız olduğunda Kotlin hataları günlüğün sonunda ayrıca
-özetleniyor — Gradle'ın yığın izi altında kaybolmasınlar diye.
+her itmede `assembleDebug`, `assembleRelease` ve `lintDebug` çalıştırıp APK'yı
+yapı çıktısı olarak yüklüyor. Derleme başarısız olduğunda Kotlin hataları
+günlüğün sonunda ayrıca özetleniyor — Gradle'ın yığın izi altında
+kaybolmasınlar diye.
+
+Sürüm derlemesi de her itmede sınanıyor, yalnızca etiket atılırken değil. R8
+küçültmesi yalnızca orada çalışıyor ve hata ayıklama derlemesinde görünmeyen
+kusurları ortaya çıkarıyor: yansımayla erişilen serileştiriciler, passkey
+sağlayıcısı, kaynak küçültmesinin kullanılmıyor sandığı çizimler. Bunların
+ancak sürüm APK'sı üretilirken anlaşılması, kullanıcıya gidecek APK'nın
+üretildiği anda anlaşılması demekti.
+
+### Sürüm yayımlama
+
+`v` ile başlayan bir etiket itildiğinde `.github/workflows/release.yml`
+çalışıyor: etiketin `versionName` ile aynı olduğunu doğruluyor, sürüm APK'sını
+üretiyor ve GitHub sürümü oluşturuyor.
+
+```bash
+git tag v1.0 && git push origin v1.0
+```
+
+Etiketle `versionName` uyuşmazsa iş akışı duruyor. Yanlış sürüm numarası
+taşıyan bir APK'yı geri almanın yolu yok; kullanıcının telefonunda o numarayla
+kurulu kalıyor.
+
+**İmzalama.** Anahtar deposu depoda değil: imzalama anahtarı uygulamanın
+kimliği demek ve onu ele geçiren biri, kullanıcıların güncelleme sanıp kuracağı
+sahte bir sürüm yayımlayabilir. Değerler ortam değişkenlerinden okunuyor
+(`KASA_KEYSTORE_PATH`, `KASA_KEYSTORE_PASSWORD`, `KASA_KEY_ALIAS`,
+`KASA_KEY_PASSWORD`); CI bunları depo gizli anahtarlarından alıyor. Tanımlı
+değilse derleme yine başarılı oluyor ama APK imzasız çıkıyor ve **kurulamıyor**.
+Kurulabilir sürüm için bir kez anahtar üretip gizli anahtar olarak eklemek
+gerekiyor; adımlar `.github/RELEASE_UNSIGNED.md` içinde.
 
 ---
 
@@ -184,9 +217,12 @@ Bir güvenlik iddiası, sınırı söylenmediği sürece eksiktir:
   çubukları, basınca sıkışan liste satırları, komşusuna tepki veren düğme grubu
 - Dikeyde alt gezinti çubuğu, yatayda yan ray: yan çevrildiğinde dikey alan zaten
   yarıya iniyor, oraya bir de alt çubuk koymak içeriği okunamaz hâle getiriyordu
-- Gezinti çubuğu içeriğin üzerinde duruyor ve altındaki içerik yavaşça
-  bulanıklaşıyor — bulanıklık kendi katmanında maskelendiği için keskin bir
-  başlangıç çizgisi oluşmuyor
+- Gezinti çubuğu içeriğin üzerinde duruyor ve altındaki içerik **kademeli**
+  bulanıklaşıyor: iki farklı yarıçapta geçiş iç içe geçiyor. Tek yarıçapı
+  saydamlıkla söndürmek yetmiyordu — yarı saydam bir noktada net içerik ve
+  bulanık kopyası üst üste duruyor, göz bunu yumuşak geçiş olarak değil hayalet
+  bir çift görüntü olarak okuyor. Buzlu camın gerçekte değiştirdiği şey
+  saydamlığı değil kalınlığı
 
 ### Açılış işareti
 

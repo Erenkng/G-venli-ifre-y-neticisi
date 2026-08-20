@@ -22,7 +22,7 @@ android {
         minSdk = 36
         targetSdk = 36
         versionCode = 1
-        versionName = "3.4"
+        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -37,6 +37,26 @@ android {
         localeFilters += listOf("tr", "en")
     }
 
+    // Sürüm imzalama yapılandırması ortam değişkenlerinden geliyor.
+    //
+    // Anahtar deposu depoya konmuyor: imzalama anahtarı uygulamanın kimliği
+    // demek ve onu ele geçiren biri, kullanıcıların güncelleme sanıp kuracağı
+    // sahte bir sürüm yayımlayabilir. CI bu değerleri gizli anahtarlardan
+    // (secrets) alıyor; tanımlı değilse imzasız derleniyor ve derleme yine de
+    // başarılı oluyor — böylece anahtarı olmayan biri de projeyi derleyebilir.
+    val keystorePath: String? = System.getenv("KASA_KEYSTORE_PATH")
+
+    signingConfigs {
+        if (!keystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("KASA_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KASA_KEY_ALIAS")
+                keyPassword = System.getenv("KASA_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -48,6 +68,9 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Sürüm derlemesinde hata ayıklama tamamen kapalı.
             isDebuggable = false
+            // Anahtar yoksa null kalıyor; APK imzasız çıkıyor ve kurulamıyor
+            // ama derleme kırılmıyor.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
