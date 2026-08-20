@@ -20,7 +20,6 @@ import java.io.DataOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.util.concurrent.FutureTask
 import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 
@@ -214,10 +213,19 @@ class VaultStore(private val context: Context) {
      * içindeki bölme numarasından anlaşılır; arayüz ikisini ayırt etmez ve
      * ayırt etmemelidir.
      *
-     * İkisi **eş zamanlı** türetilir. Sırayla denemek, yem parolanın iki kat
-     * uzun sürmesi demekti; elinde kronometre olan bir zorlayıcı bundan yem
-     * kasaya bakmakta olduğunu anlardı. Paralel çalıştırıldığında duvar saati
-     * süresi iki durumda da aynı.
+     * İki sarmalayıcı da **her zaman**, **sırayla** deneniyor. Üç şeyin aynı
+     * anda doğru olması gerekiyordu ve bu, aralarındaki tek dengeli nokta:
+     *
+     *  - *Neden her zaman ikisi de:* yalnızca ilki tutunca durulsaydı, yem
+     *    parola iki kat uzun sürerdi ve elinde kronometre olan bir zorlayıcı
+     *    hangi kasaya baktığını anlardı. Şimdi her açılış aynı süreyi alıyor.
+     *  - *Neden sırayla:* eş zamanlı çalıştırmak süreyi kısaltırdı ama iki
+     *    Argon2 aynı anda bellekte olurdu. Ölçüm 512 MiB'ye kadar çıkabildiği
+     *    için bu, orta segment bir telefonda çökme demek — açılamayan kasadan
+     *    daha kötü tek şey, açmaya çalışırken çöken uygulama.
+     *  - *Bedeli:* ana parolayla açılış iki tur sürüyor (~1,6 sn). Günlük yol
+     *    zaten PIN ve biyometri; ana parola nadiren yazılıyor ve orada 1,6
+     *    saniye kabul edilebilir bir bedel.
      */
     fun unlockWithPassword(password: SecretBytes, wipeAfterAttempts: Int = 0): UnlockResult {
         val state = readAttempts()
@@ -225,13 +233,8 @@ class VaultStore(private val context: Context) {
         if (state.blockedUntil > now) return UnlockResult.Blocked(state.blockedUntil - now)
 
         return try {
-            val real = FutureTask { runCatching { openWrappedKey(masterKeyFile, MAGIC_MASTER, password) } }
-            val decoy = FutureTask { runCatching { openWrappedKey(duressKeyFile, MAGIC_DURESS, password) } }
-            Thread(real, "kasa-kek-1").start()
-            Thread(decoy, "kasa-kek-2").start()
-
-            val realKey = real.get().getOrNull()
-            val decoyKey = decoy.get().getOrNull()
+            val realKey = runCatching { openWrappedKey(masterKeyFile, MAGIC_MASTER, password) }.getOrNull()
+            val decoyKey = runCatching { openWrappedKey(duressKeyFile, MAGIC_DURESS, password) }.getOrNull()
 
             when {
                 realKey != null -> {
@@ -669,6 +672,20 @@ class VaultStore(private val context: Context) {
      * @return yem kasa için üretilen anahtar; çağıran yem içeriğini yazmak
      *         için kullanır.
      */
+    /**
+     * Verilen gizli, gerçek kasayı açıyor mu?
+     *
+     * Zorlama parolası kurulmadan önce sorulması **zorunlu** olan soru. Aynı
+     * parola her ikisini de açıyorsa özellik hiç çalışmaz: kilit açarken önce
+     * ana sarmalayıcı denendiği için kullanıcı yem kasa açtığını sanırken
+     * gerçek kasasını zorlayıcıya açmış olur. Sonradan fark edilmesinin yolu
+     * da yok — kullanıcı zaten yem kasayı görmeyi bekliyor.
+     */
+    fun masterPasswordMatches(secret: SecretBytes): Boolean =
+        runCatching { openWrappedKey(masterKeyFile, MAGIC_MASTER, secret) }
+            .getOrNull()
+            ?.also { it.wipe() } != null
+
     fun setDuressPassword(duressPassword: SecretBytes, params: Kdf.Params, decoy: VaultData): Boolean =
         runCatching {
             val cipherSuite = suite

@@ -26,8 +26,20 @@
 
 # Otomatik doldurma servisi ve sistem giriş noktaları sistem tarafından adla çözülür
 -keep class app.kasa.autofill.KasaAutofillService { *; }
+-keep class app.kasa.passkey.KasaCredentialProviderService { *; }
+-keep class app.kasa.passkey.PasskeyActivity { *; }
 -keep class app.kasa.tile.VaultTileService { *; }
 -keep class app.kasa.widget.** { *; }
+
+# Credential Manager sağlayıcı API'si yansımayla sınıf çözüyor
+-keep class androidx.credentials.provider.** { *; }
+-dontwarn androidx.credentials.**
+
+# Gizli veri kapları: toString() gövdeleri bilerek içerik göstermiyor,
+# iyileştirici bunları satır içine alıp çıkarmasın.
+-keep class app.kasa.core.crypto.SecretBytes { *; }
+-keep class app.kasa.core.crypto.SecretText { *; }
+-keep class app.kasa.core.crypto.SecretTextSerializer { *; }
 
 # Kayıt (log) çağrılarını sürüm derlemesinden tamamen kaldır
 -assumenosideeffects class android.util.Log {

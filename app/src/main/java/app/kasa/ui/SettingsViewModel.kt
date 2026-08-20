@@ -11,6 +11,7 @@ import app.kasa.core.security.SecureClipboard
 import app.kasa.core.util.Haptics
 import app.kasa.data.SettingsStore
 import app.kasa.data.ThemeMode
+import app.kasa.data.repo.VaultRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -236,9 +237,17 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setDuressPassword(password: CharArray) {
         viewModelScope.launch {
             _busy.value = true
-            val ok = repository.setDuressPassword(password)
+            val outcome = repository.setDuressPassword(password)
             _busy.value = false
-            messages.send(UiMessage(if (ok) R.string.duress_saved else R.string.imp_failed))
+            messages.send(
+                UiMessage(
+                    when (outcome) {
+                        VaultRepository.DuressOutcome.OK -> R.string.duress_saved
+                        VaultRepository.DuressOutcome.SAME_AS_MASTER -> R.string.duress_same_as_master
+                        VaultRepository.DuressOutcome.FAILED -> R.string.imp_failed
+                    }
+                )
+            )
         }
     }
 

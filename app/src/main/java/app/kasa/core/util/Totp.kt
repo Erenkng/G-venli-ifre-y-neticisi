@@ -34,7 +34,13 @@ object Totp {
         val key = Base32.decodeRfc4648(secret) ?: return null
         if (key.isEmpty()) return null
         val counter = timeMillis / 1000L / period
-        return hotp(key, counter, digits, algorithm)
+        return try {
+            hotp(key, counter, digits, algorithm)
+        } finally {
+            // TOTP gizli anahtarı ikinci faktörün tamamı: parola kadar
+            // değerli. Çözülen baytlar kod üretildiği anda sıfırlanıyor.
+            key.fill(0)
+        }
     }
 
     /** Geçerli kodun bitmesine kalan saniye. */
@@ -101,7 +107,10 @@ object Totp {
                 }.toMap()
 
             val secret = query["secret"]?.replace(" ", "").orEmpty()
-            if (secret.isBlank() || Base32.decodeRfc4648(secret) == null) null
+            // Yalnızca geçerlilik sınanıyor; çözülen baytlar hemen siliniyor.
+            val valid = secret.isNotBlank() &&
+                Base32.decodeRfc4648(secret)?.also { it.fill(0) } != null
+            if (!valid) null
             else {
                 val label = URLDecoder.decode(parsed.path.orEmpty().removePrefix("/"), "UTF-8")
                 val labelIssuer = label.substringBefore(':', "").trim()

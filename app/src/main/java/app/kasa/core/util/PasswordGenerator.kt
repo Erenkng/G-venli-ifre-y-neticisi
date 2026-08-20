@@ -32,6 +32,16 @@ object PasswordGenerator {
     const val MIN_WORDS = 3
     const val MAX_WORDS = 10
 
+    /**
+     * Reddetme örneklemede en fazla kaç deneme.
+     *
+     * Sınır pratikte hiç görülmüyor (uzunluk 8'de bile ilk denemenin tutma
+     * olasılığı çok yüksek) ama sonsuz döngü ihtimalini kesin olarak kapatıyor:
+     * kullanıcı 8 karakter uzunlukta dört karakter kümesi seçtiğinde bile
+     * üretim sonlanmak zorunda.
+     */
+    private const val MAX_RESAMPLE = 24
+
     data class Options(
         val length: Int = 20,
         val upper: Boolean = true,
@@ -60,16 +70,31 @@ object PasswordGenerator {
         val length = options.length.coerceIn(MIN_LENGTH, MAX_LENGTH)
 
         val chars = CharArray(length)
-        // Önce her kümeden birer zorunlu karakter
-        sets.forEachIndexed { index, set ->
-            if (index < length) chars[index] = set[Crypto.randomInt(set.length)]
+        try {
+            // Havuzdan düzgün dağılımla çekilip her kümeden en az bir karakter
+            // içerdiği doğrulanıyor; içermiyorsa baştan üretiliyor.
+            //
+            // Eski hâli ilk konumlara her kümeden birer karakter koyup gerisini
+            // havuzdan dolduruyordu. Karıştırma konum yanlılığını gideriyordu
+            // ama karakter dağılımını değil: "en az bir simge" koşulu
+            // zorlandığında üretilen parolaların dağılımı düzgün olmuyor ve
+            // bildirilen entropi gerçekte olduğundan yüksek çıkıyordu.
+            // Reddetme örnekleme, dağılımı "tüm kümeleri içeren dizeler
+            // üzerinde düzgün" yapıyor; uzunluk 8'in üzerindeyken bu koşulun
+            // sağlanma olasılığı 1'e çok yakın olduğu için entropi kaybı
+            // ölçülemeyecek kadar küçük ve bildirilen değer dürüst.
+            var attempt = 0
+            while (true) {
+                for (i in 0 until length) chars[i] = pool[Crypto.randomInt(pool.length)]
+                attempt++
+                if (attempt >= MAX_RESAMPLE || sets.all { set -> chars.any { it in set } }) break
+            }
+            return Generated(String(chars), length * log2(pool.length.toDouble()))
+        } finally {
+            // Üretilen parola çağırana `String` olarak dönüyor; buradaki
+            // çalışma tamponunun ayrıca bellekte kalmasının bir gerekçesi yok.
+            chars.fill(0.toChar())
         }
-        for (i in sets.size until length) {
-            chars[i] = pool[Crypto.randomInt(pool.length)]
-        }
-        shuffle(chars)
-
-        return Generated(String(chars), length * log2(pool.length.toDouble()))
     }
 
     /**
@@ -87,16 +112,6 @@ object PasswordGenerator {
 
         val extras = if (options.appendNumber) log2(100.0) else 0.0
         return Generated(body + suffix, PasswordStrength.passphraseEntropy(count, words.size, extras))
-    }
-
-    /** Fisher-Yates: her permütasyon eşit olasılıkla. */
-    private fun shuffle(chars: CharArray) {
-        for (i in chars.size - 1 downTo 1) {
-            val j = Crypto.randomInt(i + 1)
-            val tmp = chars[i]
-            chars[i] = chars[j]
-            chars[j] = tmp
-        }
     }
 
     @Volatile

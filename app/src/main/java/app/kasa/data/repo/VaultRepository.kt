@@ -576,19 +576,33 @@ class VaultRepository(
      * girip bunları kendi istediği gibi düzenleyebilir — düzenlemesi de
      * tavsiye edilir, çünkü kendi hayatına benzeyen bir yem en inandırıcısı.
      */
-    suspend fun setDuressPassword(duressPassword: CharArray): Boolean = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            try {
-                if (inDuressSession || vaultKey == null) return@withLock false
-                val params = (store.currentKdfParams() ?: Kdf.defaultParams()).withFreshSalt()
-                SecretBytes.ofUtf8(duressPassword).use { secret ->
-                    store.setDuressPassword(secret, params, decoyVault())
+    /** Zorlama parolası kurma sonucu. */
+    enum class DuressOutcome { OK, SAME_AS_MASTER, FAILED }
+
+    suspend fun setDuressPassword(duressPassword: CharArray): DuressOutcome =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                try {
+                    if (inDuressSession || vaultKey == null) return@withLock DuressOutcome.FAILED
+                    val params = (store.currentKdfParams() ?: Kdf.defaultParams()).withFreshSalt()
+                    SecretBytes.ofUtf8(duressPassword).use { secret ->
+                        // Aynı parola her iki kasayı da açıyorsa zorlama
+                        // parolası hiçbir şey yapmaz; kullanıcıya sessizce
+                        // çalışıyormuş gibi görünmesi kabul edilemez.
+                        if (store.masterPasswordMatches(secret)) {
+                            return@withLock DuressOutcome.SAME_AS_MASTER
+                        }
+                        if (store.setDuressPassword(secret, params, decoyVault())) {
+                            DuressOutcome.OK
+                        } else {
+                            DuressOutcome.FAILED
+                        }
+                    }
+                } finally {
+                    duressPassword.fill('\u0000')
                 }
-            } finally {
-                duressPassword.fill('\u0000')
             }
         }
-    }
 
     suspend fun clearDuressPassword(): Boolean = withContext(Dispatchers.IO) {
         mutex.withLock {
