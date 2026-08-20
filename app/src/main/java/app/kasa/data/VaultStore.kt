@@ -19,6 +19,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.FutureTask
 import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 
@@ -49,6 +50,15 @@ class VaultStore(private val context: Context) {
 
     private val masterKeyFile get() = File(dir, "master.key")
     private val recoveryKeyFile get() = File(dir, "recovery.key")
+
+    /**
+     * Zorlama parolası sarmalayıcısı.
+     *
+     * **Her zaman var.** Kullanıcı bir zorlama parolası kurmadıysa da var ve
+     * o zaman rastgele, kimsenin bilmediği bir gizle sarmalanmış oluyor.
+     * Varlığı bir şey ele vermiyor; yokluğu ele verirdi.
+     */
+    private val duressKeyFile get() = File(dir, "duress.key")
     private val biometricKeyFile get() = File(dir, "biometric.key")
     private val vaultFile get() = File(dir, "vault.bin")
     private val attemptsFile get() = File(dir, "attempts.bin")
@@ -111,7 +121,7 @@ class VaultStore(private val context: Context) {
         if (!head.copyOfRange(0, MAGIC_LEN).contentEquals(MAGIC_VAULT)) return@runCatching null
         when (val version = head[MAGIC_LEN].toInt()) {
             FORMAT_VERSION_LEGACY -> AeadSuite.AES_256_GCM
-            else -> if (version >= FORMAT_VERSION) AeadSuite.fromId(head[MAGIC_LEN + 1]) else null
+            else -> if (version >= FORMAT_VERSION_SUITE) AeadSuite.fromId(head[MAGIC_LEN + 1]) else null
         }
     }.getOrNull()
 
@@ -170,7 +180,10 @@ class VaultStore(private val context: Context) {
             )
         }
 
-        writeVaultTo(vaultFile, vaultKey, VaultData(), cipherSuite)
+        writeVaultTo(vaultFile, vaultKey, VaultData(), cipherSuite, SECTION_REAL, emptyList())
+        // Zorlama sarmalayıcısı kurulumdan itibaren var: sonradan eklenseydi
+        // dosyanın ortaya çıkış tarihi bile bir ipucu olurdu.
+        writeUnopenableDuress(params, cipherSuite)
         resetAttempts()
         return NewVault(vaultKey, recoveryCode)
     }
@@ -178,7 +191,7 @@ class VaultStore(private val context: Context) {
     // ------------------------------------------------------------ kilit açma
 
     sealed interface UnlockResult {
-        class Success(val vaultKey: SecretBytes) : UnlockResult
+        class Success(val vaultKey: SecretBytes, val section: Int = SECTION_REAL) : UnlockResult
         data object WrongSecret : UnlockResult
         class Blocked(val remainingMillis: Long) : UnlockResult
         data object Wiped : UnlockResult
@@ -189,19 +202,48 @@ class VaultStore(private val context: Context) {
      * Ana parolayla açar. Yanlış denemeleri sayar; [wipeAfterAttempts] sıfırdan
      * büyükse ve sayaç aşılırsa kasa geri dönüşsüz silinir.
      */
+    /**
+     * Ana parolayla açar. Yanlış denemeleri sayar; [wipeAfterAttempts] sıfırdan
+     * büyükse ve sayaç aşılırsa kasa geri dönüşsüz silinir.
+     *
+     * ### Zorlama parolası
+     *
+     * İki sarmalayıcı da denenir: `master.key` gerçek kasayı, `duress.key` yem
+     * kasayı açar. Hangisinin açıldığı yalnızca dönen [UnlockResult.Success]
+     * içindeki bölme numarasından anlaşılır; arayüz ikisini ayırt etmez ve
+     * ayırt etmemelidir.
+     *
+     * İkisi **eş zamanlı** türetilir. Sırayla denemek, yem parolanın iki kat
+     * uzun sürmesi demekti; elinde kronometre olan bir zorlayıcı bundan yem
+     * kasaya bakmakta olduğunu anlardı. Paralel çalıştırıldığında duvar saati
+     * süresi iki durumda da aynı.
+     */
     fun unlockWithPassword(password: SecretBytes, wipeAfterAttempts: Int = 0): UnlockResult {
         val state = readAttempts()
         val now = System.currentTimeMillis()
         if (state.blockedUntil > now) return UnlockResult.Blocked(state.blockedUntil - now)
 
         return try {
-            val key = openWrappedKey(masterKeyFile, MAGIC_MASTER, password)
-            resetAttempts()
-            UnlockResult.Success(key)
-        } catch (e: AEADBadTagException) {
-            onFailedAttempt(state, wipeAfterAttempts)
-        } catch (e: javax.crypto.BadPaddingException) {
-            onFailedAttempt(state, wipeAfterAttempts)
+            val real = FutureTask { runCatching { openWrappedKey(masterKeyFile, MAGIC_MASTER, password) } }
+            val decoy = FutureTask { runCatching { openWrappedKey(duressKeyFile, MAGIC_DURESS, password) } }
+            Thread(real, "kasa-kek-1").start()
+            Thread(decoy, "kasa-kek-2").start()
+
+            val realKey = real.get().getOrNull()
+            val decoyKey = decoy.get().getOrNull()
+
+            when {
+                realKey != null -> {
+                    decoyKey?.wipe()
+                    resetAttempts()
+                    UnlockResult.Success(realKey, SECTION_REAL)
+                }
+                decoyKey != null -> {
+                    resetAttempts()
+                    UnlockResult.Success(decoyKey, SECTION_DECOY)
+                }
+                else -> onFailedAttempt(state, wipeAfterAttempts)
+            }
         } catch (t: Throwable) {
             UnlockResult.Failure(t)
         }
@@ -256,7 +298,7 @@ class VaultStore(private val context: Context) {
      * bayt yoktu; onlar her zaman yalnız-biyometriydi.
      */
     private fun readAuthClass(input: DataInputStream, version: Int): KeystoreKeys.AuthClass =
-        if (version >= FORMAT_VERSION) KeystoreKeys.AuthClass.fromId(input.readByte())
+        if (version >= FORMAT_VERSION_SUITE) KeystoreKeys.AuthClass.fromId(input.readByte())
         else KeystoreKeys.AuthClass.BIOMETRIC_ONLY
 
     /** Kurulu biyometrik sarmalayıcının doğrulama sınıfı; yoksa `null`. */
@@ -265,7 +307,7 @@ class VaultStore(private val context: Context) {
         val head = ByteArray(MAGIC_LEN + 2)
         biometricKeyFile.inputStream().use { if (it.read(head) != head.size) return@runCatching null }
         if (!head.copyOfRange(0, MAGIC_LEN).contentEquals(MAGIC_BIOMETRIC)) return@runCatching null
-        if (head[MAGIC_LEN].toInt() >= FORMAT_VERSION) KeystoreKeys.AuthClass.fromId(head[MAGIC_LEN + 1])
+        if (head[MAGIC_LEN].toInt() >= FORMAT_VERSION_SUITE) KeystoreKeys.AuthClass.fromId(head[MAGIC_LEN + 1])
         else KeystoreKeys.AuthClass.BIOMETRIC_ONLY
     }.getOrNull()
 
@@ -388,14 +430,20 @@ class VaultStore(private val context: Context) {
         }
 
         return oldKey.use { current ->
-            val data = readVaultFrom(vaultFile, current)
+            val opened = readVaultFrom(vaultFile, current)
             val newKey = SecretBytes.random(Crypto.KEY_BYTES)
             val recoveryCode = RecoveryKey.generate()
 
             // 1. Yeni hâli yan dosyalara yaz. Bu aşamada diskteki kasa hâlâ
             //    tutarlı ve eski anahtarla açılabilir durumda.
             activeSuite = cipherSuite
-            writeVaultTo(File(vaultFile.path + NEW_SUFFIX), newKey, data, cipherSuite)
+            // Yem bölmesi olduğu gibi taşınıyor: anahtarı bizde değil ve
+            // rotasyonun onu bozması, zorlama parolasını sessizce çöpe atmak
+            // olurdu.
+            writeVaultTo(
+                File(vaultFile.path + NEW_SUFFIX), newKey, opened.data, cipherSuite,
+                opened.section, runCatching { readContainer(vaultFile).sections }.getOrNull()
+            )
             writeWrappedKey(
                 File(masterKeyFile.path + NEW_SUFFIX), MAGIC_MASTER,
                 masterPassword, newKey, params, cipherSuite
@@ -593,34 +641,193 @@ class VaultStore(private val context: Context) {
         runCatching { writeAtomically(pinAttemptsFile, KeystoreKeys.deviceSeal(out.toByteArray())) }
     }
 
+    // ------------------------------------------------------- zorlama parolası
+
+    /**
+     * İkinci bir ana parola: girildiğinde gerçek kasa değil, yem kasa açılır.
+     *
+     * ### Ne söz veriyor
+     *
+     * Sınır kapısında ya da zorla açtırma durumunda verilecek bir parola.
+     * Açılan kasa gerçek: içinde kayıtlar var, düzenlenebiliyor, bir şey
+     * "sahte" görünmüyor. Gerçek kasa aynı dosyanın öteki bölmesinde duruyor
+     * ve o bölmeyi çözecek anahtar hiçbir yerde yok.
+     *
+     * ### Ne söz vermiyor
+     *
+     * Kasa'nın iki bölmeli olduğu kaynak kodda yazıyor; bunu bilen bir
+     * zorlayıcı "ikinci parolayı da ver" diyebilir. Hiçbir yazılım bunu
+     * çözemez. Buradaki inkâr edilebilirlik şu dar ama gerçek iddiaya
+     * dayanıyor: **dosyaya bakarak zorlama parolasının kurulu olup olmadığı
+     * anlaşılamaz.** Sarmalayıcı her kasada var, boyutları aynı, sihirli
+     * sayıları aynı; kurulu olmadığında rastgele bir gizle kapatılmış oluyor.
+     * Yem bölmesi de her kasada dolu ve dolgu sayesinde gerçek bölmeyle
+     * kıyaslanabilir boyutta.
+     *
+     * @param duressPassword yeni zorlama parolası. Ana paroladan farklı olmalı.
+     * @return yem kasa için üretilen anahtar; çağıran yem içeriğini yazmak
+     *         için kullanır.
+     */
+    fun setDuressPassword(duressPassword: SecretBytes, params: Kdf.Params, decoy: VaultData): Boolean =
+        runCatching {
+            val cipherSuite = suite
+            val decoyKey = SecretBytes.random(Crypto.KEY_BYTES)
+            decoyKey.use { key ->
+                // Önce yem bölmesi, sonra sarmalayıcı: ters sırada yapılıp
+                // arada kesilseydi açılabilir bir sarmalayıcı ile açılamayan
+                // bir bölme kalırdı ve zorlama parolası sessizce çalışmazdı.
+                val carried = runCatching { readContainer(vaultFile).sections }.getOrNull()
+                writeVaultTo(vaultFile, key, decoy, cipherSuite, SECTION_DECOY, carried)
+                writeWrappedKey(duressKeyFile, MAGIC_DURESS, duressPassword, key, params, cipherSuite)
+            }
+            true
+        }.getOrDefault(false)
+
+    /**
+     * Zorlama parolasını kaldırır.
+     *
+     * Dosya silinmiyor — silmek, "bu kullanıcıda zorlama parolası yok" demenin
+     * en açık yolu olurdu. Yerine, kimsenin bilmediği rastgele bir gizle
+     * yeniden yazılıyor ve yem bölmesi boş bir kasayla değiştiriliyor. Sonuç,
+     * hiç kurulmamış bir kasayla bayt düzeyinde aynı şekle sahip.
+     */
+    fun clearDuressPassword(): Boolean = runCatching {
+        val cipherSuite = suite
+        val params = currentKdfParams()?.withFreshSalt() ?: Kdf.defaultParams()
+        val carried = runCatching { readContainer(vaultFile).sections }.getOrNull()
+        SecretBytes.random(Crypto.KEY_BYTES).use { key ->
+            writeVaultTo(vaultFile, key, VaultData(), cipherSuite, SECTION_DECOY, carried)
+        }
+        writeUnopenableDuress(params, cipherSuite)
+        true
+    }.getOrDefault(false)
+
+    /**
+     * Açılamayan bir zorlama sarmalayıcısı yazar.
+     *
+     * Sarmaladığı anahtar rastgele ve hemen siliniyor; onu açacak parola da
+     * rastgele ve hiçbir yere yazılmıyor. Dosya tam olarak gerçek bir
+     * sarmalayıcı gibi görünüyor ve tam olarak hiçbir işe yaramıyor — istenen
+     * de bu.
+     */
+    private fun writeUnopenableDuress(params: Kdf.Params, cipherSuite: AeadSuite) {
+        SecretBytes.random(32).use { nobodysSecret ->
+            SecretBytes.random(Crypto.KEY_BYTES).use { orphanKey ->
+                writeWrappedKey(
+                    duressKeyFile, MAGIC_DURESS, nobodysSecret, orphanKey,
+                    params.withFreshSalt(), cipherSuite
+                )
+            }
+        }
+    }
+
+    /**
+     * Eski kasaları iki bölmeli kaba taşır.
+     *
+     * Sürüm 3 öncesi kasalarda yem bölmesi ve zorlama sarmalayıcısı yoktu.
+     * Bunları sonradan eklemek, "kullanıcı sürüm 3'e geçtikten sonra zorlama
+     * parolası kurdu" gibi bir iz bırakmıyor: her yükseltmede ikisi de
+     * oluşuyor, kurulu olsun olmasın.
+     */
+    fun ensureDuressSlot(vaultKey: SecretBytes, section: Int) {
+        if (duressKeyFile.exists()) return
+        runCatching {
+            val data = readVaultFrom(vaultFile, vaultKey, section).data
+            val cipherSuite = suite
+            writeVaultTo(vaultFile, vaultKey, data, cipherSuite, section, emptyList())
+            writeUnopenableDuress(currentKdfParams() ?: Kdf.defaultParams(), cipherSuite)
+        }
+    }
+
     // ------------------------------------------------------------ kasa içeriği
 
-    fun readVault(vaultKey: SecretBytes): VaultData = readVaultFrom(vaultFile, vaultKey)
+    /**
+     * Kasa kabının çözülmüş hâli.
+     *
+     * Dosyada iki bölme var ve hangisinin açıldığı, sonraki yazmaların nereye
+     * gideceğini belirliyor: yem parolayla açılmış bir oturumun yaptığı
+     * değişiklik gerçek kasaya dokunmamalı.
+     */
+    class VaultOpen(val data: VaultData, val section: Int)
 
-    private fun readVaultFrom(file: File, vaultKey: SecretBytes): VaultData {
-        if (!file.exists()) return VaultData()
+    fun readVault(vaultKey: SecretBytes, section: Int = SECTION_REAL): VaultData =
+        readVaultFrom(vaultFile, vaultKey, section).data
+
+    /**
+     * Kabı okur ve [preferredSection] ile başlayarak anahtarın hangi bölmeyi
+     * açtığını bulur.
+     *
+     * Deneme sırası kimliği ele vermiyor: AEAD etiketi doğrulanmadığı sürece
+     * hiçbir bölme çözülmüş sayılmıyor ve yanlış anahtar her iki bölmede de
+     * aynı hatayı veriyor.
+     */
+    private fun readVaultFrom(
+        file: File,
+        vaultKey: SecretBytes,
+        preferredSection: Int = SECTION_REAL
+    ): VaultOpen {
+        if (!file.exists()) return VaultOpen(VaultData(), SECTION_REAL)
+        val container = readContainer(file)
+        activeSuite = container.suite
+
+        val order = if (preferredSection == SECTION_DECOY) {
+            listOf(SECTION_DECOY, SECTION_REAL)
+        } else {
+            listOf(SECTION_REAL, SECTION_DECOY)
+        }
+
+        var lastFailure: Throwable? = null
+        for (index in order) {
+            val sealed = container.sections.getOrNull(index) ?: continue
+            val plain = try {
+                Crypto.open(vaultKey.raw(), sealed, container.header, container.suite)
+            } catch (t: Throwable) {
+                lastFailure = t
+                continue
+            }
+            val body = unpad(plain, container.version)
+            return try {
+                VaultOpen(decodeVault(body), index)
+            } finally {
+                body.fill(0)
+                plain.fill(0)
+            }
+        }
+        throw lastFailure ?: IllegalStateException("Kasa açılamadı")
+    }
+
+    /** Diskteki kabın ham hâli: başlık (AAD) ve bölmelerin şifreli gövdeleri. */
+    private class Container(
+        val version: Int,
+        val suite: AeadSuite,
+        val header: ByteArray,
+        val sections: List<ByteArray>
+    )
+
+    private fun readContainer(file: File): Container {
         val blob = file.readBytes()
-        val input = DataInputStream(ByteArrayInputStream(blob))
+        val stream = ByteArrayInputStream(blob)
+        val input = DataInputStream(stream)
         val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
         require(magic.contentEquals(MAGIC_VAULT)) { "Bu bir Kasa dosyası değil" }
 
         val version = input.readByte().toInt()
         val suite = readSuite(input, version)
-        activeSuite = suite
+        // Sürüm 3 öncesinde tek bölme vardı ve sayaç baytı yoktu.
+        val count = if (version >= FORMAT_VERSION) input.readUnsignedByte() else 1
+        val headerLen = blob.size - stream.available()
+        val header = blob.copyOfRange(0, headerLen)
 
-        val headerLen = MAGIC_LEN + 1 + if (version >= FORMAT_VERSION) 1 else 0
-        val len = input.readInt()
-        val sealed = ByteArray(len).also { input.readFully(it) }
-        val plain = Crypto.open(vaultKey.raw(), sealed, blob.copyOfRange(0, headerLen), suite)
-        return try {
-            decodeVault(plain)
-        } finally {
-            plain.fill(0)
+        val sections = ArrayList<ByteArray>(count)
+        repeat(count) {
+            val len = input.readInt()
+            sections.add(ByteArray(len).also { input.readFully(it) })
         }
+        return Container(version, suite, header, sections)
     }
 
-    fun writeVault(vaultKey: SecretBytes, data: VaultData) {
-        writeVaultTo(vaultFile, vaultKey, data, activeSuite ?: AeadSuite.DEFAULT)
+    fun writeVault(vaultKey: SecretBytes, data: VaultData, section: Int = SECTION_REAL) {
+        writeVaultTo(vaultFile, vaultKey, data, activeSuite ?: AeadSuite.DEFAULT, section)
     }
 
     /**
@@ -637,25 +844,114 @@ class VaultStore(private val context: Context) {
         return out.toByteArray()
     }
 
-    private fun writeVaultTo(file: File, vaultKey: SecretBytes, data: VaultData, suite: AeadSuite) {
-        val plain = encodeVault(data)
-        try {
-            val header = ByteArrayOutputStream().apply {
-                write(MAGIC_VAULT)
-                write(FORMAT_VERSION)
-                write(suite.id.toInt())
-            }.toByteArray()
-            val sealed = Crypto.seal(vaultKey.raw(), plain, header, suite)
-            val out = ByteArrayOutputStream()
-            DataOutputStream(out).use { d ->
-                d.write(header)
-                d.writeInt(sealed.size)
-                d.write(sealed)
-            }
-            writeAtomically(file, out.toByteArray())
+    /**
+     * Bir bölmeyi yeniden yazar, ötekini olduğu gibi taşır.
+     *
+     * Öteki bölmenin anahtarı elimizde yok — olması da gerekmiyor: şifreli
+     * gövdesi baytı baytına kopyalanıyor. Yem parolayla açılmış bir oturumun
+     * gerçek kasaya zarar verememesinin tek sebebi bu.
+     *
+     * Başlık (AAD) her iki bölme için ortak. Bu, saldırganın bölmeleri
+     * birbiriyle ya da başka bir dosyayla değiştirmesini engelliyor: etiket
+     * doğrulaması başlığa bağlı ve başlık dosyanın kendisinde.
+     */
+    private fun writeVaultTo(
+        file: File,
+        vaultKey: SecretBytes,
+        data: VaultData,
+        suite: AeadSuite,
+        section: Int,
+        existing: List<ByteArray>? = null
+    ) {
+        val header = ByteArrayOutputStream().apply {
+            write(MAGIC_VAULT)
+            write(FORMAT_VERSION)
+            write(suite.id.toInt())
+            write(SECTION_COUNT)
+        }.toByteArray()
+
+        val carried = existing ?: runCatching {
+            if (vaultFile.exists()) readContainer(vaultFile).sections else emptyList()
+        }.getOrDefault(emptyList())
+
+        val plain = pad(encodeVault(data))
+        val sealed = try {
+            Crypto.seal(vaultKey.raw(), plain, header, suite)
         } finally {
             plain.fill(0)
         }
+
+        val sections = (0 until SECTION_COUNT).map { index ->
+            when {
+                index == section -> sealed
+                // Taşınacak bölme yoksa (yeni kasa ya da eski tek bölmeli
+                // dosya) rastgele bir anahtarla boş bir yem üretiliyor. Yem
+                // bölmesinin **her zaman** dolu olması şart: boş bırakmak,
+                // "bu kullanıcıda yem yok" demenin en kısa yolu olurdu.
+                index < carried.size && carried[index].isNotEmpty() -> carried[index]
+                else -> freshDecoySection(header, suite)
+            }
+        }
+
+        val out = ByteArrayOutputStream()
+        DataOutputStream(out).use { d ->
+            d.write(header)
+            sections.forEach {
+                d.writeInt(it.size)
+                d.write(it)
+            }
+        }
+        writeAtomically(file, out.toByteArray())
+    }
+
+    /**
+     * Bir daha asla açılmayacak bir yem bölmesi.
+     *
+     * Anahtar üretilip hemen siliniyor; kimse — kullanıcı dâhil — bu bölmeyi
+     * açamaz. Amaç açılabilmesi değil, **var olması**: kapta her zaman iki
+     * dolu bölme bulunması, zorlama parolasının kurulu olup olmadığını dosyaya
+     * bakarak anlamayı imkânsız kılıyor.
+     */
+    private fun freshDecoySection(header: ByteArray, suite: AeadSuite): ByteArray =
+        SecretBytes.random(Crypto.KEY_BYTES).use { throwaway ->
+            val plain = pad(encodeVault(VaultData()))
+            try {
+                Crypto.seal(throwaway.raw(), plain, header, suite)
+            } finally {
+                plain.fill(0)
+            }
+        }
+
+    /**
+     * Düz metni sabit bloklara tamamlar: `uzunluk(4) ‖ JSON ‖ sıfırlar`.
+     *
+     * Şifreli metnin boyutu, kaç kayıt olduğunu yaklaşık olarak ele veriyordu.
+     * İki bölmeli kapta bu daha ağır bir sızıntı: bölmelerin göreli boyutu
+     * hangisinin gerçek kasa olduğunu söylerdi ve inkâr edilebilirlik biterdi.
+     */
+    private fun pad(json: ByteArray): ByteArray {
+        val total = 4 + json.size
+        val padded = ((total + PAD_BLOCK - 1) / PAD_BLOCK) * PAD_BLOCK
+        val out = ByteArray(padded)
+        out[0] = (json.size ushr 24).toByte()
+        out[1] = (json.size ushr 16).toByte()
+        out[2] = (json.size ushr 8).toByte()
+        out[3] = json.size.toByte()
+        System.arraycopy(json, 0, out, 4, json.size)
+        json.fill(0)
+        return out
+    }
+
+    /** Sürüm 3 öncesi bölmelerde dolgu yoktu; düz metnin tamamı JSON'du. */
+    private fun unpad(plain: ByteArray, version: Int): ByteArray {
+        if (version < FORMAT_VERSION) return plain
+        require(plain.size >= 4) { "Bozuk kasa bölmesi" }
+        val length = ((plain[0].toInt() and 0xFF) shl 24) or
+            ((plain[1].toInt() and 0xFF) shl 16) or
+            ((plain[2].toInt() and 0xFF) shl 8) or
+            (plain[3].toInt() and 0xFF)
+        require(length in 0..(plain.size - 4)) { "Bozuk kasa bölmesi" }
+        return plain.copyOfRange(4, 4 + length)
     }
 
     /**
@@ -801,7 +1097,7 @@ class VaultStore(private val context: Context) {
         require(magic.contentEquals(MAGIC_ATTACHMENT)) { "Bu bir Kasa eki değil" }
         val version = input.readByte().toInt()
         val fileSuite = readSuite(input, version)
-        val headerLen = MAGIC_LEN + 1 + if (version >= FORMAT_VERSION) 1 else 0
+        val headerLen = MAGIC_LEN + 1 + if (version >= FORMAT_VERSION_SUITE) 1 else 0
         val len = input.readInt()
         val sealed = ByteArray(len).also { input.readFully(it) }
         Crypto.open(key, sealed, blob.copyOfRange(0, headerLen), fileSuite)
@@ -882,7 +1178,7 @@ class VaultStore(private val context: Context) {
     fun wipe() {
         listOf(
             masterKeyFile, recoveryKeyFile, biometricKeyFile, vaultFile,
-            attemptsFile, pinKeyFile, pinAttemptsFile
+            attemptsFile, pinKeyFile, pinAttemptsFile, duressKeyFile
         ).forEach { secureDelete(it) }
         runCatching { attachmentDir.listFiles()?.forEach { secureDelete(it) } }
         runCatching { attachmentDir.delete() }
@@ -946,7 +1242,7 @@ class VaultStore(private val context: Context) {
      * kasa hangi paketle yazıldığını kendisi söylüyor.
      */
     private fun readSuite(input: DataInputStream, version: Int): AeadSuite = when {
-        version >= FORMAT_VERSION -> AeadSuite.fromId(input.readByte())
+        version >= FORMAT_VERSION_SUITE -> AeadSuite.fromId(input.readByte())
         version == FORMAT_VERSION_LEGACY -> AeadSuite.AES_256_GCM
         else -> throw IllegalStateException("Desteklenmeyen dosya sürümü: $version")
     }
@@ -990,11 +1286,28 @@ class VaultStore(private val context: Context) {
     companion object {
         private const val MAGIC_LEN = 8
 
-        /** Şifreleme paketi kimliğini de taşıyan güncel biçim. */
-        private const val FORMAT_VERSION = 2
+        /** İki bölmeli kasa kabı: gerçek kasa ve yem kasa yan yana. */
+        private const val FORMAT_VERSION = 3
+
+        /** Şifreleme paketi kimliğinin eklendiği sürüm. */
+        private const val FORMAT_VERSION_SUITE = 2
 
         /** Paket baytı olmayan ilk biçim; her zaman AES-256-GCM demekti. */
         private const val FORMAT_VERSION_LEGACY = 1
+
+        /** Kasa kabındaki bölme sırası. Sıra sabit; hangisinin ne olduğu değil. */
+        const val SECTION_REAL = 0
+        const val SECTION_DECOY = 1
+        private const val SECTION_COUNT = 2
+
+        /**
+         * Bölme içeriği bu katın katlarına tamamlanıyor.
+         *
+         * Dolgu olmadan dosya boyutu kaç kayıt olduğunu yaklaşık olarak ele
+         * verirdi; iki bölmeli kapta bu daha da kötü, çünkü bölmelerin göreli
+         * boyutu hangisinin "gerçek" olduğunu söylerdi.
+         */
+        private const val PAD_BLOCK = 4096
 
         /** Rotasyon sırasında hazırlanan yan dosyaların uzantısı. */
         private const val NEW_SUFFIX = ".new"
@@ -1005,6 +1318,13 @@ class VaultStore(private val context: Context) {
         private val MAGIC_VAULT = "KASAVLT1".toByteArray(Charsets.US_ASCII)
         private val MAGIC_ATTACHMENT = "KASAATT1".toByteArray(Charsets.US_ASCII)
         private val MAGIC_PIN = "KASAPIN1".toByteArray(Charsets.US_ASCII)
+        /**
+         * Zorlama sarmalayıcısı, ana parola sarmalayıcısıyla **aynı** sihirli
+         * sayıyı taşıyor. Bilerek: iki dosya bayt düzeyinde ayırt edilemez
+         * olmalı. Farklı bir imza koymak, "bu dosya yem içindir" yazmakla aynı
+         * şey olurdu.
+         */
+        private val MAGIC_DURESS = MAGIC_MASTER
         val MAGIC_EXPORT = "KASAEXP1".toByteArray(Charsets.US_ASCII)
 
         const val EXPORT_EXTENSION = "kasa"

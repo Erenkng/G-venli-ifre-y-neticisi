@@ -22,6 +22,7 @@ import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultData
 import app.kasa.data.model.VaultFilter
 import app.kasa.data.model.VaultItem
+import app.kasa.core.util.PasswordGenerator
 import app.kasa.core.util.PasswordStrength
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +68,26 @@ class VaultRepository(
     val data: StateFlow<VaultData> = _data.asStateFlow()
 
     private var vaultKey: SecretBytes? = null
+
+    /**
+     * Açık oturumun hangi kasa bölmesinde olduğu.
+     *
+     * Zorlama parolasıyla açıldıysa yem bölmesindeyiz: yazmalar oraya gider,
+     * gerçek kasa dokunulmadan kalır. Arayüz bu ayrımı **göstermiyor** —
+     * gösterse, omzunun üstünden bakan biri hangi kasada olduğunu görürdü.
+     */
+    @Volatile
+    private var activeSection: Int = VaultStore.SECTION_REAL
+
+    /**
+     * Yem kasada mıyız?
+     *
+     * Yalnızca güvenlik ayarlarını kilitlemek için kullanılıyor, ekranda
+     * gösterilmiyor. Yem oturumda biyometri/PIN kurulmasına izin verilseydi,
+     * kullanıcı ertesi gün parmağıyla yem kasayı açar ve gerçek kayıtlarının
+     * silindiğini sanırdı.
+     */
+    val inDuressSession: Boolean get() = activeSection == VaultStore.SECTION_DECOY
 
     /** Kurulum sonrası bir kereliğine gösterilecek kurtarma kodu. */
     private val _pendingRecoveryCode = MutableStateFlow<String?>(null)
@@ -162,11 +183,15 @@ class VaultRepository(
             // ama boş bir kasa görüyor, ilk kayıt eklediğinde de o boş kasa
             // diske yazılıp gerçek kayıtların üstüne biniyordu. Okuma hatası
             // veri kaybının değil, açılmamanın sebebi olmalı.
-            val loaded = runCatching { store.readVault(result.vaultKey) }
+            val loaded = runCatching { store.readVault(result.vaultKey, result.section) }
             loaded.fold(
                 onSuccess = { data ->
                     vaultKey?.wipe()
                     vaultKey = result.vaultKey
+                    activeSection = result.section
+                    // Sürüm 3 öncesi kasalarda yem bölmesi yoktu; ilk açılışta
+                    // ekleniyor ki her kasa aynı şekle sahip olsun.
+                    runCatching { store.ensureDuressSlot(result.vaultKey, result.section) }
                     _data.value = data
                     _lockState.value = LockState.Unlocked
                     // Kasa açılır açılmaz bakım: süresi dolmuş çöp kutusu
@@ -196,6 +221,7 @@ class VaultRepository(
     fun lock() {
         vaultKey?.wipe()
         vaultKey = null
+        activeSection = VaultStore.SECTION_REAL
         shredSecrets(_data.value)
         _data.value = VaultData()
         _pendingRecoveryCode.value = null
@@ -207,6 +233,7 @@ class VaultRepository(
     private fun hardReset() {
         vaultKey?.wipe()
         vaultKey = null
+        activeSection = VaultStore.SECTION_REAL
         shredSecrets(_data.value)
         _data.value = VaultData()
         _pendingRecoveryCode.value = null
@@ -246,6 +273,7 @@ class VaultRepository(
         cipher: Cipher,
         authClass: KeystoreKeys.AuthClass = KeystoreKeys.AuthClass.BIOMETRIC_ONLY
     ): Boolean = withContext(Dispatchers.IO) {
+        if (inDuressSession) return@withContext false
         val key = vaultKey ?: return@withContext false
         runCatching { store.enableBiometric(cipher, key, authClass) }.isSuccess
     }
@@ -277,7 +305,7 @@ class VaultRepository(
         mutex.withLock {
             val key = vaultKey
             try {
-                if (key == null) return@withLock false
+                if (key == null || inDuressSession) return@withLock false
                 SecretBytes.ofUtf8(pin).use { secret ->
                     val params = (store.currentKdfParams() ?: Kdf.defaultParams()).withFreshSalt()
                     runCatching { store.enablePin(secret, key, pinLength, params) }.isSuccess
@@ -531,10 +559,78 @@ class VaultRepository(
             val key = vaultKey ?: return@withContext false
             val next = block(_data.value)
             runCatching {
-                store.writeVault(key, next)
+                store.writeVault(key, next, activeSection)
                 _data.value = next
             }.isSuccess
         }
+    }
+
+    // ------------------------------------------------------- zorlama parolası
+
+    /**
+     * Zorlama parolasını kurar ve yem kasayı örnek kayıtlarla doldurur.
+     *
+     * Yem boş bırakılmıyor: bir zorlayıcıya açılan boş kasa, kasanın yem
+     * olduğunu söyleyen en açık işaret olurdu. Üretilen kayıtlar sıradan
+     * hesaplar ve rastgele parolalar taşıyor; kullanıcı zorlama parolasıyla
+     * girip bunları kendi istediği gibi düzenleyebilir — düzenlemesi de
+     * tavsiye edilir, çünkü kendi hayatına benzeyen bir yem en inandırıcısı.
+     */
+    suspend fun setDuressPassword(duressPassword: CharArray): Boolean = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            try {
+                if (inDuressSession || vaultKey == null) return@withLock false
+                val params = (store.currentKdfParams() ?: Kdf.defaultParams()).withFreshSalt()
+                SecretBytes.ofUtf8(duressPassword).use { secret ->
+                    store.setDuressPassword(secret, params, decoyVault())
+                }
+            } finally {
+                duressPassword.fill('\u0000')
+            }
+        }
+    }
+
+    suspend fun clearDuressPassword(): Boolean = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            if (inDuressSession || vaultKey == null) return@withLock false
+            store.clearDuressPassword()
+        }
+    }
+
+    /**
+     * Yem kasanın başlangıç içeriği.
+     *
+     * Parolalar gerçekten rastgele: "123456" gibi bir şey koymak, yemin yem
+     * olduğunu ilk bakışta ele verirdi. Tarihler de geriye yayılıyor, hepsi
+     * aynı dakikada oluşturulmuş bir kasa inandırıcı olmaz.
+     */
+    private fun decoyVault(): VaultData {
+        val now = System.currentTimeMillis()
+        val day = 24 * 60 * 60 * 1000L
+        val seeds = listOf(
+            Triple("Alışveriş", "posta@example.com", "example-shop.com"),
+            Triple("Haber sitesi", "okuyucu", "news.example.net"),
+            Triple("Forum", "kullanici41", "forum.example.org"),
+            Triple("Spor salonu", "posta@example.com", "gym.example.com"),
+            Triple("Yemek siparişi", "posta@example.com", "food.example.com")
+        )
+        val items = seeds.mapIndexed { index, (name, user, host) ->
+            val age = (30L + index * 47L) * day
+            VaultItem(
+                name = name,
+                category = Category.LOGIN,
+                username = user,
+                password = SecretText.of(
+                    PasswordGenerator.generate(PasswordGenerator.Options(length = 16)).value
+                ),
+                url = host,
+                createdAt = now - age,
+                updatedAt = now - age / 2,
+                passwordChangedAt = now - age,
+                lastUsedAt = now - (index + 1) * day
+            )
+        }
+        return VaultData(items = items, createdAt = now - 400 * day)
     }
 
     // --------------------------------------------------- ana parola / dosya
@@ -542,6 +638,11 @@ class VaultRepository(
     suspend fun changeMasterPassword(current: CharArray, new: CharArray): Boolean =
         withContext(Dispatchers.IO) {
             mutex.withLock {
+                if (inDuressSession) {
+                    current.fill('\u0000')
+                    new.fill('\u0000')
+                    return@withLock false
+                }
                 try {
                     SecretBytes.ofUtf8(current).use { old ->
                         SecretBytes.ofUtf8(new).use { fresh ->
@@ -557,6 +658,7 @@ class VaultRepository(
 
     suspend fun regenerateRecoveryKey(): String? = withContext(Dispatchers.IO) {
         mutex.withLock {
+            if (inDuressSession) return@withContext null
             val key = vaultKey ?: return@withContext null
             runCatching { store.regenerateRecoveryKey(key) }.getOrNull()
         }
@@ -640,6 +742,10 @@ class VaultRepository(
      */
     suspend fun rotateVaultKey(masterPassword: CharArray): String? = withContext(Dispatchers.IO) {
         mutex.withLock {
+            if (inDuressSession) {
+                masterPassword.fill('\u0000')
+                return@withLock null
+            }
             try {
                 val rotation = SecretBytes.ofUtf8(masterPassword).use { secret ->
                     store.rotateVaultKey(secret)
