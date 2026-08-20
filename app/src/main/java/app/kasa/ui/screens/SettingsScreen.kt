@@ -699,7 +699,8 @@ fun SettingsScreen(
         // her şey kart içindeyken alt kısım ortalanmış çıplak metindi ve
         // ekranın bittiği yer bir kart değil, havada asılı iki satır gibi
         // duruyordu. Aynı döşemenin içine alındı; içerik değişmedi, dili
-        // değişti.        }
+        // değişti.
+        }
 
         if (current == SettingsSection.ABOUT) {
         item(key = "about") {
