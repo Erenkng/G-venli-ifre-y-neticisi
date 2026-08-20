@@ -42,7 +42,10 @@ enum class AeadSuite(val id: Byte, val nonceBytes: Int, val label: String) {
     }
 
     fun open(key: ByteArray, sealed: ByteArray, aad: ByteArray?): ByteArray {
-        require(sealed.size > nonceBytes + 16) { "Şifreli veri çok kısa" }
+        // Eşitliğe izin var: içeriği boş bir mühür tam olarak nonce + etiket
+        // uzunluğundadır. Eskiden burada kesin büyüklük aranıyordu ve sıfır
+        // baytlık bir ek yazılabiliyor ama bir daha okunamıyordu.
+        require(sealed.size >= nonceBytes + 16) { "Şifreli veri çok kısa" }
         val nonce = sealed.copyOfRange(0, nonceBytes)
         val body = sealed.copyOfRange(nonceBytes, sealed.size)
         return when (this) {

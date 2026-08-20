@@ -315,8 +315,12 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun exportTo(uri: Uri, password: CharArray) {
         viewModelScope.launch {
             _busy.value = true
+            _calibrationProgress.value = 0f
             val count = repository.data.value.items.size
-            val blob = repository.exportVault(password)
+            // Dışa aktarma anahtar türetmeyi ayrıca ölçüyor (birkaç saniye);
+            // ilerleme gösterilmezse uygulama donmuş görünür.
+            val blob = repository.exportVault(password) { _calibrationProgress.value = it }
+            _calibrationProgress.value = null
             val ok = blob != null && withContext(Dispatchers.IO) {
                 runCatching {
                     container.appContext.contentResolver.openOutputStream(uri)?.use { it.write(blob) } != null

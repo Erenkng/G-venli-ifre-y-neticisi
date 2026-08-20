@@ -862,10 +862,35 @@ class VaultRepository(
     fun allPasskeys(): List<Pair<VaultItem, Passkey>> =
         _data.value.liveItems.flatMap { item -> item.passkeys.map { item to it } }
 
-    suspend fun exportVault(exportPassword: CharArray): ByteArray? = withContext(Dispatchers.IO) {
+    /**
+     * Şifreli `.kasa` dosyası üretir.
+     *
+     * Anahtar türetme maliyeti burada kasadakinden **ayrı** ve daha ağır
+     * ölçülüyor ([KdfCalibration.EXPORT_TARGET_MILLIS], ~2 sn). Gerekçesi
+     * tehdit modelinin farklı olması: kasa dosyası cihazda duruyor ve
+     * Keystore'a bağlı sarmalayıcılarla korunuyor, dışa aktarılan dosya ise
+     * bulut yedeğine, e-postaya, USB belleğe gidiyor ve tek koruması
+     * kullanıcının seçtiği parola. Orada gecikme yılda birkaç kez yaşanıyor,
+     * çevrimdışı saldırganın maliyeti ise kalıcı olarak iki katından fazla
+     * artıyor.
+     *
+     * Ölçüm başarısız olursa sabit ağır varsayılanlara düşülüyor.
+     */
+    suspend fun exportVault(
+        exportPassword: CharArray,
+        onProgress: (Float) -> Unit = {}
+    ): ByteArray? = withContext(Dispatchers.IO) {
         try {
+            val params = runCatching {
+                KdfCalibration.calibrate(
+                    context,
+                    targetMillis = KdfCalibration.EXPORT_TARGET_MILLIS,
+                    onProgress = onProgress
+                ).params
+            }.getOrNull() ?: Kdf.defaultParams(forExport = true)
+
             SecretBytes.ofUtf8(exportPassword).use { secret ->
-                store.exportEncrypted(_data.value, secret)
+                store.exportEncrypted(_data.value, secret, params)
             }
         } catch (t: Throwable) {
             null

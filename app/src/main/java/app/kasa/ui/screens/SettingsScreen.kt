@@ -611,6 +611,11 @@ fun SettingsScreen(
             label = stringResource(R.string.exp_password),
             confirmText = stringResource(R.string.exp_create),
             requireConfirmation = true,
+            // Dışa aktarılan dosyanın tek koruması bu parola: kasa dosyasının
+            // aksine Keystore'a bağlı bir katmanı yok ve buluta ya da USB
+            // belleğe gidebiliyor. Alt sınır bu yüzden kasa içi alanlardan
+            // yüksek.
+            minLength = 12,
             onConfirm = { password ->
                 showExport = false
                 pendingExportPassword = password
