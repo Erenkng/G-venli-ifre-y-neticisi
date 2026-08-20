@@ -62,6 +62,8 @@ import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.FieldBlock
+import app.kasa.ui.components.maskFade
+import app.kasa.ui.components.rememberMaskFade
 import app.kasa.data.model.CardBrand
 import app.kasa.ui.components.CardFace
 import app.kasa.ui.components.KasaButton
@@ -594,7 +596,12 @@ private fun SecretFieldBlock(
     var peeking by remember { mutableStateOf(false) }
     val visible = revealed || peeking
 
-    val shown = if (visible) value else maskedText ?: "•".repeat(value.length.coerceAtMost(18))
+    // Noktalardan harfe geçiş odak üzerinden yapılıyor: metin önce
+    // bulanıklaşıyor, takas en bulanık karede oluyor, sonra netleşiyor. Tek
+    // karelik sert bir takas, gözün yeni metni baştan okumasını gerektiriyordu.
+    // Gerekçenin uzunu rememberMaskFade üzerinde yazılı.
+    val fade = rememberMaskFade(visible)
+    val shown = if (fade.showPlain) value else maskedText ?: "•".repeat(value.length.coerceAtMost(18))
     val color by animateColorAsState(
         if (visible) KasaTheme.colors.ink else KasaTheme.colors.ink2,
         label = "secretColor"
@@ -614,6 +621,7 @@ private fun SecretFieldBlock(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)
+                    .maskFade(fade)
                     .pointerInput(value) {
                         // awaitPointerEventScope: basış başladığında aç,
                         // bittiğinde (parmak kalkınca ya da hareket iptal
