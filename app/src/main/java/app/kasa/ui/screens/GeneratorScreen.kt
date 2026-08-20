@@ -51,7 +51,7 @@ import app.kasa.ui.components.SplitButton
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaTheme
 
-private enum class GeneratorMode { PASSWORD, PASSPHRASE }
+private enum class GeneratorMode { PASSWORD, PASSPHRASE, PRONOUNCEABLE }
 
 /**
  * Üretici ekranı.
@@ -72,6 +72,12 @@ fun GeneratorScreen(
     val history by viewModel.history.collectAsStateWithLifecycle()
 
     val passphrase = state.settings.generatorPassphrase
+    val pronounceable = state.settings.generatorPronounceable
+    val mode = when {
+        pronounceable -> GeneratorMode.PRONOUNCEABLE
+        passphrase -> GeneratorMode.PASSPHRASE
+        else -> GeneratorMode.PASSWORD
+    }
     val strength by animateFloatAsState(
         targetValue = state.strength,
         animationSpec = KasaMotion.large(),
@@ -193,15 +199,27 @@ fun GeneratorScreen(
                 padding = 20.dp
             ) {
                 KasaButtonGroup(
-                    options = listOf(GeneratorMode.PASSWORD, GeneratorMode.PASSPHRASE),
-                    selected = if (passphrase) GeneratorMode.PASSPHRASE else GeneratorMode.PASSWORD,
+                    options = GeneratorMode.entries.toList(),
+                    selected = mode,
                     label = {
                         stringResource(
-                            if (it == GeneratorMode.PASSWORD) R.string.gen_mode_password
-                            else R.string.gen_mode_passphrase
+                            when (it) {
+                                GeneratorMode.PASSWORD -> R.string.gen_mode_password
+                                GeneratorMode.PASSPHRASE -> R.string.gen_mode_passphrase
+                                GeneratorMode.PRONOUNCEABLE -> R.string.gen_mode_pronounceable
+                            }
                         )
                     },
-                    onSelect = { viewModel.setPassphrase(it == GeneratorMode.PASSPHRASE) },
+                    onSelect = { selected ->
+                        when (selected) {
+                            GeneratorMode.PASSWORD -> {
+                                viewModel.setPassphrase(false)
+                                viewModel.setPronounceable(false)
+                            }
+                            GeneratorMode.PASSPHRASE -> viewModel.setPassphrase(true)
+                            GeneratorMode.PRONOUNCEABLE -> viewModel.setPronounceable(true)
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
                 )
 
@@ -211,30 +229,62 @@ fun GeneratorScreen(
                     verticalAlignment = Alignment.Bottom
                 ) {
                     Text(
-                        stringResource(if (passphrase) R.string.gen_words else R.string.gen_length),
+                        stringResource(
+                            when (mode) {
+                                GeneratorMode.PASSPHRASE -> R.string.gen_words
+                                GeneratorMode.PRONOUNCEABLE -> R.string.gen_syllables
+                                GeneratorMode.PASSWORD -> R.string.gen_length
+                            }
+                        ),
                         style = MaterialTheme.typography.titleSmall,
                         color = KasaTheme.colors.ink
                     )
                     Text(
-                        text = (if (passphrase) state.settings.generatorWordCount else state.settings.generatorLength).toString(),
+                        text = when (mode) {
+                            GeneratorMode.PASSPHRASE -> state.settings.generatorWordCount
+                            GeneratorMode.PRONOUNCEABLE -> state.settings.generatorSyllables
+                            GeneratorMode.PASSWORD -> state.settings.generatorLength
+                        }.toString(),
                         style = KasaTheme.text.mono,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
 
                 ExpressiveSlider(
-                    value = if (passphrase) state.settings.generatorWordCount else state.settings.generatorLength,
-                    range = if (passphrase) PasswordGenerator.MIN_WORDS..PasswordGenerator.MAX_WORDS
-                    else PasswordGenerator.MIN_LENGTH..PasswordGenerator.MAX_LENGTH,
+                    value = when (mode) {
+                        GeneratorMode.PASSPHRASE -> state.settings.generatorWordCount
+                        GeneratorMode.PRONOUNCEABLE -> state.settings.generatorSyllables
+                        GeneratorMode.PASSWORD -> state.settings.generatorLength
+                    },
+                    range = when (mode) {
+                        GeneratorMode.PASSPHRASE ->
+                            PasswordGenerator.MIN_WORDS..PasswordGenerator.MAX_WORDS
+                        GeneratorMode.PRONOUNCEABLE ->
+                            PasswordGenerator.MIN_SYLLABLES..PasswordGenerator.MAX_SYLLABLES
+                        GeneratorMode.PASSWORD ->
+                            PasswordGenerator.MIN_LENGTH..PasswordGenerator.MAX_LENGTH
+                    },
                     onValueChange = {
-                        if (passphrase) viewModel.setWordCount(it) else viewModel.setLength(it)
+                        when (mode) {
+                            GeneratorMode.PASSPHRASE -> viewModel.setWordCount(it)
+                            GeneratorMode.PRONOUNCEABLE -> viewModel.setSyllables(it)
+                            GeneratorMode.PASSWORD -> viewModel.setLength(it)
+                        }
                     },
                     onDragEnd = { viewModel.haptic(Haptics.Kind.TICK) }
                 )
 
                 Spacer(Modifier.height(10.dp))
 
-                if (passphrase) {
+                if (pronounceable) {
+                    ToggleRow(
+                        title = stringResource(R.string.gen_append_digits),
+                        subtitle = stringResource(R.string.gen_append_digits_sub),
+                        checked = state.settings.generatorDigits,
+                        onCheckedChange = viewModel::setDigits,
+                        first = true
+                    )
+                } else if (passphrase) {
                     ToggleRow(
                         title = stringResource(R.string.gen_capitalize),
                         checked = state.settings.generatorCapitalize,

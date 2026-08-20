@@ -285,6 +285,7 @@ fun VaultScreen(
             onCopySecret = { viewModel.copySecret(it, settings.clipboardClearSeconds) },
             onCopyPlain = viewModel::copyPlain,
             onEdit = { viewModel.startEdit(target) },
+            onDuplicate = { viewModel.duplicate(target) },
             onToggleFavorite = { viewModel.toggleFavorite(target.id) },
             onDelete = { viewModel.moveToTrash(target) },
             onDismiss = { actionTarget = null }

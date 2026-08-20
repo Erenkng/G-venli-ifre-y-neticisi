@@ -574,4 +574,16 @@
     <string name="csv_none">Aktarılacak yeni kayıt bulunamadı.</string>
     <string name="csv_failed">Dosya okunamadı. Parola dışa aktarımı olduğundan emin ol.</string>
     <string name="set_offline_note">Kasa cihazdan çıkmaz. Sunucu yok, hesap yok, senkronizasyon yok.</string>
+    <string name="finding_renew_title">%1$d kaydın yenileme zamanı geldi</string>
+    <string name="finding_renew_desc">Bu kayıtlar için kendi belirlediğin yenileme aralığı doldu.</string>
+    <string name="item_renew_label">Yenileme hatırlatması</string>
+    <string name="item_renew_off">Kapalı</string>
+    <string name="item_renew_days">%1$d günde bir</string>
+    <string name="gen_mode_pronounceable">Söylenebilir</string>
+    <string name="gen_syllables">Hece</string>
+    <string name="gen_append_digits">Sonuna iki rakam</string>
+    <string name="gen_append_digits_sub">Rakam isteyen sitelerin kuralını karşılar.</string>
+    <string name="set_lock_screen_off">Ekran kapanınca kilitle</string>
+    <string name="set_lock_screen_off_sub">Ekranı kapatmak bilinçli bir hareket: kasa süreyi beklemeden kapanır. Kapatırsan yalnızca otomatik kilit süresi geçerli olur.</string>
+    <string name="duplicate">Çoğalt</string>
 </resources>

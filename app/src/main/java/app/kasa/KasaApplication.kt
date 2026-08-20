@@ -55,6 +55,12 @@ class KasaApplication : Application(), Configuration.Provider {
             .onEach { container.autoLocker.autoLockSeconds = it }
             .launchIn(container.scope)
 
+        container.settingsStore.settings
+            .map { it.lockOnScreenOff }
+            .distinctUntilChanged()
+            .onEach { container.autoLocker.lockOnScreenOff = it }
+            .launchIn(container.scope)
+
         // Bağlama duyarlı kilit ayarları.
         container.settingsStore.settings
             .map { Triple(it.contextLockEnabled, it.trustedNetworkHash, it.contextLockSeconds) }

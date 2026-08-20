@@ -1,6 +1,5 @@
 package app.kasa.ui.screens
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,8 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.displayCutout
@@ -42,8 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -328,29 +323,17 @@ fun durationLabel(seconds: Int): String = when {
  */
 @Composable
 fun listContentPadding(extraBottom: Dp = 0.dp): PaddingValues {
-    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    // Yatayda çentik yan kenarda duruyor; sistem çubuğuyla birleştirilmezse
-    // liste içeriği çentiğin altına giriyor.
+    // Sistem çubuğu hareket çubuğunda ~24dp, üç tuşlu gezinmede ~48dp yer
+    // kaplıyor ve fark doğrudan son kaydın okunabilirliğine yansıyor. Çentik de
+    // birleşime katılıyor: bazı cihazlarda ekranın altında da kesik var.
     val system = WindowInsets.navigationBars.union(WindowInsets.displayCutout).asPaddingValues()
-    val layout = LocalLayoutDirection.current
 
-    return if (landscape) {
-        PaddingValues(
-            start = RAIL_SPACING + system.calculateStartPadding(layout),
-            end = SIDE_PADDING + system.calculateEndPadding(layout),
-            bottom = 24.dp + extraBottom + system.calculateBottomPadding()
-        )
-    } else {
-        PaddingValues(
-            start = SIDE_PADDING,
-            end = SIDE_PADDING,
-            bottom = NAV_BAR_HEIGHT + extraBottom + system.calculateBottomPadding()
-        )
-    }
+    return PaddingValues(
+        start = SIDE_PADDING,
+        end = SIDE_PADDING,
+        bottom = NAV_BAR_HEIGHT + extraBottom + system.calculateBottomPadding()
+    )
 }
-
-/** Yatay modda gezinme rayının kapladığı yer artı normal kenar boşluğu. */
-private val RAIL_SPACING = 92.dp + 16.dp
 
 private val SIDE_PADDING = 16.dp
 

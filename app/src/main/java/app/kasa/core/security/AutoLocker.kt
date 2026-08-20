@@ -55,6 +55,18 @@ class AutoLocker(
     @Volatile
     var trustedSeconds: Int = 300
 
+    /**
+     * Ekran kapanınca beklemeden kilitle.
+     *
+     * Varsayılan açık ve öyle kalması gerekiyor: ekranı kapatmak bilinçli bir
+     * hareket, kullanıcı işini bitirdiğini söylüyor. Kapatılabilir olmasının
+     * sebebi, telefonu sık sık uyandırıp kasaya bakan kullanıcının her
+     * seferinde ana parola yazmak zorunda kalması — o kullanıcı için tek
+     * alternatif otomatik kilidi büsbütün uzatmak olurdu ve bu daha kötü.
+     */
+    @Volatile
+    var lockOnScreenOff: Boolean = true
+
     private var pendingLock: Job? = null
     private var registered = false
 
@@ -74,7 +86,7 @@ class AutoLocker(
 
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_SCREEN_OFF) lockNow()
+            if (intent?.action == Intent.ACTION_SCREEN_OFF && lockOnScreenOff) lockNow()
         }
     }
 

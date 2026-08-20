@@ -444,6 +444,12 @@ fun SettingsScreen(
                     first = true
                 )
                 ToggleRow(
+                    title = stringResource(R.string.set_lock_screen_off),
+                    subtitle = stringResource(R.string.set_lock_screen_off_sub),
+                    checked = settings.lockOnScreenOff,
+                    onCheckedChange = viewModel::setLockOnScreenOff
+                )
+                ToggleRow(
                     title = stringResource(R.string.set_autofill_verify),
                     subtitle = stringResource(R.string.set_autofill_verify_sub),
                     checked = settings.autofillVerifyDomains,

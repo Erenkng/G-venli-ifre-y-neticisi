@@ -556,4 +556,16 @@
     <string name="csv_none">No new entries to import.</string>
     <string name="csv_failed">Could not read the file. Make sure it is a password export.</string>
     <string name="set_offline_note">The vault never leaves the device. No server, no account, no sync.</string>
+    <string name="finding_renew_title">%1$d entries are due for renewal</string>
+    <string name="finding_renew_desc">The renewal interval you set for these entries has elapsed.</string>
+    <string name="item_renew_label">Renewal reminder</string>
+    <string name="item_renew_off">Off</string>
+    <string name="item_renew_days">Every %1$d days</string>
+    <string name="gen_mode_pronounceable">Sayable</string>
+    <string name="gen_syllables">Syllables</string>
+    <string name="gen_append_digits">Two digits at the end</string>
+    <string name="gen_append_digits_sub">Satisfies sites that require a digit.</string>
+    <string name="set_lock_screen_off">Lock when the screen turns off</string>
+    <string name="set_lock_screen_off_sub">Turning the screen off is a deliberate act: the vault closes without waiting. Turn this off and only the auto-lock delay applies.</string>
+    <string name="duplicate">Duplicate</string>
 </resources>

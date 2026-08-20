@@ -1,6 +1,5 @@
 package app.kasa.ui
 
-import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -47,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
@@ -65,7 +63,6 @@ import app.kasa.data.model.VaultFilter
 import app.kasa.ui.components.FabAction
 import app.kasa.ui.components.FabMenu
 import app.kasa.ui.components.KasaNavBar
-import app.kasa.ui.components.KasaNavRail
 import app.kasa.ui.components.KasaSnackbarHost
 import app.kasa.ui.components.NavDestination
 import app.kasa.ui.components.Scrim
@@ -184,8 +181,6 @@ fun MainScaffold(
             !searchOpen && !fabExpanded && tab == TAB_VAULT && vaultView != VaultFilter.All
     ) { vaultViewModel.setView(VaultFilter.All) }
 
-    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-
     // Gezinti çubuğunun bulanıklaştıracağı arka plan kopyası.
     //
     // İçerik bir kez çiziliyor ve aynı anda bu katmana kaydediliyor; çubuk
@@ -285,9 +280,6 @@ fun MainScaffold(
             }
         }
 
-        // Yatayda dikey alan zaten yarıya iniyor; oraya bir de alt çubuk koymak
-        // kalan içeriği okunamayacak kadar daraltıyordu. Aynı gezinme yan raya
-        // taşınıyor ve dikey alanın tamamı içeriğe kalıyor.
         val onNavigate: (String) -> Unit = {
             if (it != tab) vaultViewModel.haptic(Haptics.Kind.NAV)
             tab = it
@@ -298,25 +290,14 @@ fun MainScaffold(
         // güçte bir buzlu cam orada yalnızca zemini bulandırıyor.
         val contentBehind = vaultData.liveItems.isNotEmpty()
 
-        if (landscape) {
-            KasaNavRail(
-                destinations = destinations,
-                selected = tab,
-                onSelect = onNavigate,
-                backdrop = backdrop,
-                contentBehind = contentBehind,
-                modifier = Modifier.align(Alignment.CenterStart)
-            )
-        } else {
-            KasaNavBar(
-                destinations = destinations,
-                selected = tab,
-                onSelect = onNavigate,
-                backdrop = backdrop,
-                contentBehind = contentBehind,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
-        }
+        KasaNavBar(
+            destinations = destinations,
+            selected = tab,
+            onSelect = onNavigate,
+            backdrop = backdrop,
+            contentBehind = contentBehind,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
 
         Scrim(
             visible = fabExpanded,
@@ -338,8 +319,7 @@ fun MainScaffold(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                // Yatayda alt çubuk yok; düğme aşağıya inebilir.
-                .padding(end = 18.dp, bottom = if (landscape) 20.dp else 112.dp)
+                .padding(end = 18.dp, bottom = 112.dp)
         ) {
             FabMenu(
                 expanded = fabExpanded,
@@ -478,7 +458,7 @@ fun MainScaffold(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = if (landscape) 20.dp else 120.dp)
+                .padding(bottom = 120.dp)
         )
     }
 }

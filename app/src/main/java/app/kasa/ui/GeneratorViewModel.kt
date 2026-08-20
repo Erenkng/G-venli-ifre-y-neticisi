@@ -70,7 +70,12 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
 
     fun regenerate() {
         val settings = _state.value.settings
-        val generated = if (settings.generatorPassphrase) {
+        val generated = if (settings.generatorPronounceable) {
+            PasswordGenerator.generatePronounceable(
+                syllables = settings.generatorSyllables,
+                appendDigits = settings.generatorDigits
+            )
+        } else if (settings.generatorPassphrase) {
             PasswordGenerator.generatePassphrase(
                 words = PasswordGenerator.words(container.appContext),
                 options = PasswordGenerator.PassphraseOptions(
@@ -124,8 +129,26 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
         settingsStore.setGeneratorAvoidLookalikes(value)
     }
 
-    fun setPassphrase(value: Boolean) = update({ copy(generatorPassphrase = value) }) {
-        settingsStore.setGeneratorPassphrase(value)
+    /**
+     * Üç mod birbirini dışlıyor: parola dizesi, sözcük dizisi, telaffuz
+     * edilebilir. Biri açılınca öteki kapanıyor — üçünün aynı anda açık olduğu
+     * bir durumun anlamı yok ve hangisinin kazandığını kullanıcının tahmin
+     * etmesi gerekirdi.
+     */
+    fun setPassphrase(value: Boolean) =
+        update({ copy(generatorPassphrase = value, generatorPronounceable = false) }) {
+            settingsStore.setGeneratorPassphrase(value)
+            if (value) settingsStore.setGeneratorPronounceable(false)
+        }
+
+    fun setPronounceable(value: Boolean) =
+        update({ copy(generatorPronounceable = value, generatorPassphrase = false) }) {
+            settingsStore.setGeneratorPronounceable(value)
+            if (value) settingsStore.setGeneratorPassphrase(false)
+        }
+
+    fun setSyllables(value: Int) = update({ copy(generatorSyllables = value) }) {
+        settingsStore.setGeneratorSyllables(value)
     }
 
     fun setSeparator(value: String) = update({ copy(generatorSeparator = value) }) {

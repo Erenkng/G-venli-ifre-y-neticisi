@@ -19,6 +19,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Shield
@@ -234,6 +235,8 @@ private fun FindingRow(
             Triple(Icons.Rounded.History, colors.badgeBlueBg, colors.badgeBlueFg)
         SecurityAnalyzer.FindingType.NO_2FA ->
             Triple(Icons.Rounded.Shield, colors.badgeBlueBg, colors.badgeBlueFg)
+        SecurityAnalyzer.FindingType.RENEW_DUE ->
+            Triple(Icons.Rounded.Autorenew, colors.badgeMidBg, colors.badgeMidFg)
     }
 
     val title = stringResource(
@@ -243,6 +246,7 @@ private fun FindingRow(
             SecurityAnalyzer.FindingType.WEAK -> R.string.finding_weak_title
             SecurityAnalyzer.FindingType.OLD -> R.string.finding_old_title
             SecurityAnalyzer.FindingType.NO_2FA -> R.string.finding_no2fa_title
+            SecurityAnalyzer.FindingType.RENEW_DUE -> R.string.finding_renew_title
         },
         finding.count
     )
@@ -253,12 +257,14 @@ private fun FindingRow(
             SecurityAnalyzer.FindingType.WEAK -> R.string.finding_weak_desc
             SecurityAnalyzer.FindingType.OLD -> R.string.finding_old_desc
             SecurityAnalyzer.FindingType.NO_2FA -> R.string.finding_no2fa_desc
+            SecurityAnalyzer.FindingType.RENEW_DUE -> R.string.finding_renew_desc
         }
     )
     val actionLabel = stringResource(
         when (finding.type) {
             SecurityAnalyzer.FindingType.LEAKED, SecurityAnalyzer.FindingType.WEAK -> R.string.finding_action_fix
-            SecurityAnalyzer.FindingType.OLD -> R.string.finding_action_remind
+            SecurityAnalyzer.FindingType.OLD, SecurityAnalyzer.FindingType.RENEW_DUE ->
+                R.string.finding_action_remind
             else -> R.string.finding_action_view
         }
     )
@@ -314,5 +320,9 @@ private fun SecurityAnalyzer.FindingType.asSmartFolder(): SmartFolder = when (th
     SecurityAnalyzer.FindingType.REUSED -> SmartFolder.REUSED
     SecurityAnalyzer.FindingType.WEAK -> SmartFolder.WEAK
     SecurityAnalyzer.FindingType.OLD -> SmartFolder.OLD
+    // Yenileme zamanı gelenler ayrı bir koleksiyon değil: kullanıcı "eski
+    // parolalar" görünümünde zaten onları da görüyor ve ayrı bir liste,
+    // birbirini büyük ölçüde kapsayan iki görünüm demek olurdu.
+    SecurityAnalyzer.FindingType.RENEW_DUE -> SmartFolder.OLD
     SecurityAnalyzer.FindingType.NO_2FA -> SmartFolder.NO_2FA
 }

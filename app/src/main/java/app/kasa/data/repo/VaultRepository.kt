@@ -1064,6 +1064,41 @@ class VaultRepository(
      * uygulamanın içinden, doğrulamanın ardından kopyalanabiliyor.
      */
     /**
+     * Kaydın kopyasını çıkarır.
+     *
+     * Aynı sitede ikinci bir hesap açmak sıradan bir iş ve her seferinde
+     * bütün alanları elle doldurmak gerekiyordu. Kopya yeni bir kimlik alıyor;
+     * geçmiş, ekler, passkey'ler ve uygulama bağları **taşınmıyor**:
+     *
+     *  - geçmiş ve sızıntı sonucu asıl kaydın parolasına ait, kopyanınkine
+     *    değil;
+     *  - ekler dosya sisteminde ayrı duruyor ve iki kaydın aynı dosyayı
+     *    paylaşması, birinin silinmesinde ötekini bozardı;
+     *  - passkey tek bir hesaba bağlı, kopyalanması onu ikinci bir yerde
+     *    kullanılabilir kılmaz, yalnızca kafa karıştırır.
+     */
+    suspend fun duplicate(id: String): VaultItem? {
+        val source = _data.value.items.firstOrNull { it.id == id } ?: return null
+        val now = System.currentTimeMillis()
+        val copy = source.copy(
+            id = VaultItem.randomId(),
+            name = source.name + COPY_SUFFIX,
+            history = emptyList(),
+            attachments = emptyList(),
+            passkeys = emptyList(),
+            linkedApps = emptyList(),
+            breachCount = 0,
+            breachCheckedAt = 0L,
+            favorite = false,
+            lastUsedAt = 0L,
+            createdAt = now,
+            updatedAt = now,
+            passwordChangedAt = now
+        )
+        return if (upsert(copy)) copy else null
+    }
+
+    /**
      * Başka bir yöneticiden gelen kayıtları kasaya ekler.
      *
      * ### Neden var olanın üzerine yazılmıyor
@@ -1232,6 +1267,9 @@ class VaultRepository(
     }
 
     companion object {
+        /** Kopyanın adına eklenen sonek. */
+        const val COPY_SUFFIX = " (kopya)"
+
         const val MAX_HISTORY = 10
         const val MAX_GENERATOR_HISTORY = 30
 

@@ -27,7 +27,7 @@ import kotlinx.serialization.json.put
 object VaultMigrations {
 
     /** Uygulamanın yazdığı şema sürümü. */
-    const val CURRENT = 5
+    const val CURRENT = 6
 
     /** Şema alanı olmayan en eski kasalar sürüm 1 sayılır. */
     const val OLDEST_SUPPORTED = 1
@@ -69,7 +69,8 @@ object VaultMigrations {
         1 to ::migrate1to2,
         2 to ::migrate2to3,
         3 to ::migrate3to4,
-        4 to ::migrate4to5
+        4 to ::migrate4to5,
+        5 to ::migrate5to6
     )
 
     /**
@@ -123,6 +124,16 @@ object VaultMigrations {
      * olarak değil, "artık çalışmıyor" olarak görürdü.
      */
     private fun migrate4to5(root: JsonObject): JsonObject = root
+
+    /**
+     * 5 → 6: kayıt bazlı parola yenileme aralığı.
+     *
+     * `VaultItem.renewEveryDays` eklendi, varsayılanı 0 (hatırlatma yok). Alan
+     * taşınmıyor; sürümün ilerlemesi, aralığı olan bir kasanın alanı tanımayan
+     * eski bir sürümde açılıp kaydedildiğinde hatırlatmaların sessizce
+     * düşmesini engelliyor.
+     */
+    private fun migrate5to6(root: JsonObject): JsonObject = root
 
     private fun JsonObject.withSchema(version: Int): JsonObject = buildJsonObject {
         this@withSchema.forEach { (key, value) -> if (key != "schema") put(key, value) }

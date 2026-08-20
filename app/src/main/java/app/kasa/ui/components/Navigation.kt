@@ -15,13 +15,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -148,75 +145,6 @@ fun KasaNavBar(
                     selected = destination.key == selected,
                     onClick = { onSelect(destination.key) },
                     modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Yatay moddaki gezinme rayı.
- *
- * Telefon yan çevrildiğinde dikey alan zaten yarıya iniyor; oraya bir de alt
- * çubuk koymak, kalan içeriği okunamayacak kadar daraltıyor. Ray aynı işi
- * yatayda yapıyor ve dikey alanın tamamını içeriğe bırakıyor.
- *
- * Bulanıklık ve solma aynı: yalnızca yön değişiyor, soldan sağa.
- */
-@Composable
-fun KasaNavRail(
-    destinations: List<NavDestination>,
-    selected: String,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    backdrop: GraphicsLayer? = null,
-    contentBehind: Boolean = true
-) {
-    val colors = KasaTheme.colors
-    val strength by animateFloatAsState(
-        if (contentBehind) 1f else 0f,
-        KasaMotion.effect(),
-        label = "railBlur"
-    )
-
-    Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .width(RAIL_WIDTH)
-            .background(
-                Brush.horizontalGradient(
-                    0.00f to colors.navScrim.copy(alpha = 0.94f),
-                    0.55f to colors.navScrim.copy(alpha = 0.72f),
-                    1.00f to colors.navScrim.copy(alpha = 0f)
-                )
-            )
-    ) {
-        Backdrop(
-            backdrop = backdrop,
-            modifier = Modifier.matchParentSize(),
-            // Ray solda: bulanıklık solda tam, sağa doğru siliniyor.
-            gradientStart = { Offset(it.width, 0f) },
-            gradientEnd = { Offset(0f, 0f) },
-            strength = strength
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                // Yatayda çentik ekranın bir yanında duruyor ve ray da yanda:
-                // ikisi aynı kenara denk geldiğinde simgeler çentiğin altına
-                // giriyordu. Sistem çubuğuyla çentiğin birleşimi alınıyor,
-                // hangisi daha genişse o kadar içeri kaçılıyor.
-                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout))
-                .padding(start = 8.dp, end = FADE_RUNWAY, top = 12.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            destinations.forEach { destination ->
-                NavItem(
-                    destination = destination,
-                    selected = destination.key == selected,
-                    onClick = { onSelect(destination.key) }
                 )
             }
         }
@@ -376,9 +304,6 @@ private val NEAR_STOPS = listOf(
  * uzattıkça yumuşuyor ama içerik gereksiz yer kaybediyor.
  */
 private val FADE_RUNWAY = 34.dp
-
-/** Yatay moddaki rayın genişliği. */
-private val RAIL_WIDTH = 92.dp
 
 @Composable
 private fun NavItem(

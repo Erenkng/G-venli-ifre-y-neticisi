@@ -155,6 +155,15 @@ data class VaultItem(
      * benzerliğine değil.
      */
     val linkedApps: List<String> = emptyList(),
+    /**
+     * Bu parolayı kaç günde bir yenilemeli. 0 = hatırlatma yok.
+     *
+     * Genel "bir yıldan eski" ölçütü her kayıt için doğru değil: banka
+     * parolasını üç ayda bir değiştiren biri için bir yıl çok geç, forum
+     * hesabında ise hiç gerekmiyor. Süreyi kaydın kendisine bağlamak, tek bir
+     * eşiğin herkese uymadığı gerçeğini kabul ediyor.
+     */
+    val renewEveryDays: Int = 0,
     val customFields: List<CustomField> = emptyList(),
     val attachments: List<Attachment> = emptyList(),
     val passkeys: List<Passkey> = emptyList(),

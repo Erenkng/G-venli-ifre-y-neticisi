@@ -31,6 +31,19 @@ object PasswordGenerator {
     const val MAX_LENGTH = 64
     const val MIN_WORDS = 3
     const val MAX_WORDS = 10
+    const val MIN_SYLLABLES = 4
+    const val MAX_SYLLABLES = 12
+
+    /**
+     * Telaffuz edilebilir parolanın hece parçaları.
+     *
+     * Karışan harfler ("q", "x") ve Türkçede söylenmesi zor ikililer üretenler
+     * dışarıda: amaç okunabilirlik, tam alfabe değil. Küme küçüldükçe hece
+     * başına entropi de düşüyor ve bu, bildirilen değere olduğu gibi
+     * yansıyor.
+     */
+    private const val PRONOUNCEABLE_CONSONANTS = "bcdfgklmnprstvyz"
+    private const val PRONOUNCEABLE_VOWELS = "aeiou"
 
     /**
      * Reddetme örneklemede en fazla kaç deneme.
@@ -58,6 +71,48 @@ object PasswordGenerator {
     )
 
     data class Generated(val value: String, val entropyBits: Double)
+
+    /**
+     * Telaffuz edilebilir parola.
+     *
+     * ### Ne işe yarıyor
+     *
+     * Bazı parolalar yazılmıyor, **söyleniyor**: telefonda okunan bir Wi-Fi
+     * parolası, birine tarif edilen geçici bir giriş. `x7#Kq2$vLm` böyle bir
+     * durumda felaket; `tozamekulinabo` aynı işi görüp okunabiliyor.
+     *
+     * ### Entropi dürüstçe hesaplanıyor
+     *
+     * Hece = ünsüz + ünlü. [PRONOUNCEABLE_CONSONANTS] ve
+     * [PRONOUNCEABLE_VOWELS] uzunluklarının çarpımı bir hecenin olasılık
+     * uzayı; entropi hece sayısı çarpı bu uzayın ikili logaritması. Karakter
+     * sayısına bakıp "on dört karakter, demek ki çok güçlü" demek yanlış
+     * olurdu: harfler bağımsız değil, hece yapısı seçenekleri daraltıyor ve
+     * bunu saklamak kullanıcıya olduğundan güçlü bir parola vermek demek.
+     *
+     * Bu yüzden aynı görünen uzunlukta daha az entropi çıkıyor ve arayüz bunu
+     * olduğu gibi gösteriyor.
+     */
+    fun generatePronounceable(syllables: Int, appendDigits: Boolean): Generated {
+        val count = syllables.coerceIn(MIN_SYLLABLES, MAX_SYLLABLES)
+        val builder = StringBuilder(count * 2 + 2)
+
+        repeat(count) {
+            builder.append(PRONOUNCEABLE_CONSONANTS[Crypto.randomInt(PRONOUNCEABLE_CONSONANTS.length)])
+            builder.append(PRONOUNCEABLE_VOWELS[Crypto.randomInt(PRONOUNCEABLE_VOWELS.length)])
+        }
+
+        val perSyllable = PRONOUNCEABLE_CONSONANTS.length.toDouble() * PRONOUNCEABLE_VOWELS.length
+        var entropy = count * log2(perSyllable)
+
+        if (appendDigits) {
+            val number = Crypto.randomInt(100)
+            builder.append(number.toString().padStart(2, '0'))
+            entropy += log2(100.0)
+        }
+
+        return Generated(builder.toString(), entropy)
+    }
 
     fun generate(options: Options): Generated {
         val sets = buildList {

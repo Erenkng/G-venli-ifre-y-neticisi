@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
  */
 class SecurityAnalyzer(private val breachChecker: BreachChecker) {
 
-    enum class FindingType { LEAKED, REUSED, WEAK, OLD, NO_2FA }
+    enum class FindingType { LEAKED, REUSED, WEAK, OLD, NO_2FA, RENEW_DUE }
 
     data class Finding(
         val type: FindingType,
@@ -39,6 +39,7 @@ class SecurityAnalyzer(private val breachChecker: BreachChecker) {
     companion object {
         /** Bir yıl. */
         const val OLD_PASSWORD_MILLIS = 365L * 24 * 60 * 60 * 1000
+        const val DAY_MILLIS = 24L * 60 * 60 * 1000
         const val BREACH_CACHE_MILLIS = 7L * 24 * 60 * 60 * 1000
     }
 
@@ -107,12 +108,27 @@ class SecurityAnalyzer(private val breachChecker: BreachChecker) {
             it.category == Category.LOGIN && it.password.isNotBlank() && it.totpSecret.isBlank()
         }
 
+        // Kullanıcının kendi koyduğu yenileme aralığı dolanlar.
+        //
+        // Genel "bir yıldan eski" ölçütünden ayrı tutuluyor: o, hiç
+        // düşünülmemiş kayıtlar için bir taban; bu ise kullanıcının o kayıt
+        // için bilerek seçtiği süre. İkisini aynı bulguda toplamak, kullanıcının
+        // kararını uygulamanın varsayılanının içinde kaybederdi.
+        val renewDue = updated.filter {
+            it.renewEveryDays > 0 &&
+                it.password.isNotBlank() &&
+                now - it.passwordChangedAt > it.renewEveryDays * DAY_MILLIS
+        }
+
         val findings = buildList {
             if (leaked.isNotEmpty()) add(Finding(FindingType.LEAKED, leaked.size, leaked.map { it.id }))
             if (reused.isNotEmpty()) add(Finding(FindingType.REUSED, reused.size, reused.map { it.id }))
             if (weak.isNotEmpty()) add(Finding(FindingType.WEAK, weak.size, weak.map { it.id }))
             if (old.isNotEmpty()) add(Finding(FindingType.OLD, old.size, old.map { it.id }))
             if (no2fa.isNotEmpty()) add(Finding(FindingType.NO_2FA, no2fa.size, no2fa.map { it.id }))
+            if (renewDue.isNotEmpty()) {
+                add(Finding(FindingType.RENEW_DUE, renewDue.size, renewDue.map { it.id }))
+            }
         }
 
         Report(

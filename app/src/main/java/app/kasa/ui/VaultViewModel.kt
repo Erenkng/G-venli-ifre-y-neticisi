@@ -294,6 +294,24 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     // ----------------------------------------------------------------- diğer
 
+    /**
+     * Kaydın kopyasını çıkarır ve düzenleyiciyi açar.
+     *
+     * Kopya çıkarmanın tek sebebi genellikle onu değiştirmek: aynı sitede
+     * ikinci hesap, farklı kullanıcı adı. Düzenleyicinin kendiliğinden açılması
+     * bu adımı atlıyor; kullanıcı kopyayı listede bulup ayrıca dokunmak
+     * zorunda kalmıyor.
+     */
+    fun duplicate(item: VaultItem) {
+        viewModelScope.launch {
+            val copy = repository.duplicate(item.id)
+            if (copy != null) {
+                container.haptics.play(Haptics.Kind.SUCCESS)
+                _editing.value = copy
+            }
+        }
+    }
+
     fun setSortOrder(order: app.kasa.data.SettingsStore.SortOrder) {
         viewModelScope.launch { container.settingsStore.setSortOrder(order) }
     }

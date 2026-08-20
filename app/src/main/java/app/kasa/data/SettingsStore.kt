@@ -62,6 +62,15 @@ class SettingsStore(private val context: Context) {
         val trustedNetworkHash: String = "",
         val contextLockSeconds: Int = 300,
         val blockScreenshots: Boolean = true,
+        /**
+         * Ekran kapanınca beklemeden kilitle.
+         *
+         * Otomatik kilit süresi cebe konan telefon için doğru bir ölçü ama
+         * ekranı kapatmak bilinçli bir hareket: kullanıcı işini bitirdiğini
+         * söylüyor. Süreyi orada da beklemek, telefonu masada bırakılan
+         * dakikaları savunmasız geçirmek demek.
+         */
+        val lockOnScreenOff: Boolean = true,
         val clipboardClearSeconds: Int = 30,
         val autoLockSeconds: Int = 60,
         val wipeAfterAttempts: Int = 0,
@@ -91,6 +100,14 @@ class SettingsStore(private val context: Context) {
         val generatorSymbols: Boolean = true,
         val generatorAvoidLookalikes: Boolean = false,
         val generatorPassphrase: Boolean = false,
+        /**
+         * Telaffuz edilebilir mod.
+         *
+         * Parola dizesi ve sözcük dizisiyle aynı düzeyde üçüncü bir seçenek;
+         * ayrı bir bayrak olmasının sebebi ikisiyle birlikte kullanılamaması.
+         */
+        val generatorPronounceable: Boolean = false,
+        val generatorSyllables: Int = 6,
         val generatorWordCount: Int = 5,
         val generatorSeparator: String = "-",
         val generatorCapitalize: Boolean = true
@@ -114,6 +131,9 @@ class SettingsStore(private val context: Context) {
             wipeAfterAttempts = prefs[KEY_WIPE_ATTEMPTS] ?: 0,
             onlineBreachCheck = prefs[KEY_ONLINE_CHECK] ?: true,
             autofillVerifyDomains = prefs[KEY_AF_VERIFY] ?: true,
+            lockOnScreenOff = prefs[KEY_LOCK_SCREEN_OFF] ?: true,
+            generatorPronounceable = prefs[KEY_GEN_PRONOUNCE] ?: false,
+            generatorSyllables = prefs[KEY_GEN_SYLLABLES] ?: 6,
             sortOrder = runCatching { SortOrder.valueOf(prefs[KEY_SORT] ?: SortOrder.LAST_USED.name) }
                 .getOrDefault(SortOrder.LAST_USED),
             listDensity = runCatching { ListDensity.valueOf(prefs[KEY_DENSITY] ?: ListDensity.COMFORTABLE.name) }
@@ -144,6 +164,9 @@ class SettingsStore(private val context: Context) {
     suspend fun setContextLockSeconds(value: Int) = put(KEY_CONTEXT_SECONDS, value)
     suspend fun setBlockScreenshots(value: Boolean) = put(KEY_BLOCK_SHOTS, value)
     suspend fun setAutofillVerifyDomains(value: Boolean) = put(KEY_AF_VERIFY, value)
+    suspend fun setLockOnScreenOff(value: Boolean) = put(KEY_LOCK_SCREEN_OFF, value)
+    suspend fun setGeneratorPronounceable(value: Boolean) = put(KEY_GEN_PRONOUNCE, value)
+    suspend fun setGeneratorSyllables(value: Int) = put(KEY_GEN_SYLLABLES, value)
     suspend fun setSortOrder(value: SortOrder) = put(KEY_SORT, value.name)
     suspend fun setListDensity(value: ListDensity) = put(KEY_DENSITY, value.name)
     suspend fun setClipboardClearSeconds(value: Int) = put(KEY_CLIP_SECONDS, value)
@@ -201,6 +224,9 @@ class SettingsStore(private val context: Context) {
         val KEY_WIPE_ATTEMPTS = intPreferencesKey("wipe_attempts")
         val KEY_ONLINE_CHECK = booleanPreferencesKey("online_breach_check")
         val KEY_AF_VERIFY = booleanPreferencesKey("autofill_verify_domains")
+        val KEY_LOCK_SCREEN_OFF = booleanPreferencesKey("lock_on_screen_off")
+        val KEY_GEN_PRONOUNCE = booleanPreferencesKey("gen_pronounceable")
+        val KEY_GEN_SYLLABLES = intPreferencesKey("gen_syllables")
         val KEY_SORT = stringPreferencesKey("sort_order")
         val KEY_DENSITY = stringPreferencesKey("list_density")
         val KEY_ONBOARDING = booleanPreferencesKey("onboarding_done")

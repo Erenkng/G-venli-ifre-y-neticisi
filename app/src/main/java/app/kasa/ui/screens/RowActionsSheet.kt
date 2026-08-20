@@ -70,6 +70,7 @@ fun RowActionsSheet(
     onCopySecret: (String) -> Unit,
     onCopyPlain: (String) -> Unit,
     onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
@@ -123,6 +124,7 @@ fun RowActionsSheet(
         )
         if (!locked) {
             add(RowAction(stringResource(R.string.edit), Icons.Rounded.Edit) { onEdit() })
+            add(RowAction(stringResource(R.string.duplicate), Icons.Rounded.ContentCopy) { onDuplicate() })
         }
         add(
             RowAction(
