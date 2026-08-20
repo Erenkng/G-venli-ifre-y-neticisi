@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Açılış ekranındaki kasa kadranı.
+
+    Başlatıcı simgesiyle (ic_launcher_foreground) aynı işaret, aynı ölçüler —
+    ama canlandırılabilmesi için yapısı farklı: üç kol tek bir grubun ("kollar")
+    içinde toplanmış, böylece hepsi tek bir döndürme animasyonuyla birlikte
+    dönüyor. Çember dışarıda kalıyor, çünkü dönmemesi gereken parça o: gerçek
+    bir kasada kadran döner, kapağa gömülü halka durur.
+
+    Renkler sabit. Açılış ekranı henüz uygulama teması kurulmadan, sistem
+    tarafından çiziliyor; tema niteliklerine (?attr) burada erişilemiyor.
+    Kullanılan ton, simgenin kendi tonu — kullanıcı ana ekranda dokunduğu
+    işaretin aynısının büyüdüğünü görüyor.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Kadran çemberi. Adı var çünkü açılışta kendini çiziyor.
+         trimPathEnd burada sıfır: canlandırma başlamadan önceki tek karede
+         tam çemberin görünüp sonra kaybolmasını (çakma) önlüyor. -->
+    <path
+        android:name="cember"
+        android:strokeColor="#A6F0DE"
+        android:trimPathEnd="0"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M26,54 A28,28 0 0,1 82,54 A28,28 0 0,1 26,54 Z" />
+
+    <!-- Dönen parça: üç kol + göbek + mil deliği. Saat 12 yönü boş bırakıldı
+         ki çember üstte kesintisiz okunsun; dönerken de boşluğun yer
+         değiştirmesi hareketi görünür kılıyor. -->
+    <group
+        android:name="kadran"
+        android:pivotX="54"
+        android:pivotY="54">
+
+        <group android:pivotX="54" android:pivotY="54" android:rotation="30">
+            <path
+                android:fillColor="#A6F0DE"
+                android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+        </group>
+        <group android:pivotX="54" android:pivotY="54" android:rotation="150">
+            <path
+                android:fillColor="#A6F0DE"
+                android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+        </group>
+        <group android:pivotX="54" android:pivotY="54" android:rotation="270">
+            <path
+                android:fillColor="#A6F0DE"
+                android:pathData="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z" />
+        </group>
+
+        <path
+            android:fillColor="#A6F0DE"
+            android:pathData="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z" />
+
+        <!-- Mil deliği: zeminle aynı renk olduğu için delik gibi okunuyor -->
+        <path
+            android:fillColor="#00695C"
+            android:pathData="M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" />
+    </group>
+</vector>

@@ -3,6 +3,7 @@ package app.kasa
 import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
+import android.view.animation.AccelerateInterpolator
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
@@ -36,6 +37,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handOffSplashScreen()
         enableEdgeToEdge()
 
         val container = (application as KasaApplication).container
@@ -75,6 +77,64 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    /**
+     * Açılış ekranından uygulamaya geçiş.
+     *
+     * ### Neden elle yazıldı
+     *
+     * Sistemin varsayılan çıkışı işareti olduğu yerde bırakıp pencereyi
+     * karartıyor: kadran bir an duruyor, sonra yok oluyor. Kadran o sırada
+     * dönüşünü yeni bitirmiş; "açıldı" diyen hareketin ardından gelen bu
+     * duraklama, açılışı bittiği yerde kesiyor.
+     *
+     * Burada işaret **kullanıcıya doğru** büyüyerek çözülüyor — kasanın kapağı
+     * açılmış, içeriden ekran görünüyor. Altındaki uygulama zaten çizilmiş
+     * durumda (bu geri çağrı ilk kare hazır olduktan sonra çalışıyor), yani
+     * kullanıcı boş bir kareye değil kendi kasasına geçiyor.
+     *
+     * ### Neden uyumluluk kitaplığı yok
+     *
+     * `minSdk` 36; platformun kendi açılış ekranı API'si (31+) her cihazda var.
+     * core-splashscreen yalnızca daha eski sürümler için köprü kuruyor.
+     *
+     * ### remove() çağrılmak zorunda
+     *
+     * Bir çıkış dinleyicisi kurulduğu anda açılış ekranını kaldırma
+     * sorumluluğu bize geçiyor; çağrılmazsa uygulama kalıcı olarak örtünün
+     * altında kalır. Bu yüzden iki yol da kapatıldı: animasyonun bitişi ve
+     * ondan biraz uzun bir emniyet gecikmesi. [removed] ikisinin aynı anda
+     * çalışmasını engelliyor.
+     */
+    private fun handOffSplashScreen() {
+        splashScreen.setOnExitAnimationListener { splashView ->
+            var removed = false
+            val finish = Runnable {
+                if (!removed) {
+                    removed = true
+                    splashView.remove()
+                }
+            }
+
+            splashView.iconView?.animate()
+                ?.scaleX(SPLASH_ICON_SCALE)
+                ?.scaleY(SPLASH_ICON_SCALE)
+                ?.alpha(0f)
+                ?.setDuration(SPLASH_EXIT_MILLIS)
+                ?.setInterpolator(AccelerateInterpolator())
+                ?.start()
+
+            splashView.animate()
+                .alpha(0f)
+                .setDuration(SPLASH_EXIT_MILLIS)
+                .withEndAction(finish)
+                .start()
+
+            // Animasyon herhangi bir sebeple bitişini bildirmezse (pencere
+            // erken ayrılırsa olabiliyor) örtü yine de kalkıyor.
+            splashView.postDelayed(finish, SPLASH_EXIT_MILLIS + 120L)
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -86,5 +146,11 @@ class MainActivity : FragmentActivity() {
         const val ACTION_SEARCH = "app.kasa.action.SEARCH"
         const val ACTION_SECURITY = "app.kasa.action.SECURITY"
         const val ACTION_LOCK = "app.kasa.action.LOCK"
+
+        /** Açılış işaretinin çözülme süresi. */
+        private const val SPLASH_EXIT_MILLIS = 260L
+
+        /** Kaybolurken ne kadar büyüdüğü. Fazlası "patlama" gibi görünüyor. */
+        private const val SPLASH_ICON_SCALE = 1.28f
     }
 }

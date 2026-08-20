@@ -188,6 +188,21 @@ Bir güvenlik iddiası, sınırı söylenmediği sürece eksiktir:
   bulanıklaşıyor — bulanıklık kendi katmanında maskelendiği için keskin bir
   başlangıç çizgisi oluşmuyor
 
+### Açılış işareti
+
+Uygulama, sistemin kendi açılış ekranıyla açılıyor (`Theme.Kasa.Splash`).
+Simge duran bir resim değil: önce kadranın çemberi kendini çiziyor, sonra
+kadran ters yönden dönüp yerine oturuyor — bir kasa açılırken kadranın
+çevrilmesi. Toplam 780 ms.
+
+`minSdk` 36 olduğu için platformun API 31 açılış ekranı her cihazda var;
+core-splashscreen uyumluluk kitaplığı eklenmedi.
+
+Çıkış da elle yazıldı. Sistemin varsayılanı işareti olduğu yerde bırakıp
+pencereyi karartıyor: kadran dönüşünü yeni bitirmişken bir an duruyor ve
+açılış bittiği yerde kesiliyor. Burada işaret kullanıcıya doğru büyüyerek
+çözülüyor, altındaki uygulama zaten çizilmiş durumda.
+
 ### Hareket sözlüğü
 
 Bütün animasyonlar `ui/theme/Motion.kt` içindeki tek bir sözlükten geliyor.

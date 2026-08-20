@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Açılış işaretinin canlandırması: kasa açılıyor.
+
+    ### Ne oluyor
+
+    1. Çember kendini çiziyor (0–420 ms). Kadranın çerçevesi önce kuruluyor.
+    2. Kadran ters yönde başlayıp yerine oturuyor (140–780 ms). Bir kasayı
+       açarken kadran çevrilir; işaret tam olarak bunu yapıyor.
+
+    İkisi çakışıyor: çember bitmeden kadran dönmeye başlıyor. Sırayla olsaydı
+    toplam süre iki katına çıkar ve açılış ekranı gereksiz yere beklemeye
+    dönerdi. Açılış ekranı bir gösteri değil, bir bekleme örtüsü.
+
+    ### Neden -150 dereceden
+
+    Dönüş yönü saat yönünde (negatiften sıfıra). Kadran üç kollu ve kollar
+    120 derece aralıklı; 150 derece, bir kolun bir öncekinin yerini geçip
+    devam ettiği en küçük açı. Daha azı "hiç dönmedi" gibi, daha fazlası
+    açılış için gereksiz uzun görünüyordu.
+
+    ### Süre
+
+    Toplam 780 ms. windowSplashScreenAnimationDuration ile aynı; sistem bu
+    değeri simgenin ne kadar gösterileceğini hesaplarken kullanıyor ve
+    uyuşmazlık, animasyon bitmeden kesilen bir açılış demek olurdu. Üst sınır
+    1000 ms — bunun ötesi zaten yavaş açılan bir uygulama izlenimi verir.
+-->
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ic_splash_dial">
+
+    <target android:name="cember">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="trimPathEnd"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:valueType="floatType"
+                android:duration="420"
+                android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+
+    <target android:name="kadran">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:valueFrom="-150"
+                android:valueTo="0"
+                android:valueType="floatType"
+                android:startOffset="140"
+                android:duration="640"
+                android:interpolator="@android:interpolator/fast_out_slow_in" />
+        </aapt:attr>
+    </target>
+</animated-vector>

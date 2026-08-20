@@ -12,6 +12,24 @@
         <item name="android:enforceNavigationBarContrast">false</item>
     </style>
 
+    <!--
+        Açılış ekranı teması.
+
+        minSdk 36 olduğu için platformun kendi açılış ekranı nitelikleri
+        (API 31+) doğrudan kullanılabiliyor; core-splashscreen uyumluluk
+        kitaplığına gerek yok. Simge sistem tarafından, uygulama süreci
+        hazırlanırken çiziliyor — yani kullanıcı ana ekranda dokunduğu anda.
+
+        Arka plan simgenin kendi zemini: ana ekrandaki işaretten açılış
+        ekranındaki işarete geçiş renk atlamadan oluyor. Bu değer gece/gündüz
+        ayrımı yapmıyor, çünkü simgenin kendisi de yapmıyor.
+    -->
+    <style name="Theme.Kasa.Splash" parent="Theme.Kasa">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_dial_animated</item>
+        <item name="android:windowSplashScreenAnimationDuration">780</item>
+    </style>
+
     <style name="Theme.Kasa.Transparent" parent="Theme.Kasa">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
