@@ -2,89 +2,88 @@
 eşitleme yok. Kasanın tamamı tek bir şifreli dosya; kayıt adları, kaç kayıt
 olduğu ve hangi kategorilerin kullanıldığı dâhil her şey o dosyanın içinde.
 
-**Gereksinim:** Android 16 (API 36) ve üstü, 64 bit cihaz.
+Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
-## 1.1'de yenilikler
+## 1.3'te yenilikler
 
-### Otomatik doldurma yeniden yazıldı
+Bu sürüm 1.2'de yapılanları da içeriyor; 1.2 ayrı yayımlanmadı.
 
-- **Satır içi öneriler.** Kayıtlar artık klavyenin üstündeki şeritte çıkıyor;
-  ayrı bir menü açılmıyor.
-- **Doğrulanmış eşleştirme.** Önceki sürüm paket adının son parçasını kayıt
-  adıyla karşılaştırıyordu — `com.kötü.garanti` adlı bir uygulama yayımlayan
-  biri "Garanti" kaydının parolasını isteyebilirdi. Yerine üç doğrulanmış güven
-  katmanı geldi: kullanıcının elle bağladığı uygulama, sitenin
-  `assetlinks.json` dosyasıyla doğrulanan alan adı, tanınan tarayıcıda alan adı
-  eşleşmesi.
-- **2FA kodunu da dolduruyor.** Tek kullanımlık kod alanı tanındığında TOTP
-  kodu üretilip doğrudan yazılıyor.
-- **Kaydetme akışı ayırt ediyor.** "Yeni kayıt mı, var olanın parolası mı
-  değişti" sorusu artık kullanıcıya sorulmuyor; eşleşen kayıt bulunursa
-  güncelleme öneriliyor ve eski parola geçmişe yazılıyor.
+### Arayüz baştan geçti
 
-### Yeni ekranlar ve akışlar
+- **Animasyonlu tanıtım.** Kurulum artık ilk kareden "ana parolanı gir"
+  demiyor. Üç sayfa, üç karar: kasa tek bir dosya, her tür kendi alanında,
+  hiçbir şey cihazdan çıkmıyor. Grafik sayfadan yavaş, yazı sayfadan hızlı
+  kayıyor — tek hızda kayan bir sayfa düz bir slayt, farklı hız derinlik
+  veriyor.
+- **Türe özel düzenleyiciler.** Genel "yeni kayıt" formu kalktı. Kart
+  yazarken kart görünüyor, 2FA yazarken kod dönüyor, kimlik yazarken belge
+  duruyor. Yazılan şey anında göründüğü için yanlış veri kaydedilmeden önce
+  fark ediliyor.
+- **Notlar kaldırıldı.** Not, tür sisteminin kaçış kapısıydı: oraya yazılan
+  hiçbir şey aranamıyor, kopyalanamıyor, gücü ölçülemiyordu. Var olan notlar
+  silinmiyor — şema göçü onları giriş kaydına çeviriyor, ad, metin, etiket,
+  klasör ve ekler olduğu gibi kalıyor.
+- **Arama, çubuğun bulunduğu yerden büyüyerek** açılıyor ve geri gidince
+  oraya dönüyor.
+- **Ayarlar altı kategoriye ayrıldı.** Yetmiş satırlık tek bir listede bir
+  ayarı aramanın cevabı "kaydır ve ara" olmuştu.
+- **Güvenlik ekranı**: puan artık bir halkanın içinde ve altında bulgu
+  şeridi var; dokununca o kuralın listesine gidiyor.
 
-- **Tür seçimi.** Artı tuşu en çok kullanılan beş türü doğrudan veriyor,
-  kalanlar "Diğer" altında.
-- **Çöp kutusu kendi ekranında.** Geri al ve kalıcı sil ayrı ayrı.
-- **Basılı tutma işlemleri.** Kopyala, hızlı bakış, çoğalt, çöpe at — listeden
-  çıkmadan.
-- **CSV içe aktarma.** Chrome, Firefox, Bitwarden, 1Password ve LastPass
-  dosyaları başlık satırından tanınıyor. Ayrıştırıcı RFC 4180'e uyuyor:
-  içinde virgül, tırnak ya da satır sonu geçen parolalar bozulmuyor.
-- **Wi-Fi karekodu.** Misafir, parolayı hiç görmeden ağa bağlanıyor.
-- **Başlatıcı kısayolları.** Son kullanılan kayıtlar simgeye basılı tutunca
-  çıkıyor; kasa kilitlenince siliniyor ve ek kilitli kayıtlar hiç görünmüyor.
-- **Kasa özeti.** Güvenlik ekranı yalnızca yanlış olanı gösteriyordu; artık
-  kayıt sayısı, 2FA oranı, ortalama parola uzunluğu ve en eski parola da var.
-- **Parola yenileme hatırlatıcısı.** Genel "bir yıldan eski" ölçütü yerine
-  kayıt başına gün sayısı.
-- **Söylenebilir parola.** Telefonda okunup karşıya söylenmesi gereken
-  parolalar için üçüncü üretici modu.
-- **Kaydı çoğalt.** Aynı sitede ikinci hesap için.
+### Kartlar
 
-### Görünüm ve hareket
+- Numara **yazarken öbekleniyor**, son kullanma tarihine eğik çizgiyi
+  uygulama koyuyor. Kaydedilen değer yalnızca rakam.
+- **Ağ işaretleri çizildi**: Mastercard ve Maestro'nun iç içe daireleri
+  gerçek yol kesişimiyle, JCB'nin üç şeridi, UnionPay'in eğik dilimleri,
+  Diners diski, Visa/Amex/Troy kelime işaretleri.
+- **Kopyalama düğmeleri kartın üzerinde**. Güvenlik kodu kartın yüzünde
+  hiçbir zaman açık yazmıyor.
 
-- Açılış işareti animasyonlu: kadranın çemberi çiziliyor, sonra kadran ters
-  yönden dönüp yerine oturuyor. Çıkışı da elle yazıldı — sistemin varsayılanı
-  işareti olduğu yerde kesiyordu.
-- Kilit ekranında parola alanı anında belirmiyor; bulanıklıktan ve dağılan
-  noktalardan toplanıyor.
-- Bütün animasyonlar tek bir hareket sözlüğünden geliyor. Ayrım alınan yola
-  göre: aynı yay sertliği uzun bir yolda kırbaç gibi, kısa bir yolda uyuşuk
-  görünüyordu.
-- Gezinti çubuğunun kademeli bulanıklığı düzeltildi: bulanıklık ekranın sol üst
-  köşesini örnekliyordu (`positionInParent` yerine `positionInRoot`).
-- Üreteç kaydırıcısı düzeltildi: 6dp'lik tutamağa uygulanan 4dp'lik çerçeve
-  tutamağın tamamını yiyordu.
-- Kadranın uçlarına doğru bulanıklaşan kenar parıltısı.
-- Arama kutusundan arama ekranına geçiş artık animasyonlu; kutunun yanındaki üç
-  nokta gerçek bir sıralama ve yoğunluk menüsü açıyor.
-- **Yatay mod kaldırıldı.** İçerik alanı yarıya iniyordu ve bir parola
-  yöneticisinde okunacak şey zaten uzun bir liste.
+### Görünüm
 
-### Kare bütçesi (60 / 120 Hz)
+- **Site logoları** baş harfin yerine: ~75 site gömülü tabloyla. Favicon
+  indirilmiyor ve indirilmeyecek — o istek, kasanın içindekini tam olarak o
+  sunuculara ve aradaki ağa söylerdi.
+- **Gradyanlar saate göre kayıyor**, ayarlardan üç aile içinde.
+- **Gizli değer açılırken** noktalar bir anda harfe dönmüyor: metin
+  bulanıklaşıyor, takas en bulanık karede oluyor, sonra netleşiyor.
+- **Uygulama simgesi gradyanlı.** Açılışta bu yüz görünüyor ve animasyonun
+  son 350 ms'sinde uygulamanın içindeki düz tona çözülüyor.
+- **Durum çubuğunun altında ince cam.** İçerik kenardan kenara çizildiği
+  için saat ve pil simgesi o an oradan geçen şeyin rengine kalıyordu.
+- **Alt sayfalar artık telefonun en üst kenarına dayanmıyor.**
 
-- Model sınıflarına `@Immutable` eklendi. Öncesinde tek bir kaydın değişmesi
-  ekrandaki bütün satırların yeniden bestelenmesine yol açıyordu.
-- Temel profil (baseline profile): açılış ve ilk kaydırma yolları kurulumda
-  önceden derleniyor.
-- Kadran çizimi kare başına yeni `Path` ve kutulanmış dizi ayırmıyor; güç
-  ölçümü sıralama karşılaştırıcısının içinden çıkarıldı.
-- Bulanıklık için tam ekran katman kaydı yalnızca gerçekten çizilecekse
-  yapılıyor.
-- R8 tam kipi açıldı.
+### Deneysel efektler (ayarlardan kapatılabilir)
 
-> Bu değişikliklerin hepsi Compose'un belgelenmiş davranışına dayanıyor ama
-> gerçek kare süreleri bir cihazda ölçülmedi.
+- **Eğim parlaması**: kart yüzünde ışık cihazın eğimiyle geziniyor.
+- **Basınç çiçeklenmesi**: dokunulan noktadan açılan, kenarda kesilmeyen ışık.
+- **Parıltı şeridi**: cilalı yüzeylerin üzerinden arada bir geçen yansıma.
+- **Kenar derinliği**: ekranın uçlarına yaklaşan liste satırları geriye
+  çekiliyor.
+
+Anahtar kapalıyken kod yolları **hiç çalışmıyor**: ivmeölçer dinleyicisi
+kaydedilmiyor, sonsuz animasyon başlamıyor, fazladan katman kurulmuyor.
+
+### Üreteç: beş yeni özellik
+
+PIN, kullanıcı adı, onaltılık anahtar, toplu üretim ve entropi hedefi.
+Sonuncusu şunu düzeltiyor: "20 karakter" bir güç ölçüsü değil — sembol
+kapatıldığında aynı uzunluk belirgin şekilde zayıflıyor ve kullanıcı bunu
+görmüyordu. Hedef entropiyle uzunluk artık seçilen kümelerin sonucu.
 
 ### Düzeltmeler
 
-- Artı tuşuna basıp kapatınca çökme: köşe yarıçapı animasyonu geçici olarak
-  negatif değere düşebiliyordu.
-- Eksik dizeler, deneysel API imleri ve içe aktarımlar.
+- Silme penceresinde **"Vazgeç" düğmesi "Vaz" olarak** çiziliyordu.
+  Ağırlıksız bir satırda ilk düğme istediği genişliği alıyor, ikinciye kalanı
+  kalıyordu; hata her zaman ikinci düğmede çıkıyordu. Düğmeler artık eşit
+  ağırlıkta ve etiket taşarsa kelimenin ortasından değil üç noktayla kesiliyor.
+- Yatay mod kaldırıldı: içerik alanı yarıya iniyordu ve bir parola
+  yöneticisinde okunacak şey zaten uzun bir liste.
+- Kilit ekranı her zaman ortalı; ayarlar geç geldiğinde ya da klavye
+  açıldığında yerinden oynamıyor.
 
 ---
 
@@ -92,10 +91,11 @@ olduğu ve hangi kategorilerin kullanıldığı dâhil her şey o dosyanın içi
 
 ### Şifreleme
 
-- Anahtar türetme cihaza göre **ölçülüyor** (Argon2id, ~800 ms hedefi); ölçülen
-  parametre kasa başlığına yazılıyor, kasa başka cihaza taşınsa da doğru açılıyor
-- İki şifreleme paketi: AES-256-GCM ve XChaCha20-Poly1305; hangisinin daha hızlı
-  olduğu kurulumda ölçülüp seçiliyor
+- Anahtar türetme cihaza göre **ölçülüyor** (Argon2id, ~800 ms hedefi);
+  ölçülen parametre kasa başlığına yazılıyor, kasa başka cihaza taşınsa da
+  doğru açılıyor
+- İki şifreleme paketi: AES-256-GCM ve XChaCha20-Poly1305; hangisinin daha
+  hızlı olduğu kurulumda ölçülüp seçiliyor
 - XChaCha20 kullanılmadan önce kendini sınıyor (RFC vektörü + mühürleme turu +
   kurcalanmış etiketin reddi); biri tutmazsa paket hiç sunulmuyor
 - Android Keystore / StrongBox sarmalayıcıları, kasa anahtarı rotasyonu
@@ -111,15 +111,6 @@ olduğu ve hangi kategorilerin kullanıldığı dâhil her şey o dosyanın içi
 - Bağlama duyarlı kilit süresi: güvenilen Wi-Fi ağında daha uzun. Ağ adı ham
   hâlde saklanmıyor, SHA-256 özetinin ilk 16 baytı tutuluyor
 
-### Kasa
-
-- Dokuz kayıt türü: giriş, kart, güvenli not, 2FA, kimlik, banka hesabı,
-  SSH/API anahtarı, yazılım lisansı, Wi-Fi ağı
-- Klasörler ve kurala göre kendini dolduran koleksiyonlar
-- 30 günlük çöp kutusu, kayıt başına şifreli ek dosyaları, parola geçmişi
-- Kart kayıtları cüzdandaki gibi görünüyor: ödeme kartı oranında yüz, EMV
-  yongası, ağın renk ailesi, maskeli numara ve Luhn sağlaması
-
 ### Ağa çıkan tek şey
 
 Parola sızıntısı denetimi (Have I Been Pwned), k-anonimlik ile: parolanın SHA-1
@@ -132,3 +123,7 @@ içinde yazılı. Kısaca: deneme sayacı dosyasını silen bir saldırgan sayac
 sıfırlar (asıl koruma ana parolanın entropisi ve ölçülmüş Argon2id maliyeti);
 cihaz kök erişimine açıksa kasa açıkken bellekten okunabilir; ekran görüntüsü
 engeli kök erişimini durdurmaz.
+
+**Bu sürümdeki arayüz hiçbir cihazda çalıştırılarak görülmedi.** Depo yazılırken
+emülatör erişimi yoktu; doğrulama derlemeyle sınırlı (debug, R8 sürüm derlemesi
+ve lint).
