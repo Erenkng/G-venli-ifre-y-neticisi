@@ -148,3 +148,19 @@ object KasaMotion {
     private const val DAMPING_SPATIAL_LARGE = 0.78f
     private const val DAMPING_EFFECT = 1f
 }
+
+/**
+ * Deneysel yüzey efektleri açık mı.
+ *
+ * ### Neden CompositionLocal
+ *
+ * Efektler `Modifier` uzantıları olarak yazıldı ve bileşen ağacının her
+ * yerinde kullanılıyorlar. Bayrağı parametre olarak taşımak, aradaki her
+ * bileşene ilgilenmediği bir alan eklemek olurdu: kart yüzü, liste satırı,
+ * döşeme, başlık — hiçbirinin bu kararla işi yok, yalnızca içinden geçiyor.
+ *
+ * Varsayılan `false`: bir efekt, açık olduğu açıkça sağlanmadıkça
+ * çalışmamalı. Ters varsayılan, önizlemelerde ve testlerde sensör
+ * dinleyicisi kuran bir arayüz üretirdi.
+ */
+val LocalExperimentalEffects = staticCompositionLocalOf { false }

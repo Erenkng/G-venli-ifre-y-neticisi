@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import androidx.compose.foundation.layout.heightIn
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -128,6 +129,9 @@ fun ItemDetailSheet(
     ) {
         Column(
             Modifier
+                // Sayfa telefonun üst kenarına dayanmıyor; gerekçesi
+                // sheetMaxContentHeight üzerinde yazılı.
+                .heightIn(max = sheetMaxContentHeight())
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp)

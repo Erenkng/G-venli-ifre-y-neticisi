@@ -85,6 +85,9 @@ fun CardFace(
     val brand = CardBrand.detect(item.cardNumber)
     val number = if (revealed) CardBrand.group(item.cardNumber, brand)
     else CardBrand.mask(item.cardNumber, brand)
+    // Gerçek bir kartın camdan yansıması gibi: telefon çevrildikçe ışık
+    // yüzeyde geziniyor. Deneysel efektler kapalıysa hiç hesaplanmıyor.
+    val tilt = rememberDeviceTilt()
 
     Box(
         modifier = modifier
@@ -98,6 +101,7 @@ fun CardFace(
                     listOf(Color(brand.startColor), Color(brand.endColor))
                 )
             )
+            .tiltSheen(tilt)
     ) {
         CardSheen(Modifier.fillMaxSize())
 

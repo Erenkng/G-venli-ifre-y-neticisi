@@ -59,6 +59,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setTheme(mode: ThemeMode) = launchSetting { settingsStore.setTheme(mode) }
     fun setDynamicColor(value: Boolean) = launchSetting { settingsStore.setDynamicColor(value) }
     fun setPureBlack(value: Boolean) = launchSetting { settingsStore.setPureBlack(value) }
+    fun setExperimentalEffects(value: Boolean) = launchSetting { settingsStore.setExperimentalEffects(value) }
     fun setGradientTheme(value: GradientTheme) = launchSetting { settingsStore.setGradientTheme(value) }
     fun setGradientFollowsTime(value: Boolean) = launchSetting { settingsStore.setGradientFollowsTime(value) }
     fun setHaptics(value: Boolean) = launchSetting {

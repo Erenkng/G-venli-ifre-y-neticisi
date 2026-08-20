@@ -140,6 +140,15 @@ class SettingsStore(private val context: Context) {
         val generatorDigits: Boolean = true,
         val generatorSymbols: Boolean = true,
         val generatorAvoidLookalikes: Boolean = false,
+        /**
+         * Deneysel yüzey efektleri.
+         *
+         * Eğim parlaması, basınç çiçeklenmesi, parıltı şeridi ve kenar
+         * derinliği. Varsayılan açık: bunlar uygulamanın görünmek istediği
+         * hâli. Kapatıldığında kod yolları hiç çalışmıyor — sensör
+         * dinleyicisi kaydedilmiyor, sonsuz animasyon başlamıyor.
+         */
+        val experimentalEffects: Boolean = true,
         val gradientTheme: GradientTheme = GradientTheme.JADE,
         /**
          * Gradyan günün saatine göre kaysın mı.
@@ -212,6 +221,7 @@ class SettingsStore(private val context: Context) {
             generatorDigits = prefs[KEY_GEN_DIGITS] ?: true,
             generatorSymbols = prefs[KEY_GEN_SYMBOLS] ?: true,
             generatorAvoidLookalikes = prefs[KEY_GEN_CLEAR] ?: false,
+            experimentalEffects = prefs[KEY_EXPERIMENTAL] ?: true,
             gradientTheme = runCatching { GradientTheme.valueOf(prefs[KEY_GRADIENT] ?: GradientTheme.JADE.name) }
                 .getOrDefault(GradientTheme.JADE),
             gradientFollowsTime = prefs[KEY_GRADIENT_TIME] ?: true,
@@ -265,6 +275,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setGeneratorAvoidLookalikes(value: Boolean) = put(KEY_GEN_CLEAR, value)
     suspend fun setGeneratorWordCount(value: Int) = put(KEY_GEN_WORDS, value)
     suspend fun setGeneratorSeparator(value: String) = put(KEY_GEN_SEPARATOR, value)
+    suspend fun setExperimentalEffects(value: Boolean) = put(KEY_EXPERIMENTAL, value)
     suspend fun setGradientTheme(value: GradientTheme) = put(KEY_GRADIENT, value.name)
     suspend fun setGradientFollowsTime(value: Boolean) = put(KEY_GRADIENT_TIME, value)
     suspend fun setGeneratorMode(value: GeneratorMode) = put(KEY_GEN_MODE, value.name)
@@ -328,6 +339,7 @@ class SettingsStore(private val context: Context) {
         val KEY_GEN_WORDS = intPreferencesKey("gen_words")
         val KEY_GEN_SEPARATOR = stringPreferencesKey("gen_separator")
         val KEY_GEN_CAPITALIZE = booleanPreferencesKey("gen_capitalize")
+        val KEY_EXPERIMENTAL = booleanPreferencesKey("experimental_effects")
         val KEY_GRADIENT = stringPreferencesKey("gradient_theme")
         val KEY_GRADIENT_TIME = booleanPreferencesKey("gradient_follows_time")
         val KEY_GEN_MODE = stringPreferencesKey("gen_mode")

@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.edgeDepth
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -269,11 +270,17 @@ fun VaultScreen(
                     compact = compact,
                     onClick = { viewModel.select(entry.id) },
                     onLongClick = { actionTarget = entry },
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = KasaMotion.effect(),
-                        placementSpec = KasaMotion.medium(),
-                        fadeOutSpec = KasaMotion.exit()
-                    )
+                    modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = KasaMotion.effect(),
+                            placementSpec = KasaMotion.medium(),
+                            fadeOutSpec = KasaMotion.exit()
+                        )
+                        // Ekranın uçlarına yaklaşan satırlar geriye çekiliyor:
+                        // liste düz bir şerit değil, uçları kıvrılan bir yüzey
+                        // gibi okunuyor ve gezinme çubuğunun altına giren
+                        // içeriğin oraya gitmesi doğal görünüyor.
+                        .edgeDepth()
                 )
             }
         }

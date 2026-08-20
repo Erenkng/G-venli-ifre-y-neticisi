@@ -79,6 +79,7 @@ import app.kasa.ui.screens.QrScanScreen
 import app.kasa.ui.screens.SearchOverlay
 import app.kasa.ui.components.contentRevealFraction
 import app.kasa.ui.components.ExpandingSurface
+import app.kasa.ui.components.KasaStatusBarScrim
 import app.kasa.ui.screens.SecurityScreen
 import app.kasa.ui.screens.SettingsScreen
 import app.kasa.ui.screens.TrashScreen
@@ -337,6 +338,17 @@ fun MainScaffold(
             backdrop = backdrop,
             contentBehind = contentBehind,
             modifier = Modifier.align(Alignment.BottomCenter)
+        )
+
+        // Durum çubuğunun altındaki ince cam.
+        //
+        // İçerik kenardan kenara çizildiği için saatin ve pil simgesinin
+        // okunabilirliği o an oradan geçen şeyin rengine kalıyordu. Bant
+        // gezinme çubuğuyla aynı kaydedilmiş kopyayı kullanıyor; ikinci bir
+        // ekran kaydı almıyor, yani kare bütçesine ek yük getirmiyor.
+        KasaStatusBarScrim(
+            backdrop = backdrop,
+            modifier = Modifier.align(Alignment.TopCenter)
         )
 
         Scrim(

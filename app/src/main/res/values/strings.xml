@@ -635,4 +635,7 @@
     <string name="sec_chip_old">Eski %d</string>
     <string name="sec_chip_no_2fa">2FA yok %d</string>
     <string name="sec_chip_renew">Yenile %d</string>
+    <string name="set_group_effects">Deneysel efektler</string>
+    <string name="set_effects">Yüzey efektleri</string>
+    <string name="set_effects_sub">Kartlarda eğimle kayan ışık, dokunulan noktadan açılan parıltı, yüzeylerden geçen yansıma ve liste uçlarında derinlik. Kapatıldığında ivmeölçer hiç açılmıyor.</string>
 </resources>

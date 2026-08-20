@@ -1,5 +1,7 @@
 package app.kasa.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -340,3 +342,46 @@ private val SIDE_PADDING = 16.dp
 
 /** Gezinme çubuğunun iç boşluk hariç yüksekliği. */
 private val NAV_BAR_HEIGHT = 108.dp
+
+/**
+ * Tam ekrana açılan bir alt sayfanın içeriğinin kaplayabileceği en fazla yer.
+ *
+ * ### Sorun
+ *
+ * `skipPartiallyExpanded` ile açılan bir alt sayfa, içeriği uzunsa telefonun
+ * en üst kenarına kadar çıkıyordu. İki şeyi birden bozuyor:
+ *
+ *  - **Bağlam kayboluyor.** Alt sayfanın tanımı, altındakini kapatmadan
+ *    üstüne gelmesi. Üst kenara dayandığında ayrı bir ekrandan farkı kalmıyor
+ *    ve geri gidince nereye dönüleceği belirsizleşiyor.
+ *  - **Durum çubuğuyla çakışıyor.** Sayfanın yuvarlatılmış üst köşeleri
+ *    saatin ve pil simgesinin arkasına giriyor, tutamak sistem yazısıyla aynı
+ *    hizaya düşüyor.
+ *
+ * ### Ölçü
+ *
+ * Ekran yüksekliğinden durum çubuğu ve üstünde bırakılan nefes payı
+ * düşülüyor. Sonuç bir **üst sınır**: kısa içerik zaten daha az yer kaplıyor
+ * ve sayfa onun boyunda açılıyor; yalnızca uzun içerik bu sınıra dayanıyor ve
+ * orada kaydırılabiliyor.
+ *
+ * Alternatif — sayfanın en üstüne bir boşluk koymak — sayfayı yine tepeye
+ * dayardı ve içeriği aşağı iterdi; görünen yükseklik değişmezdi.
+ */
+@Composable
+fun sheetMaxContentHeight(gap: Dp = SHEET_TOP_GAP): Dp {
+    val configuration = LocalConfiguration.current
+    val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    return (configuration.screenHeightDp.dp - statusBar - gap).coerceAtLeast(MIN_SHEET_HEIGHT)
+}
+
+/**
+ * Alt sayfanın üstünde bırakılan boşluk.
+ *
+ * Altındaki ekranın bir şeridi görünür kalıyor: sayfanın bir şeyin **üstünde**
+ * durduğu buradan anlaşılıyor.
+ */
+private val SHEET_TOP_GAP = 28.dp
+
+/** Çok kısa ekranlarda sınırın içeriği ezmemesi için taban. */
+private val MIN_SHEET_HEIGHT = 220.dp

@@ -95,6 +95,10 @@ fun KasaTile(
             .scale(scale)
             .clip(groupShape(position, tight, loose))
             .background(if (pressed) KasaTheme.colors.tilePressed else KasaTheme.colors.tile)
+            // Dokunulan noktadan açılan ışık. Material'ın dalgalanmasından
+            // farkı ve gerekçesi pressBloom üzerinde yazılı; kırpma zaten
+            // yukarıdaki clip tarafından yapılıyor.
+            .pressBloom(color = KasaTheme.colors.ink, maxAlpha = 0.10f)
             .combinedClickableNoRipple(
                 interactionSource = interaction,
                 role = Role.Button,
@@ -222,6 +226,12 @@ fun KasaCard(
             .shadow(2.dp, RoundedCornerShape(KasaRadius.xl), clip = false)
             .clip(RoundedCornerShape(KasaRadius.xl))
             .background(background)
+            // Cilalı bir yüzeyin üzerinden arada bir geçen yansıma. Kırpma
+            // yukarıda yapıldığı için şerit kartın dışına taşmıyor.
+            .shimmerSweep(
+                color = if (colors.isDark) Color.White else Color.White,
+                alpha = if (colors.isDark) 0.07f else 0.34f
+            )
             .border(1.dp, if (colors.isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.9f), RoundedCornerShape(KasaRadius.xl))
             .padding(padding),
         content = content

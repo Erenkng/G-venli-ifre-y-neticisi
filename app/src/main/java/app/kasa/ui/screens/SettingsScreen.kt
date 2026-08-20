@@ -384,6 +384,23 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setGradientFollowsTime,
                     first = true
                 )
+
+                // Deneysel efektler.
+                //
+                // Kapatıldığında kod yolları hiç çalışmıyor: ivmeölçer
+                // dinleyicisi kaydedilmiyor, sonsuz animasyon başlamıyor,
+                // fazladan katman kurulmuyor. "Görünmez ama çalışıyor" bir
+                // efekt kapatılmış sayılmaz.
+                Spacer(Modifier.height(16.dp))
+                SectionLabel(stringResource(R.string.set_group_effects))
+                Spacer(Modifier.height(8.dp))
+                ToggleRow(
+                    title = stringResource(R.string.set_effects),
+                    subtitle = stringResource(R.string.set_effects_sub),
+                    checked = settings.experimentalEffects,
+                    onCheckedChange = viewModel::setExperimentalEffects,
+                    first = true
+                )
             }
         }
 

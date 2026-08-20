@@ -617,4 +617,7 @@
     <string name="sec_chip_old">Old %d</string>
     <string name="sec_chip_no_2fa">No 2FA %d</string>
     <string name="sec_chip_renew">Renew %d</string>
+    <string name="set_group_effects">Experimental effects</string>
+    <string name="set_effects">Surface effects</string>
+    <string name="set_effects_sub">Light that follows the device tilt on cards, a bloom from where you touch, a sweep across surfaces, and depth at the list edges. Turning this off never opens the accelerometer.</string>
 </resources>

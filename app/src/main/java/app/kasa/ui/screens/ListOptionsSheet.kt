@@ -1,5 +1,8 @@
 package app.kasa.ui.screens
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +68,8 @@ fun ListOptionsSheet(
         Column(
             Modifier
                 .fillMaxWidth()
+                .heightIn(max = sheetMaxContentHeight())
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
         ) {

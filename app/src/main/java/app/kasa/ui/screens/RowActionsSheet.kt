@@ -1,5 +1,8 @@
 package app.kasa.ui.screens
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -157,6 +160,8 @@ fun RowActionsSheet(
         Column(
             Modifier
                 .fillMaxWidth()
+                .heightIn(max = sheetMaxContentHeight())
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding()
         ) {

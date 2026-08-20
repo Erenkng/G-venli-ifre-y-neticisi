@@ -1,5 +1,7 @@
 package app.kasa.ui.components
 
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -184,7 +186,9 @@ private fun Backdrop(
     modifier: Modifier,
     gradientStart: (Size) -> Offset,
     gradientEnd: (Size) -> Offset,
-    strength: Float = 1f
+    strength: Float = 1f,
+    radiusNear: Dp = BLUR_NEAR,
+    radiusFar: Dp = BLUR_FAR
 ) {
     if (backdrop == null) return
     if (strength <= 0.01f) return
@@ -193,8 +197,8 @@ private fun Backdrop(
         // Sıra önemli: kalın olan altta, ince olan üstünde. Üstteki kenara
         // yakın yerde opak olduğu için orada ince bulanıklık görünüyor;
         // saydamlaştığı yerde alttaki kalın bulanıklık ortaya çıkıyor.
-        BlurBand(backdrop, Modifier.matchParentSize(), BLUR_FAR, FAR_STOPS, gradientStart, gradientEnd, strength)
-        BlurBand(backdrop, Modifier.matchParentSize(), BLUR_NEAR, NEAR_STOPS, gradientStart, gradientEnd, strength)
+        BlurBand(backdrop, Modifier.matchParentSize(), radiusFar, FAR_STOPS, gradientStart, gradientEnd, strength)
+        BlurBand(backdrop, Modifier.matchParentSize(), radiusNear, NEAR_STOPS, gradientStart, gradientEnd, strength)
     }
 }
 
@@ -268,6 +272,73 @@ private fun BlurBand(
             }
     )
 }
+
+/**
+ * Durum çubuğunun altındaki ince cam.
+ *
+ * ### Neden gerekli
+ *
+ * İçerik kenardan kenara çizildiği için durum çubuğunun altından geçiyor ve
+ * saat, pil, sinyal o an oradan geçen şeyin rengine kalıyor. Beyaz bir kart
+ * geçerken saat okunuyor, koyu bir kart yüzü geçerken kayboluyor. Sistem
+ * yazısının rengi tek bir tema kararı; altından geçen içerik ise her karede
+ * değişiyor. İkisi hiçbir zaman uyuşmuyor.
+ *
+ * Bulanıklık bu ilişkiyi kesiyor: altındaki içerik ne olursa olsun ortalanmış,
+ * düşük kontrastlı bir yüzeye dönüşüyor ve sistem yazısı her zaman onun
+ * üstünde okunuyor.
+ *
+ * ### Neden gezinme çubuğundakinden ince
+ *
+ * Alttaki cam bir yüzey — üzerinde düğmeler duruyor ve kalınlığı o yüzeyi
+ * gerçek kılıyor. Buradaki ise yalnızca bir okunabilirlik önlemi: kalın bir
+ * cam, ekranın üstünde içerik için ayrılmış alanı yiyor ve kullanıcı ondan
+ * hiçbir şey kazanmıyor. Yarıçaplar da geçiş mesafesi de bilerek küçük.
+ *
+ * ### Maskenin yönü ters
+ *
+ * Gezinme çubuğunda opak kenar altta; burada üstte. Aynı [BlurBand] iki yönde
+ * de çalışıyor çünkü degrade uçlarını çağıran veriyor — maskenin kendisini
+ * ikinci kez yazmak, ikisinin zamanla ayrışmasına açık kapı bırakırdı.
+ */
+@Composable
+fun KasaStatusBarScrim(
+    backdrop: GraphicsLayer?,
+    modifier: Modifier = Modifier
+) {
+    val colors = KasaTheme.colors
+    val inset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    // Sistem çubuğu hiç yoksa (tam ekran bir kip) çizilecek bir şey de yok.
+    if (inset <= 0.dp) return
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(inset + STATUS_FADE_RUNWAY)
+            .background(
+                Brush.verticalGradient(
+                    0.00f to colors.navScrim.copy(alpha = 0.86f),
+                    0.55f to colors.navScrim.copy(alpha = 0.52f),
+                    1.00f to colors.navScrim.copy(alpha = 0f)
+                )
+            )
+    ) {
+        Backdrop(
+            backdrop = backdrop,
+            modifier = Modifier.matchParentSize(),
+            // Opak uç üstte: degrade aşağıdan yukarı okunuyor.
+            gradientStart = { Offset(0f, it.height) },
+            gradientEnd = { Offset(0f, 0f) },
+            radiusNear = STATUS_BLUR_NEAR,
+            radiusFar = STATUS_BLUR_FAR
+        )
+    }
+}
+
+/** Durum çubuğu camının içerik tarafındaki solma mesafesi. */
+private val STATUS_FADE_RUNWAY = 16.dp
+private val STATUS_BLUR_NEAR = 4.dp
+private val STATUS_BLUR_FAR = 13.dp
 
 /** İçeriğe yakın kenardaki ince bulanıklık. */
 private val BLUR_NEAR = 9.dp
