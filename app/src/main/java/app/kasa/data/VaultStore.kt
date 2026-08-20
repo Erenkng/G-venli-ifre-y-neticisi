@@ -732,9 +732,15 @@ class VaultStore(private val context: Context) {
     fun ensureDuressSlot(vaultKey: SecretBytes, section: Int) {
         if (duressKeyFile.exists()) return
         runCatching {
-            val data = readVaultFrom(vaultFile, vaultKey, section).data
+            val container = readContainer(vaultFile)
             val cipherSuite = suite
-            writeVaultTo(vaultFile, vaultKey, data, cipherSuite, section, emptyList())
+            // Kap zaten iki bölmeliyse içeriğe dokunulmuyor; eksik olan yalnızca
+            // sarmalayıcı. Bölmeleri yeniden yazmak, var olan bir yem kasayı
+            // sessizce silmek olurdu.
+            if (container.version < FORMAT_VERSION || container.sections.size < SECTION_COUNT) {
+                val data = readVaultFrom(vaultFile, vaultKey, section).data
+                writeVaultTo(vaultFile, vaultKey, data, cipherSuite, section, container.sections)
+            }
             writeUnopenableDuress(currentKdfParams() ?: Kdf.defaultParams(), cipherSuite)
         }
     }
