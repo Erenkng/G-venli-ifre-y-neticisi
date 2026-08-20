@@ -40,6 +40,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -163,9 +166,27 @@ fun MainScaffold(
             !searchOpen && !fabExpanded && tab == TAB_VAULT && vaultView != VaultFilter.All
     ) { vaultViewModel.setView(VaultFilter.All) }
 
+    // Gezinti çubuğunun bulanıklaştıracağı arka plan kopyası.
+    //
+    // İçerik bir kez çiziliyor ve aynı anda bu katmana kaydediliyor; çubuk
+    // sonra o kaydı kendi altına düşen parçası için yeniden çiziyor. İçeriği
+    // iki kez besteleme yok, dolayısıyla ek bir kare maliyeti de yok.
+    val backdrop = rememberGraphicsLayer()
+
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) {
+        // Sayfa içeriği tüm ekranı kaplıyor: liste sonuna kadar kayıyor ve
+        // gezinti çubuğunun altına giriyor. Eskiden çubuk bir `Column` içinde
+        // içeriğin yanında duruyordu; içerik alanı orada bittiği için son
+        // kayıtlar bir geçiş olmadan kesiliyordu.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .drawWithContent {
+                    backdrop.record { this@drawWithContent.drawContent() }
+                    drawLayer(backdrop)
+                }
+        ) {
+            Box(Modifier.fillMaxSize()) {
                 when (tab) {
                     TAB_VAULT -> VaultScreen(
                         viewModel = vaultViewModel,
@@ -205,18 +226,19 @@ fun MainScaffold(
                     )
                 }
             }
-
-            KasaNavBar(
-                destinations = destinations,
-                selected = tab,
-                onSelect = {
-                    if (it != tab) vaultViewModel.haptic(Haptics.Kind.NAV)
-                    tab = it
-                    fabExpanded = false
-                },
-                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-            )
         }
+
+        KasaNavBar(
+            destinations = destinations,
+            selected = tab,
+            onSelect = {
+                if (it != tab) vaultViewModel.haptic(Haptics.Kind.NAV)
+                tab = it
+                fabExpanded = false
+            },
+            backdrop = backdrop,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
 
         Scrim(
             visible = fabExpanded,
@@ -343,7 +365,7 @@ fun MainScaffold(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = 96.dp)
+                .padding(bottom = 112.dp)
         )
     }
 }

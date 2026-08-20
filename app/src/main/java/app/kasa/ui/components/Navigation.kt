@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -28,15 +31,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -54,38 +69,84 @@ data class NavDestination(
  * Alt gezinme çubuğu.
  *
  * Seçili öğenin arkasındaki hap (pill) yatayda sıkışık başlayıp yaylanarak
- * açılır; simge hafifçe büyür. Çubuğun kendisi içeriğin üzerinde yumuşak bir
- * degrade ile durur, böylece kaydırılan liste altında kaybolurken sert bir
- * kenar oluşmaz.
+ * açılır; simge hafifçe büyür.
+ *
+ * ### Çubuğun altında ne oluyor
+ *
+ * Çubuk içeriğin **üzerinde** duruyor, yanında değil: liste sonuna kadar
+ * kayıyor ve çubuğun altına giriyor. Girdiği yerde üç katman var:
+ *
+ *  1. **Arka plan bulanıklığı** — [backdrop], ekrandaki içeriğin kaydedilmiş
+ *     bir kopyası. Çubuk o kopyanın yalnızca kendi altına düşen parçasını
+ *     bulanıklaştırıp çiziyor. Buzlu cam etkisini veren şey bu; içeriğin
+ *     hareket ettiği görünüyor ama okunmuyor.
+ *  2. **Yumuşak degrade** — bulanık görüntünün üstünde, yukarıda saydam
+ *     başlayıp aşağı indikçe koyulaşan bir örtü. Tam opak değil (0,96):
+ *     "hafif opak" istenen his bu, ve altındaki hareket seçilmeye devam ediyor.
+ *  3. **Sistem çubuğu alanı** — arka plan sistem gezinti çubuğunun altına
+ *     kadar iniyor, yalnızca **içerik** iç boşlukla yukarı alınıyor. Eskiden
+ *     iç boşluk çubuğun tamamına uygulandığı için o şerit boyasız kalıyordu.
+ *
+ * Bulanıklık kullanılamazsa (kaydedilmiş kopya yoksa) degrade tek başına
+ * çalışmayı sürdürüyor; görüntü sadeleşiyor, bozulmuyor.
  */
 @Composable
 fun KasaNavBar(
     destinations: List<NavDestination>,
     selected: String,
     onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backdrop: GraphicsLayer? = null
 ) {
     val colors = KasaTheme.colors
-    Row(
+    val blurLayer = rememberGraphicsLayer()
+    val blurRadius = with(LocalDensity.current) { 26.dp.toPx() }
+    var barTop by remember { mutableFloatStateOf(0f) }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
+            .onGloballyPositioned { barTop = it.positionInParent().y }
+            .drawBehind {
+                if (backdrop == null) return@drawBehind
+                // Kaydedilmiş kopyayı çubuğun tepesi kadar yukarı kaydırıp
+                // çiziyoruz: katmanın sınırları çubuk kadar olduğu için
+                // yalnızca altta kalan parça giriyor.
+                runCatching {
+                    blurLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
+                    blurLayer.clip = true
+                    blurLayer.record {
+                        translate(top = -barTop) { drawLayer(backdrop) }
+                    }
+                    drawLayer(blurLayer)
+                }
+            }
             .background(
                 Brush.verticalGradient(
-                    0f to colors.navScrim.copy(alpha = 0f),
-                    0.34f to colors.navScrim.copy(alpha = 0.92f),
-                    1f to colors.navScrim
+                    0.00f to colors.navScrim.copy(alpha = 0f),
+                    0.28f to colors.navScrim.copy(alpha = 0.52f),
+                    0.55f to colors.navScrim.copy(alpha = 0.88f),
+                    1.00f to colors.navScrim.copy(alpha = 0.96f)
                 )
             )
-            .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        destinations.forEach { destination ->
-            NavItem(
-                destination = destination,
-                selected = destination.key == selected,
-                onClick = { onSelect(destination.key) },
-                modifier = Modifier.weight(1f)
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                // Yalnızca içerik yukarı alınıyor; arka plan sistem çubuğunun
+                // altına kadar iniyor.
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(start = 12.dp, end = 12.dp, top = 22.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            destinations.forEach { destination ->
+                NavItem(
+                    destination = destination,
+                    selected = destination.key == selected,
+                    onClick = { onSelect(destination.key) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }

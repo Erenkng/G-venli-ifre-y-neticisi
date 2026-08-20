@@ -1,6 +1,10 @@
 package app.kasa.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -212,3 +216,21 @@ fun durationLabel(seconds: Int): String = when {
     seconds == 60 -> stringResource(R.string.dur_minute)
     else -> stringResource(R.string.dur_minutes, seconds / 60)
 }
+
+/**
+ * Kaydırılan listelerin altına bırakılacak boşluk.
+ *
+ * Gezinti çubuğu içeriğin üzerinde durduğu için son kayıt kendi başına
+ * çubuğun altında kalırdı. Sabit bir sayı da yetmiyor: sistem gezinti çubuğu
+ * hareket çubuğunda ~24dp, üç tuşlu gezinmede ~48dp yer kaplıyor ve fark
+ * doğrudan son kaydın okunabilirliğine yansıyor. Bu yüzden cihazın bildirdiği
+ * iç boşluk ölçüme ekleniyor.
+ *
+ * @param extra ekranın kendi ihtiyacı (örneğin kasa ekranındaki eylem düğmesi).
+ */
+@Composable
+fun navBarSpacing(extra: Dp = 0.dp): Dp =
+    NAV_BAR_HEIGHT + extra + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+/** Gezinti çubuğunun iç boşluk hariç yüksekliği. */
+private val NAV_BAR_HEIGHT = 100.dp
