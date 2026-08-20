@@ -31,6 +31,17 @@ class SettingsStore(private val context: Context) {
         val pureBlack: Boolean = false,
         val haptics: Boolean = true,
         val biometricUnlock: Boolean = false,
+        /** Biyometri yerine/yanında telefonun kendi ekran kilidi de kabul edilsin. */
+        val deviceCredentialUnlock: Boolean = false,
+        /**
+         * Güvenilen ağdayken otomatik kilit gecikmesi.
+         *
+         * Ağ kimliği yalnızca özet olarak saklanıyor ([trustedNetworkHash]) ve
+         * hiçbir yere gönderilmiyor; ne SSID ne konum cihazdan çıkıyor.
+         */
+        val contextLockEnabled: Boolean = false,
+        val trustedNetworkHash: String = "",
+        val contextLockSeconds: Int = 300,
         val blockScreenshots: Boolean = true,
         val clipboardClearSeconds: Int = 30,
         val autoLockSeconds: Int = 60,
@@ -58,6 +69,10 @@ class SettingsStore(private val context: Context) {
             pureBlack = prefs[KEY_PURE_BLACK] ?: false,
             haptics = prefs[KEY_HAPTICS] ?: true,
             biometricUnlock = prefs[KEY_BIOMETRIC] ?: false,
+            deviceCredentialUnlock = prefs[KEY_DEVICE_CRED] ?: false,
+            contextLockEnabled = prefs[KEY_CONTEXT_LOCK] ?: false,
+            trustedNetworkHash = prefs[KEY_TRUSTED_NETWORK] ?: "",
+            contextLockSeconds = prefs[KEY_CONTEXT_SECONDS] ?: 300,
             blockScreenshots = prefs[KEY_BLOCK_SHOTS] ?: true,
             clipboardClearSeconds = prefs[KEY_CLIP_SECONDS] ?: 30,
             autoLockSeconds = prefs[KEY_AUTOLOCK] ?: 60,
@@ -83,6 +98,10 @@ class SettingsStore(private val context: Context) {
     suspend fun setPureBlack(value: Boolean) = put(KEY_PURE_BLACK, value)
     suspend fun setHaptics(value: Boolean) = put(KEY_HAPTICS, value)
     suspend fun setBiometricUnlock(value: Boolean) = put(KEY_BIOMETRIC, value)
+    suspend fun setDeviceCredentialUnlock(value: Boolean) = put(KEY_DEVICE_CRED, value)
+    suspend fun setContextLockEnabled(value: Boolean) = put(KEY_CONTEXT_LOCK, value)
+    suspend fun setTrustedNetworkHash(value: String) = put(KEY_TRUSTED_NETWORK, value)
+    suspend fun setContextLockSeconds(value: Int) = put(KEY_CONTEXT_SECONDS, value)
     suspend fun setBlockScreenshots(value: Boolean) = put(KEY_BLOCK_SHOTS, value)
     suspend fun setClipboardClearSeconds(value: Int) = put(KEY_CLIP_SECONDS, value)
     suspend fun setAutoLockSeconds(value: Int) = put(KEY_AUTOLOCK, value)
@@ -129,6 +148,10 @@ class SettingsStore(private val context: Context) {
         val KEY_PURE_BLACK = booleanPreferencesKey("pure_black")
         val KEY_HAPTICS = booleanPreferencesKey("haptics")
         val KEY_BIOMETRIC = booleanPreferencesKey("biometric")
+        val KEY_DEVICE_CRED = booleanPreferencesKey("device_credential")
+        val KEY_CONTEXT_LOCK = booleanPreferencesKey("context_lock")
+        val KEY_TRUSTED_NETWORK = stringPreferencesKey("trusted_network")
+        val KEY_CONTEXT_SECONDS = intPreferencesKey("context_lock_seconds")
         val KEY_BLOCK_SHOTS = booleanPreferencesKey("block_screenshots")
         val KEY_CLIP_SECONDS = intPreferencesKey("clipboard_seconds")
         val KEY_AUTOLOCK = intPreferencesKey("autolock_seconds")

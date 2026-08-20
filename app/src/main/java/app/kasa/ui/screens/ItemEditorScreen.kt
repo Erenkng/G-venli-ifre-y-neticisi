@@ -292,6 +292,16 @@ fun ItemEditorScreen(
                 onCreate = { name -> viewModel.createFolder(name) }
             )
 
+            // ── kayıt bazlı ek kilit ──────────────────────────────────────
+            Spacer(Modifier.height(14.dp))
+            ToggleRow(
+                title = stringResource(R.string.editor_require_auth),
+                subtitle = stringResource(R.string.editor_require_auth_sub),
+                checked = item.requireAuth,
+                onCheckedChange = { item = item.copy(requireAuth = it) },
+                first = true
+            )
+
             // ── ekler ─────────────────────────────────────────────────────
             Spacer(Modifier.height(16.dp))
             AttachmentEditor(

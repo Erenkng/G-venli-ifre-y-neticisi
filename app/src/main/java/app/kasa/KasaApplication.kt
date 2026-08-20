@@ -55,6 +55,17 @@ class KasaApplication : Application(), Configuration.Provider {
             .onEach { container.autoLocker.autoLockSeconds = it }
             .launchIn(container.scope)
 
+        // Bağlama duyarlı kilit ayarları.
+        container.settingsStore.settings
+            .map { Triple(it.contextLockEnabled, it.trustedNetworkHash, it.contextLockSeconds) }
+            .distinctUntilChanged()
+            .onEach { (enabled, hash, seconds) ->
+                container.autoLocker.contextLockEnabled = enabled
+                container.autoLocker.trustedNetworkHash = hash
+                container.autoLocker.trustedSeconds = seconds
+            }
+            .launchIn(container.scope)
+
         // Kilit durumu değişince ana ekran aracını tazele. StateFlow zaten
         // aynı değeri iki kez yaymıyor; ayrıca ayıklamaya gerek yok.
         container.vaultRepository.lockState

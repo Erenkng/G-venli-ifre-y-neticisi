@@ -13,7 +13,17 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Sızıntı ve parola yaşı bildirimleri -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!--
+        Bağlama duyarlı kilit süresi: bağlı Wi-Fi ağının adını okumak Android
+        10'dan beri konum izni gerektiriyor. Özellik tamamen isteğe bağlı ve
+        izin verilmediğinde sessizce devre dışı; ağ adı ham hâlde ne saklanıyor
+        ne de cihazdan çıkıyor, yalnızca özeti karşılaştırılıyor.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
 

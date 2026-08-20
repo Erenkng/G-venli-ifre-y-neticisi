@@ -72,6 +72,66 @@ class BiometricGate(private val activity: FragmentActivity) {
         runCatching { prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher)) }
             .onFailure { onError(-2, it.message ?: "Biyometrik istem açılamadı") }
     }
+
+    /**
+     * "Ekranın başındaki kişi hâlâ sen misin?" sorusu.
+     *
+     * Kripto nesnesi **yok** ve bu bilinçli. Kasa anahtarı zaten bellekte —
+     * kilit açılmış durumda — dolayısıyla burada açılacak bir anahtar yok;
+     * sorulan şey erişim değil, o anda telefonu kimin tuttuğu. Kayıt bazlı ek
+     * kilidin tehdit modeli tam olarak bu: açık bırakılmış telefonu eline alan
+     * biri, banka kaydını Spotify kaydı kadar kolay görememeli.
+     *
+     * Bunun bedeli açık: kripto bağlı doğrulamanın aksine, uygulamanın
+     * belleğine müdahale edebilen bir saldırgan bu kontrolü atlayabilir. Ama o
+     * saldırgan kasa anahtarına zaten erişmiş demektir; bu kapının kimseye
+     * söz vermediği koruma o.
+     *
+     * Cihazın ekran kilidi de kabul ediliyor: parmak izi okuyucusu olmayan
+     * kullanıcıda tek seçenek "hiç doğrulama yok" olmasın diye.
+     */
+    fun authenticatePresence(
+        title: String,
+        subtitle: String,
+        onSuccess: () -> Unit,
+        onCancel: () -> Unit = {}
+    ) {
+        val allowed = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+
+        // Kullanılabilir hiçbir yol yoksa kapıyı kilitli bırakmak, kullanıcıyı
+        // kendi kaydından kalıcı olarak dışarıda bırakmak olurdu.
+        if (manager.canAuthenticate(allowed) != BiometricManager.BIOMETRIC_SUCCESS) {
+            onSuccess()
+            return
+        }
+
+        val executor = ContextCompat.getMainExecutor(activity)
+        val prompt = BiometricPrompt(
+            activity,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    onSuccess()
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    onCancel()
+                }
+            }
+        )
+
+        // DEVICE_CREDENTIAL açıkken olumsuz düğme konulamaz; sistem "PIN kullan"
+        // seçeneğini kendisi koyuyor.
+        val info = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setAllowedAuthenticators(allowed)
+            .setConfirmationRequired(false)
+            .build()
+
+        runCatching { prompt.authenticate(info) }.onFailure { onCancel() }
+    }
 }
 
 val LocalBiometricGate = staticCompositionLocalOf<BiometricGate?> { null }

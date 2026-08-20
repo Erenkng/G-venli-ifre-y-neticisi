@@ -37,6 +37,24 @@ class AutoLocker(
     @Volatile
     var autoLockSeconds: Int = 60
 
+    /**
+     * Bağlama duyarlı kilit ayarları.
+     *
+     * Kapalıyken [autoLockSeconds] her yerde geçerli. Açıkken, kayıtlı ağın
+     * özetiyle eşleşen bir Wi-Fi'daysak [trustedSeconds] kullanılıyor; başka
+     * her durumda — bilinmeyen ağ, mobil veri, izin yok — kısa olan hangisiyse
+     * o. Şüphede kalındığında sıkı olan tarafı seçmek, bu özelliğin tek
+     * güvenlik kuralı.
+     */
+    @Volatile
+    var contextLockEnabled: Boolean = false
+
+    @Volatile
+    var trustedNetworkHash: String = ""
+
+    @Volatile
+    var trustedSeconds: Int = 300
+
     private var pendingLock: Job? = null
     private var registered = false
 
@@ -93,7 +111,7 @@ class AutoLocker(
             suppressUntil = 0L
             return
         }
-        val seconds = autoLockSeconds
+        val seconds = effectiveLockSeconds()
         if (seconds <= 0) {
             lockNow()
             return
@@ -103,6 +121,24 @@ class AutoLocker(
             delay(seconds * 1000L)
             lockNow()
         }
+    }
+
+    /**
+     * Şu anda hangi süre geçerli?
+     *
+     * Güvenilen ağdayken gecikme uzuyor; ama asla kısalmıyor: kullanıcı genel
+     * süreyi 5 dakika, bağlam süresini 1 dakika seçtiyse evde de 5 dakika
+     * uygulanır. "Bağlam" burada yalnızca gevşetmek için var, sıkılaştırmak
+     * zaten genel ayarın işi.
+     */
+    private fun effectiveLockSeconds(): Int {
+        if (!contextLockEnabled) return autoLockSeconds
+        val trusted = runCatching {
+            TrustedNetwork.isTrusted(context, trustedNetworkHash)
+        }.getOrDefault(false)
+        if (!trusted) return autoLockSeconds
+        // 0 = "hemen": güvenilen ağda bunu uzatmak kullanıcının açık isteği.
+        return if (autoLockSeconds <= 0) trustedSeconds else maxOf(autoLockSeconds, trustedSeconds)
     }
 
     fun lockNow() {

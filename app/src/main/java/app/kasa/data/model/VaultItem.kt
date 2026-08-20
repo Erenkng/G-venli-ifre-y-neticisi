@@ -133,6 +133,16 @@ data class VaultItem(
     val passkeys: List<Passkey> = emptyList(),
     val folderId: String? = null,
     val favorite: Boolean = false,
+    /**
+     * Bu kaydı her açışta ayrıca doğrula.
+     *
+     * Banka ve e-Devlet kaydının Spotify kaydıyla aynı eşiği paylaşması için
+     * bir sebep yok. Kasanın tamamını daha sık kilitlemek yerine — ki bu,
+     * kullanıcının otomatik kilidi tamamen kapatmasıyla sonuçlanır — en
+     * değerli birkaç kaydı ayırmak, güvenliği artırırken günlük kullanımı
+     * bozmuyor.
+     */
+    val requireAuth: Boolean = false,
     /** 0 = kasada; >0 = çöp kutusunda, silinme anı. */
     val deletedAt: Long = 0L,
     val createdAt: Long = System.currentTimeMillis(),

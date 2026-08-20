@@ -456,4 +456,45 @@
     <string name="passkey_removed">Passkey silindi</string>
     <string name="passkey_remove_body">%1$s için passkey silinecek. Bu geri alınamaz: o hesaba passkey ile bir daha giremezsin, önce sitede yeni bir passkey oluşturman gerekir.</string>
     <string name="passkey_created_at">%1$s tarihinde oluşturuldu</string>
+
+    <!-- Kayıt bazlı ek kilit -->
+    <string name="editor_require_auth">Her açışta doğrula</string>
+    <string name="editor_require_auth_sub">Bu kaydı görmek için parmak izi ya da ekran kilidi istensin</string>
+    <string name="item_lock_title">Bu kayıt korumalı</string>
+    <string name="item_lock_body">İçeriği görmek için kimliğini doğrula.</string>
+    <string name="item_lock_verify">Doğrula</string>
+    <string name="item_lock_prompt_title">Kimliğini doğrula</string>
+    <string name="item_lock_prompt_sub">%1$s kaydını açmak için</string>
+
+    <!-- Hızlı PIN -->
+    <string name="pin_title">Hızlı PIN</string>
+    <string name="pin_sub">Kısa bir PIN ile aç · ana parola her zaman çalışır</string>
+    <string name="pin_setup_title">PIN oluştur</string>
+    <string name="pin_setup_body">%1$d haneli bir PIN seç. PIN yalnızca bu cihazda geçerli; kasa dosyası başka bir yere taşındığında işe yaramaz.</string>
+    <string name="pin_confirm_title">PIN\'i tekrar gir</string>
+    <string name="pin_mismatch">PIN\'ler eşleşmiyor</string>
+    <string name="pin_length">Hane sayısı</string>
+    <string name="pin_enabled">PIN kuruldu</string>
+    <string name="pin_disabled">PIN kaldırıldı</string>
+    <string name="pin_unlock_title">PIN ile aç</string>
+    <string name="pin_wrong">PIN yanlış · %1$d hakkın kaldı</string>
+    <string name="pin_dropped">Çok fazla yanlış deneme. PIN kaldırıldı, ana parolanı gir.</string>
+    <string name="pin_use_master">Ana parola kullan</string>
+    <string name="pin_note">PIN, kasa anahtarını cihazın güvenli donanımında sarmalar. Dosyayı kopyalayan biri PIN denemesine hiç başlayamaz; cihaz üzerinde beş yanlış denemede PIN düşer.</string>
+
+    <!-- Cihaz kimlik bilgisi -->
+    <string name="set_device_credential">Ekran kilidi de kabul edilsin</string>
+    <string name="set_device_credential_sub">Parmak izi yerine telefonun PIN/desen/parolası da kasayı açabilsin</string>
+    <string name="set_device_credential_warn">Bu, eşiği telefonun kilit ekranına indirir: ekran kilidini bilen biri kasayı da açabilir.</string>
+
+    <!-- Bağlama duyarlı kilit -->
+    <string name="set_context_lock">Güvenilen ağda daha uzun süre</string>
+    <string name="set_context_lock_sub">Ev ya da iş Wi-Fi\'ında otomatik kilit gecikmesi uzasın</string>
+    <string name="set_context_lock_seconds">Güvenilen ağda kilit süresi</string>
+    <string name="set_context_trust_current">Bu ağı güvenilen ağ yap</string>
+    <string name="set_context_trusted">Güvenilen ağ kayıtlı</string>
+    <string name="set_context_none">Henüz güvenilen ağ seçilmedi</string>
+    <string name="set_context_permission">Bağlı Wi-Fi\'ın adını okumak için konum izni gerekiyor. Ağ adı hiçbir yere gönderilmez; yalnızca özeti cihazda tutulur.</string>
+    <string name="set_context_saved">Bu ağ güvenilen ağ olarak kaydedildi</string>
+    <string name="set_context_failed">Ağ okunamadı · Wi-Fi\'a bağlı olduğundan ve izni verdiğinden emin ol</string>
 </resources>

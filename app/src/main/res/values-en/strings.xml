@@ -438,4 +438,45 @@
     <string name="passkey_removed">Passkey deleted</string>
     <string name="passkey_remove_body">The passkey for %1$s will be deleted. This cannot be undone: you will not be able to sign in with it again until you create a new passkey on the site.</string>
     <string name="passkey_created_at">Created on %1$s</string>
+
+    <!-- Per-item lock -->
+    <string name="editor_require_auth">Verify every time</string>
+    <string name="editor_require_auth_sub">Ask for fingerprint or screen lock before showing this entry</string>
+    <string name="item_lock_title">This entry is protected</string>
+    <string name="item_lock_body">Verify your identity to see its contents.</string>
+    <string name="item_lock_verify">Verify</string>
+    <string name="item_lock_prompt_title">Verify your identity</string>
+    <string name="item_lock_prompt_sub">to open %1$s</string>
+
+    <!-- Quick PIN -->
+    <string name="pin_title">Quick PIN</string>
+    <string name="pin_sub">Unlock with a short PIN · the master password always works</string>
+    <string name="pin_setup_title">Create a PIN</string>
+    <string name="pin_setup_body">Choose a %1$d-digit PIN. It only works on this device; copying the vault file elsewhere makes it useless.</string>
+    <string name="pin_confirm_title">Enter the PIN again</string>
+    <string name="pin_mismatch">PINs do not match</string>
+    <string name="pin_length">Digits</string>
+    <string name="pin_enabled">PIN set</string>
+    <string name="pin_disabled">PIN removed</string>
+    <string name="pin_unlock_title">Unlock with PIN</string>
+    <string name="pin_wrong">Wrong PIN · %1$d attempts left</string>
+    <string name="pin_dropped">Too many wrong attempts. The PIN was removed; enter your master password.</string>
+    <string name="pin_use_master">Use master password</string>
+    <string name="pin_note">The PIN wraps the vault key inside the device\'s secure hardware. Someone who copies the file cannot even start guessing; on the device, five wrong attempts drop the PIN.</string>
+
+    <!-- Device credential -->
+    <string name="set_device_credential">Accept screen lock too</string>
+    <string name="set_device_credential_sub">Let the phone\'s PIN/pattern/password open the vault as well as your fingerprint</string>
+    <string name="set_device_credential_warn">This lowers the bar to your phone\'s lock screen: anyone who knows it can open the vault.</string>
+
+    <!-- Context-aware lock -->
+    <string name="set_context_lock">Longer timeout on a trusted network</string>
+    <string name="set_context_lock_sub">Extend the auto-lock delay on your home or work Wi-Fi</string>
+    <string name="set_context_lock_seconds">Lock delay on trusted network</string>
+    <string name="set_context_trust_current">Trust this network</string>
+    <string name="set_context_trusted">Trusted network saved</string>
+    <string name="set_context_none">No trusted network chosen yet</string>
+    <string name="set_context_permission">Reading the connected Wi-Fi name needs location permission. The name never leaves the device; only a digest is kept locally.</string>
+    <string name="set_context_saved">This network is now trusted</string>
+    <string name="set_context_failed">Could not read the network · make sure you are on Wi-Fi and granted the permission</string>
 </resources>

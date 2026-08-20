@@ -21,9 +21,10 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.kasa.R
@@ -53,6 +55,7 @@ import app.kasa.data.model.Category
 import app.kasa.data.model.CategorySchema
 import app.kasa.data.model.FieldKind
 import app.kasa.data.model.VaultItem
+import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.FieldBlock
@@ -84,6 +87,14 @@ fun ItemDetailSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var revealed by remember(item.id) { mutableStateOf(false) }
+
+    /**
+     * Kayıt bazlı ek kilit. İşaretli kayıtta alanlar doğrulama gelene kadar
+     * hiç çizilmiyor — maskeleyip "göster"e basılabilir bırakmak değil, çünkü
+     * o durumda korunan şey yalnızca bir dokunuş uzakta olurdu.
+     */
+    var itemUnlocked by remember(item.id) { mutableStateOf(!item.requireAuth) }
+    val gate = LocalBiometricGate.current
     var confirmDelete by remember(item.id) { mutableStateOf(false) }
     var pendingExport by remember(item.id) { mutableStateOf<Attachment?>(null) }
     val context = LocalContext.current
@@ -162,12 +173,29 @@ fun ItemDetailSheet(
             }
 
             // ── alanlar ───────────────────────────────────────────────────
-            when (item.category) {
-                Category.CARD -> CardFields(item, revealed, { revealed = !revealed }, viewModel, settings)
-                Category.NOTE -> NoteFields(item, viewModel)
-                Category.OTP -> OtpFields(item, viewModel, settings)
-                Category.LOGIN -> LoginFields(item, revealed, { revealed = !revealed }, viewModel, settings)
-                else -> SchemaDetailFields(item, revealed, { revealed = !revealed }, viewModel, settings)
+            if (!itemUnlocked) {
+                LockedItemNotice(
+                    onUnlock = {
+                        val target = gate
+                        if (target == null) {
+                            itemUnlocked = true
+                        } else {
+                            target.authenticatePresence(
+                                title = context.getString(R.string.item_lock_prompt_title),
+                                subtitle = context.getString(R.string.item_lock_prompt_sub, item.name),
+                                onSuccess = { itemUnlocked = true }
+                            )
+                        }
+                    }
+                )
+            } else {
+                when (item.category) {
+                    Category.CARD -> CardFields(item, revealed, { revealed = !revealed }, viewModel, settings)
+                    Category.NOTE -> NoteFields(item, viewModel)
+                    Category.OTP -> OtpFields(item, viewModel, settings)
+                    Category.LOGIN -> LoginFields(item, revealed, { revealed = !revealed }, viewModel, settings)
+                    else -> SchemaDetailFields(item, revealed, { revealed = !revealed }, viewModel, settings)
+                }
             }
 
             if (item.url.isNotBlank() && item.category != Category.NOTE) {
@@ -300,7 +328,13 @@ fun ItemDetailSheet(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 ToolbarAction(
-                    onClick = { viewModel.copySecret(item.primarySecret, settings.clipboardClearSeconds) },
+                    onClick = {
+                        // Kilitli kayıtta kopyalama da kapalı: panoya koymak,
+                        // görmekten daha geniş bir izin.
+                        if (itemUnlocked) {
+                            viewModel.copySecret(item.primarySecret, settings.clipboardClearSeconds)
+                        }
+                    },
                     contentDescription = stringResource(R.string.copy)
                 ) {
                     Icon(
@@ -650,5 +684,50 @@ private fun SchemaDetailFields(
                 }
             }
         }
+    }
+}
+
+/**
+ * İşaretli kaydın yerine çizilen kapı.
+ *
+ * Alanların yerine geçiyor, üstlerine binmiyor: gizlenen değerin ekranda
+ * hiç oluşmaması, maskelenmiş olarak durmasından daha güvenli.
+ */
+@Composable
+private fun LockedItemNotice(onUnlock: () -> Unit) {
+    Spacer(Modifier.height(8.dp))
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(KasaRadius.lg))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Rounded.Lock,
+            contentDescription = null,
+            tint = KasaTheme.colors.ink2,
+            modifier = Modifier.size(26.dp)
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            stringResource(R.string.item_lock_title),
+            style = MaterialTheme.typography.titleSmall,
+            color = KasaTheme.colors.ink
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.item_lock_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = KasaTheme.colors.ink3,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(14.dp))
+        KasaButton(
+            text = stringResource(R.string.item_lock_verify),
+            onClick = onUnlock,
+            height = 44.dp
+        )
     }
 }

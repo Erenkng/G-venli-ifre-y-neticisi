@@ -27,7 +27,7 @@ import kotlinx.serialization.json.put
 object VaultMigrations {
 
     /** Uygulamanın yazdığı şema sürümü. */
-    const val CURRENT = 3
+    const val CURRENT = 4
 
     /** Şema alanı olmayan en eski kasalar sürüm 1 sayılır. */
     const val OLDEST_SUPPORTED = 1
@@ -67,7 +67,8 @@ object VaultMigrations {
      */
     private val STEPS: Map<Int, (JsonObject) -> JsonObject> = mapOf(
         1 to ::migrate1to2,
-        2 to ::migrate2to3
+        2 to ::migrate2to3,
+        3 to ::migrate3to4
     )
 
     /**
@@ -95,6 +96,18 @@ object VaultMigrations {
      * giremezdi. Parolanın aksine passkey'in yedeği yok — geri alınamaz.
      */
     private fun migrate2to3(root: JsonObject): JsonObject = root
+
+    /**
+     * 3 → 4: kayıt bazlı ek kilit.
+     *
+     * `VaultItem.requireAuth` eklendi, varsayılanı `false`. Alan taşınmıyor
+     * ama sürüm ilerliyor ve bunun bir bedeli var: işaretli kaydı olan bir
+     * kasa, alanı tanımayan eski bir sürümde açılıp kaydedilseydi işaret
+     * sessizce düşerdi. Kullanıcı en değerli kaydını korumaya aldığını
+     * sanırken koruma kalkmış olurdu — sessiz kalmanın kabul edilemez olduğu
+     * durum tam olarak bu.
+     */
+    private fun migrate3to4(root: JsonObject): JsonObject = root
 
     private fun JsonObject.withSchema(version: Int): JsonObject = buildJsonObject {
         this@withSchema.forEach { (key, value) -> if (key != "schema") put(key, value) }
