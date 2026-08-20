@@ -500,7 +500,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(10.dp))
                 CryptoFact(
-                    label = stringResource(R.string.set_hardware_key),
+                    label = stringResource(R.string.set_key_storage),
                     value = stringResource(
                         if (viewModel.hardwareBackedKey) R.string.set_hardware_key
                         else R.string.set_software_key

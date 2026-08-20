@@ -699,7 +699,7 @@ private fun LockedItemNotice(onUnlock: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(KasaRadius.lg))
+            .clip(RoundedCornerShape(KasaRadius.l))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
