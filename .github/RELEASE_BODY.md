@@ -6,7 +6,56 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
-## 1.4'te yenilikler
+## 1.5'te yenilikler
+
+### Akıllı titreşim motoru
+
+Uygulamanın hiçbir yerinde artık titreşim deseni yazılı değil. Çağıran taraf
+ne **hissettirmek** istediğini söylüyor, motor onu o cihazda çalınabilecek en
+iyi şeye çeviriyor.
+
+Önceki katman yedi sabit desendi ("dokunuş: 8 ms, 90 genlik") ve iki yerden
+kırılıyordu: tablo büyüdükçe yeni olaylar ya var olan bir deseni yeniden
+kullanmak — iki farklı şeyi aynı hissettirmek — ya da uydurulmuş yeni bir
+satır demekti; ve sabit süre/genlik, onu yazanın telefonunda doğru
+hissediyordu, başka bir aktüatörde bambaşka bir şey üretiyordu.
+
+Artık dört eksen var — hoşluk, uyarılma, kesinlik, ağırlık — ve titreşim
+bunlardan **üretiliyor**: uyarılma şiddete, hoşluk keskinliğe, kesinlik
+ritme, ağırlık süreye. Aynı kurallar on dört duyguyu da, ikisinin karışımını
+da üretiyor.
+
+Donanım tarafında dört basamaklı bir merdiven var: zarf (Android 16+, şiddet
+ve keskinliği doğrudan alıyor) → ilkeller → dalga biçimi → tek atış. Her
+basamak bir öncekinin gerçek yedeği.
+
+Motorun kendi aklı: aynı olay arka arkaya geldiğinde üstel olarak sessizleşiyor
+(alarmlar hariç — ikincisi de birincisi kadar acil), kayan pencerede toplam
+titreşim süresi tavanlı, sessiz kip ve pil tasarrufu ölçeği düşürüyor, bir
+donanım yolu fırlatırsa bir daha denenmiyor.
+
+Rastgelelik **yok**: aynı duygu her zaman aynı hissediyor. Çeşitlilik dokunsal
+geri bildirimin tek işini — olayla eşleşmeyi — bozardı.
+
+### Android 17 cam yüzeyleri
+
+Sistem arayüzü derinliği gölgeyle değil bulanıklıkla anlatmaya geçti. Gölge
+"bu yükseltilmiş" diyor; bulanıklık "arkasında bir şey var ve hâlâ orada"
+diyor.
+
+Pencereler ve alt sayfalar artık arkalarını sistemin kendi mekanizmasıyla
+bulanıklaştırıyor — güç menüsünü ve ses panelini bulanıklaştıran şeyin
+aynısı — ve yarı saydam bir levhanın üstünde duruyor.
+
+Bulanıklık tek başına okunabilirliği taşımıyor: sistem onu pil tasarrufunda ve
+düşük güçlü cihazlarda kapatıyor, kapalıyken levhanın kendi rengi zaten
+yeterli kontrastı veriyor.
+
+Gezinme çubuğuna dokunulmadı.
+
+---
+
+## 1.4'te gelenler
 
 ### Chrome'dan gelen parolalar kayboluyordu — düzeltildi
 
