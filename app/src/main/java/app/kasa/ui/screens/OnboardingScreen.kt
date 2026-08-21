@@ -179,7 +179,13 @@ private fun SetupRail(stage: AuthViewModel.Stage) {
         AuthViewModel.Stage.RECOVERY_SHOWN,
         AuthViewModel.Stage.BIOMETRIC_OFFER
     )
-    val current = steps.indexOf(stage).coerceAtLeast(0)
+    // DONE listede yok: `indexOf` orada -1 döndürüyor ve ray, kurulum
+    // biterken bir kare için ilk adıma geri dönüyordu. Bitmiş kurulum dolu
+    // bir ray demek.
+    val current = when (stage) {
+        AuthViewModel.Stage.DONE -> steps.size
+        else -> steps.indexOf(stage).coerceAtLeast(0)
+    }
 
     Row(
         modifier = Modifier

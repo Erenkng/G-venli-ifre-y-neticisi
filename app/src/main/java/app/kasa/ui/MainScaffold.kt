@@ -179,6 +179,10 @@ fun MainScaffold(
     ShowMessages(securityViewModel.messageFlow, snackbarHostState, context)
     ShowMessages(settingsViewModel.messageFlow, snackbarHostState, context)
 
+    // Ayarlarda açık olan kategori. Ekranın kendisi bildiriyor: çubuk ekranın
+    // dışında duruyor ve kategori gezinmesi ekranın içinde.
+    var settingsSection by remember { mutableStateOf<String?>(null) }
+
     // Çubuktaki başlık gezinme etiketiyle aynı değil: gezinme çubuğunda
     // "Kasa" yazan sekme, çöp kutusundayken çöp kutusunu gösteriyor.
     val topBarTitle = when {
@@ -186,7 +190,7 @@ fun MainScaffold(
         tab == TAB_VAULT -> stringResource(R.string.vault_title)
         tab == TAB_GENERATE -> stringResource(R.string.gen_title)
         tab == TAB_SECURITY -> stringResource(R.string.sec_title)
-        else -> stringResource(R.string.set_title)
+        else -> settingsSection ?: stringResource(R.string.set_title)
     }
 
     val destinations = listOf(
@@ -361,6 +365,7 @@ fun MainScaffold(
                             viewModel = settingsViewModel,
                             vaultViewModel = vaultViewModel,
                             onHeaderCollapse = { headerCollapse.floatValue = it },
+                            onSectionTitle = { settingsSection = it },
                             onOpenTrash = { trashOpen = true }
                         )
                     }

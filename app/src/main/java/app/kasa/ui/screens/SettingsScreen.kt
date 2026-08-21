@@ -61,6 +61,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -120,7 +121,16 @@ fun SettingsScreen(
      * konulsaydı, ekranın kaydedilmiş kopyasının içine düşerdi ve kendi
      * bulanıklığını bulanıklaştırırdı.
      */
-    onHeaderCollapse: (Float) -> Unit = {}
+    onHeaderCollapse: (Float) -> Unit = {},
+    /**
+     * Açık olan kategorinin adı; kategori yokken null.
+     *
+     * Üstteki cam çubuk ekranın dışında duruyor ve hangi kategoride
+     * olunduğunu bilmiyor. Bilmeseydi kullanıcı "Güvenlik" sayfasının
+     * ortasındayken çubukta "Ayarlar" yazardı — yani çubuk, tam da işe
+     * yarayacağı yerde yanlış bilgi verirdi.
+     */
+    onSectionTitle: (String?) -> Unit = {}
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val recoveryCode by viewModel.recoveryCode.collectAsStateWithLifecycle()
@@ -275,6 +285,12 @@ fun SettingsScreen(
     var section by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
 
     BackHandler(enabled = section != null) { section = null }
+
+    val sectionTitle = section?.let { stringResource(it.titleRes) }
+    LaunchedEffect(sectionTitle) { onSectionTitle(sectionTitle) }
+    // Ekrandan çıkarken çubuğun elinde kalan ad temizleniyor; yoksa başka bir
+    // sekmeye geçildiğinde orada kategori adı yazılı kalırdı.
+    DisposableEffect(Unit) { onDispose { onSectionTitle(null) } }
 
     val enterSpec = KasaMotion.enter<Float>()
     val exitSpec = KasaMotion.exit<Float>()
