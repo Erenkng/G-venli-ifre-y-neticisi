@@ -578,6 +578,30 @@ artık yalnızca bulanıklık gerçekten çizilecekse yapılıyor.
 
 ---
 
+<details>
+<summary><b>Tasarım becerisi</b> — bu dilin taşınabilir hâli</summary>
+
+<br>
+
+Buradaki kararların çoğu bu uygulamaya özel değil. `.claude/skills/android-expressive-ui`
+altında, Android 17 / Material 3 Expressive tasarım dilini anlatan bir beceri
+duruyor: bulanıklığın neden gölgenin yerini aldığı, cam bir yüzeyi cam yapan
+dört özellik, Compose tarafında sessizce kırılan üç şey, mesafeye göre ayrılmış
+hareket sözlüğü ve titreşimin desen tablosu yerine duygu uzayında tanımlanması.
+
+İçeriğin çoğu yazarken bulunan kusurlardan geliyor — kendi kaydettiği içeriğin
+içinde durup kendi bulanıklığını yeniden bulanıklaştıran yüzey, aynı şeridi
+kaplayan iki cam katmanın ürettiği leke, beste sırasında okunan animasyon
+değerinin yarattığı takılma.
+
+Her projede kullanmak için kullanıcı dizinine kopyalanıyor:
+
+```bash
+cp -r .claude/skills/android-expressive-ui ~/.claude/skills/
+```
+
+</details>
+
 ## Mimari
 
 ```
