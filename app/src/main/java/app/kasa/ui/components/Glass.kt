@@ -405,8 +405,8 @@ fun GlassBackdropScrim(
     // CompositionLocal'dan aldığı için yalnızca beste içinde çağrılabiliyor ve
     // koşula bağlı çağırmak, açılış ile kapanış arasında beste ağacının
     // biçimini değiştirirdi.
-    val enterSpec = KasaMotion.enter()
-    val exitSpec = KasaMotion.exit()
+    val enterSpec = KasaMotion.enter<Float>()
+    val exitSpec = KasaMotion.exit<Float>()
     val progress by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = if (visible) enterSpec else exitSpec,

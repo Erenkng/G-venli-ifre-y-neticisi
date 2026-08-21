@@ -554,6 +554,7 @@ fun MainScaffold(
 
         KasaSnackbarHost(
             hostState = snackbarHostState,
+            backdrop = backdrop.takeIf { needsBackdrop },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
