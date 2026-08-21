@@ -58,14 +58,39 @@ okunabilirlikte olurdu.
 
 ### Gerçek bulanıklık, uygulamanın içinde
 
+- **Cam başlık çubuğu.** Her ekranın başlığı listenin ilk öğesiydi ve
+  kaydırınca gidiyordu; uzun bir listenin ortasında hangi ekranda olunduğunu
+  söyleyen tek şey ekranın en altındaki gezinme simgesi kalıyordu. Artık
+  büyük başlık yukarı çıkarken yerini üstte duran cam bir çubuk alıyor.
+  Altındaki içerik bulanıklaşıyor ve alt kenar sert bir çizgiyle değil
+  sönerek bitiyor — içeriğin çubuğun altında devam ettiğini söyleyen şey bu.
 - **Ana eylem menüsü** açıldığında ekran gerçekten buzlanıyor. Eski düz
   karartmanın altında liste okunmaya devam ediyordu ve menüyle dikkat için
   yarışıyordu.
 - **Bildirim çubuğunun** altı bulanıklaşıyor: altındaki satırlar çubuğun
   kenarına kadar okunabiliyordu.
 
-İkisi de gezinme çubuğunun kullandığı kaydedilmiş ekran kopyasını kullanıyor;
-ikinci bir ekran kaydı alınmıyor, yani kare bütçesine ek yük yok.
+Üçü de gezinme çubuğunun kullandığı kaydedilmiş ekran kopyasını paylaşıyor;
+ikinci bir ekran kaydı alınmıyor, yani kare bütçesine ek yük yok. Kaydırma
+oranı beste sırasında değil çizim sırasında okunuyor: doğrudan okunsaydı
+kullanıcı listeyi kaydırdığı sürece bütün ekran iskeleti her karede yeniden
+kurulurdu.
+
+### Kurulum ekranı
+
+- Adımlar arası geçiş animasyonlu değildi, düz bir dallanmaydı: kasanın
+  yaratıldığı an — kurulumun tek geri alınamaz adımı — hiçbir şey olmamış gibi
+  geçiyordu. Artık yeni adım alttan yükseliyor, eski yukarı çekiliyor.
+  Yön tek: kurulum tek yönlü bir yol ve hareketin yönü bunu söylüyor.
+- Üstte üç adımlı bir ray. Geçmiş adım dolu, bulunulan yarı dolu, gelecek boş
+  — kaç adım olduğu, kaçıncısında olunduğu ve ne kadar ilerlendiği tek bir
+  biçimde.
+- Her adımın bölümleri sırayla ve bulanıklıktan çözülerek beliriyor. Aynı anda
+  gelen bir ekran tek bir blok olarak okunuyor; sırayla gelince okuma yönü
+  hareketin kendisinden çıkıyor.
+- Kurtarma anahtarı en son ve en güçlü bulanıklıkla geliyor. O ekranın tek
+  gerçek işi o koda bakılmasını sağlamak; ötekilerle birlikte belirseydi
+  sayfanın bir parçası olurdu.
 
 Gezinme çubuğuna yine dokunulmadı.
 

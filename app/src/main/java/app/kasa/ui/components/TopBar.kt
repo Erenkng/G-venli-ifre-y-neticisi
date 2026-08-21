@@ -163,7 +163,7 @@ fun HeaderCollapse(state: LazyListState, onProgress: (Float) -> Unit) {
             // Aynı değeri tekrar bildirmek, üst ekranda gereksiz bir yeniden
             // birleştirme demek; kaydırmanın durduğu her karede oluyordu.
             .distinctUntilChanged()
-            .collect(onProgress)
+            .collect { onProgress(it) }
     }
 }
 
