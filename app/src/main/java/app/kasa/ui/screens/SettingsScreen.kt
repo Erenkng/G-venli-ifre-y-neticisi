@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.HeaderCollapse
 import app.kasa.data.GradientTheme
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
@@ -42,6 +43,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Autorenew
@@ -109,7 +111,16 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     vaultViewModel: VaultViewModel,
     onOpenTrash: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Başlığın ne kadar yukarı çıktığı (0..1).
+     *
+     * Üstteki cam çubuk bu ekranın kardeşinde çiziliyor ve kaydırma durumu
+     * burada duruyor; oran yukarı bildiriliyor. Çubuğun kendisi buraya
+     * konulsaydı, ekranın kaydedilmiş kopyasının içine düşerdi ve kendi
+     * bulanıklığını bulanıklaştırırdı.
+     */
+    onHeaderCollapse: (Float) -> Unit = {}
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val recoveryCode by viewModel.recoveryCode.collectAsStateWithLifecycle()
@@ -281,7 +292,10 @@ fun SettingsScreen(
         },
         label = "settingsSection"
     ) { current ->
+    val listState = rememberLazyListState()
+    HeaderCollapse(listState, onHeaderCollapse)
     LazyColumn(
+        state = listState,
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars),

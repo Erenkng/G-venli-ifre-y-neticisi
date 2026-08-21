@@ -304,12 +304,24 @@ private fun BlurBand(
 @Composable
 fun KasaStatusBarScrim(
     backdrop: GraphicsLayer?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Camın gücü (0-1).
+     *
+     * Üstte başlık çubuğu belirdiğinde bu sıfıra iniyor: ikisi aynı bölgeyi
+     * kaplıyor ve üst üste gelen iki bulanıklık, tek başına hiçbirinin
+     * vermediği koyu bir leke üretiyor. Aynı işi iki katman yapmamalı;
+     * çubuk varken okunabilirliği o taşıyor.
+     */
+    strength: Float = 1f
 ) {
     val colors = KasaTheme.colors
     val inset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     // Sistem çubuğu hiç yoksa (tam ekran bir kip) çizilecek bir şey de yok.
     if (inset <= 0.dp) return
+
+    val level = strength.coerceIn(0f, 1f)
+    if (level <= 0.01f) return
 
     Box(
         modifier = modifier
@@ -317,8 +329,8 @@ fun KasaStatusBarScrim(
             .height(inset + STATUS_FADE_RUNWAY)
             .background(
                 Brush.verticalGradient(
-                    0.00f to colors.navScrim.copy(alpha = 0.86f),
-                    0.55f to colors.navScrim.copy(alpha = 0.52f),
+                    0.00f to colors.navScrim.copy(alpha = 0.86f * level),
+                    0.55f to colors.navScrim.copy(alpha = 0.52f * level),
                     1.00f to colors.navScrim.copy(alpha = 0f)
                 )
             )
@@ -329,6 +341,7 @@ fun KasaStatusBarScrim(
             // Opak uç üstte: degrade aşağıdan yukarı okunuyor.
             gradientStart = { Offset(0f, it.height) },
             gradientEnd = { Offset(0f, 0f) },
+            strength = level,
             radiusNear = STATUS_BLUR_NEAR,
             radiusFar = STATUS_BLUR_FAR
         )

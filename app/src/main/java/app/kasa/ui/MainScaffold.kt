@@ -40,6 +40,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +74,7 @@ import app.kasa.ui.components.FabMenu
 import app.kasa.ui.components.GlassBackdropScrim
 import app.kasa.ui.components.KasaNavBar
 import app.kasa.ui.components.KasaSnackbarHost
+import app.kasa.ui.components.KasaTopBar
 import app.kasa.ui.components.NavDestination
 import app.kasa.ui.screens.ConfirmDialog
 import app.kasa.ui.screens.GeneratorScreen
@@ -177,6 +179,16 @@ fun MainScaffold(
     ShowMessages(securityViewModel.messageFlow, snackbarHostState, context)
     ShowMessages(settingsViewModel.messageFlow, snackbarHostState, context)
 
+    // Çubuktaki başlık gezinme etiketiyle aynı değil: gezinme çubuğunda
+    // "Kasa" yazan sekme, çöp kutusundayken çöp kutusunu gösteriyor.
+    val topBarTitle = when {
+        tab == TAB_VAULT && vaultView.isTrash -> stringResource(R.string.trash_title)
+        tab == TAB_VAULT -> stringResource(R.string.vault_title)
+        tab == TAB_GENERATE -> stringResource(R.string.gen_title)
+        tab == TAB_SECURITY -> stringResource(R.string.sec_title)
+        else -> stringResource(R.string.set_title)
+    }
+
     val destinations = listOf(
         NavDestination(TAB_VAULT, stringResource(R.string.nav_vault), Icons.Rounded.Lock),
         NavDestination(TAB_GENERATE, stringResource(R.string.nav_generate), Icons.Rounded.AutoAwesome),
@@ -214,6 +226,34 @@ fun MainScaffold(
     // sonra o kaydı kendi altına düşen parçası için yeniden çiziyor. İçeriği
     // iki kez besteleme yok, dolayısıyla ek bir kare maliyeti de yok.
     val backdrop = rememberGraphicsLayer()
+
+    // Üstteki cam çubuğun ne kadar yerinde olduğu.
+    //
+    // Ekranların kendisinde tutulamıyordu: çubuk içeriğin kardeşi olarak, yani
+    // ekranın dışında çiziliyor. Ekran kaydırma durumunu biliyor, çubuk oranı
+    // istiyor; ikisini buluşturan yer burası.
+    //
+    // Sekme değişince sıfırlanıyor. Yeni ekran kendi oranını bir sonraki
+    // karede bildiriyor ve o kare boyunca çubuk, terk edilen sekmenin
+    // kaydırmasıyla açık kalırdı.
+    // `by` ile değil: temsilci kullanmak değeri beste sırasında okumak demek
+    // ve bu değer kaydırmanın her adımında değişiyor — bütün iskelet her
+    // karede yeniden birleşirdi. Durum nesnesi olduğu gibi taşınıyor ve
+    // yalnızca çizim aşamasında okunuyor.
+    val headerCollapse = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(tab) { headerCollapse.floatValue = 0f }
+
+    // Görünürlük seyrek değişiyor (eşik geçilirken bir kez), bu yüzden
+    // türetilmiş durum olarak beste sırasında okunabiliyor.
+    val barVisible by remember {
+        derivedStateOf { headerCollapse.floatValue > BAR_APPEAR_THRESHOLD }
+    }
+    val scrimFade: FiniteAnimationSpec<Float> = KasaMotion.effect()
+    val scrimStrength by animateFloatAsState(
+        targetValue = if (barVisible && !searchOpen) 0f else 1f,
+        animationSpec = scrimFade,
+        label = "statusScrim"
+    )
 
     Box(Modifier.fillMaxSize()) {
         // Sayfa içeriği tüm ekranı kaplıyor: liste sonuna kadar kayıyor ve
@@ -285,6 +325,7 @@ fun MainScaffold(
                         TAB_VAULT -> VaultScreen(
                             viewModel = vaultViewModel,
                             settings = settings,
+                            onHeaderCollapse = { headerCollapse.floatValue = it },
                             onOpenSearch = { searchOpen = true },
                             onSearchBounds = { rect, corner ->
                                 searchOrigin = rect
@@ -295,6 +336,7 @@ fun MainScaffold(
                         TAB_GENERATE -> GeneratorScreen(
                             viewModel = generatorViewModel,
                             settings = settings,
+                            onHeaderCollapse = { headerCollapse.floatValue = it },
                             onUseForNewEntry = { generated ->
                                 vaultViewModel.startEdit(
                                     app.kasa.data.model.VaultItem(
@@ -308,6 +350,7 @@ fun MainScaffold(
                         TAB_SECURITY -> SecurityScreen(
                             viewModel = securityViewModel,
                             settings = settings,
+                            onHeaderCollapse = { headerCollapse.floatValue = it },
                             onOpenCollection = { kind ->
                                 vaultViewModel.setView(VaultFilter.Smart(kind))
                                 tab = TAB_VAULT
@@ -317,6 +360,7 @@ fun MainScaffold(
                         TAB_SETTINGS -> SettingsScreen(
                             viewModel = settingsViewModel,
                             vaultViewModel = vaultViewModel,
+                            onHeaderCollapse = { headerCollapse.floatValue = it },
                             onOpenTrash = { trashOpen = true }
                         )
                     }
@@ -349,8 +393,23 @@ fun MainScaffold(
         // okunabilirliği o an oradan geçen şeyin rengine kalıyordu. Bant
         // gezinme çubuğuyla aynı kaydedilmiş kopyayı kullanıyor; ikinci bir
         // ekran kaydı almıyor, yani kare bütçesine ek yük getirmiyor.
+        // İnce cam yalnızca başlık çubuğu yokken: ikisi üst üste gelince aynı
+        // bölge iki kez bulanıklaştırılıyor ve sonuç, iki katmanın da tek
+        // başına verdiğinden koyu bir leke oluyor.
         KasaStatusBarScrim(
-            backdrop = backdrop,
+            backdrop = backdrop.takeIf { needsBackdrop },
+            strength = scrimStrength,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
+        // Kayan içeriğin üstünde duran cam başlık çubuğu. Arama açıkken
+        // gizleniyor: arama kendi tam ekran yüzeyini getiriyor ve altında
+        // kalan bir başlık, kapanmamış bir ekran gibi duruyor.
+        KasaTopBar(
+            title = topBarTitle,
+            visible = barVisible && !searchOpen,
+            progress = { headerCollapse.floatValue },
+            backdrop = backdrop.takeIf { needsBackdrop },
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
@@ -596,3 +655,12 @@ private fun ShowMessages(
  */
 private const val SEARCH_DAMPING = 0.96f
 private const val SEARCH_STIFFNESS = 520f
+
+/**
+ * Çubuğun belirdiği kaydırma oranı.
+ *
+ * Sıfır değil: parmağın listeye dokunurken ürettiği birkaç piksellik kayma da
+ * bir değişim ve eşik tam sıfırda olsaydı çubuk o dokunuşta bir kare için
+ * beste ağacına girip çıkardı.
+ */
+private const val BAR_APPEAR_THRESHOLD = 0.02f

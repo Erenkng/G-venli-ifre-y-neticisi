@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -347,7 +348,18 @@ fun BackdropBlur(
     backdrop: GraphicsLayer?,
     modifier: Modifier = Modifier,
     radius: Dp = BACKDROP_BLUR,
-    strength: Float = 1f
+    strength: Float = 1f,
+    /**
+     * Alt kenarda bulanıklığın söndüğü bölge, yüksekliğin oranı olarak.
+     *
+     * Sert bir kenar, bulanık yüzeyi içeriğin üstüne yapıştırılmış bir şerit
+     * gibi gösteriyor. Sönerek biten kenar, altındaki içeriğin devam ettiğini
+     * söylüyor — ki gerçek olan da bu.
+     *
+     * Maske ayrı bir geçişte, [BlendMode.DstIn] ile uygulanıyor: aynı geçişte
+     * çizilseydi kendi kendini maskelerdi.
+     */
+    fadeBottom: Float = 0f
 ) {
     if (backdrop == null || strength <= 0.01f) return
 
@@ -372,6 +384,16 @@ fun BackdropBlur(
                         translate(left = -origin.x, top = -origin.y) { drawLayer(backdrop) }
                     }
                     drawLayer(blurLayer)
+
+                    if (fadeBottom > 0f) {
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                (1f - fadeBottom).coerceIn(0f, 1f) to Color.Black,
+                                1f to Color.Transparent
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                    }
                 }
             }
     )

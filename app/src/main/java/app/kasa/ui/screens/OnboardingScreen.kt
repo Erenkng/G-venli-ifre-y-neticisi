@@ -7,12 +7,15 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +52,7 @@ import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaPasswordField
+import app.kasa.ui.components.KasaReveal
 import app.kasa.ui.components.MorphDial
 import app.kasa.ui.components.WavyProgress
 import app.kasa.ui.theme.KasaMotion
@@ -110,19 +114,110 @@ fun OnboardingScreen(
             },
             label = "onboardingStage"
         ) { done ->
-        if (!done) {
-            IntroPager(onFinish = { introDone = true })
-        } else {
-        when (state.stage) {
-            AuthViewModel.Stage.SETUP -> SetupStep(viewModel, state)
-            AuthViewModel.Stage.RECOVERY_SHOWN -> RecoveryStep(viewModel, state)
-            AuthViewModel.Stage.BIOMETRIC_OFFER -> BiometricStep(viewModel)
-            AuthViewModel.Stage.DONE -> Unit
-        }
-        }
+            if (!done) {
+                IntroPager(onFinish = { introDone = true })
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    SetupRail(state.stage)
+
+                    // Adımlar arası geçiş.
+                    //
+                    // Eskiden burada düz bir `when` vardı: parola adımı bir
+                    // karede gidiyor, kurtarma anahtarı bir sonrakinde
+                    // geliyordu. Kurulumun en kritik anı — kasanın yaratıldığı
+                    // an — hiçbir şey olmamış gibi geçiyordu.
+                    //
+                    // Yön ileri: yeni adım alttan yükseliyor, eski yukarı
+                    // çekiliyor. Kurulum tek yönlü bir yol ve hareketin yönü
+                    // bunu söylüyor; geri dönülemeyen bir adımın iki yöne de
+                    // kayabildiğini göstermek yanlış bilgi olurdu.
+                    AnimatedContent(
+                        targetState = state.stage,
+                        transitionSpec = {
+                            (fadeIn(fadeInSpec) + slideInVertically(slideSpec) { it / 7 })
+                                .togetherWith(
+                                    fadeOut(fadeOutSpec) + slideOutVertically(slideSpec) { -it / 10 }
+                                )
+                        },
+                        label = "setupStage",
+                        modifier = Modifier.weight(1f)
+                    ) { stage ->
+                        when (stage) {
+                            AuthViewModel.Stage.SETUP -> SetupStep(viewModel, state)
+                            AuthViewModel.Stage.RECOVERY_SHOWN -> RecoveryStep(viewModel, state)
+                            AuthViewModel.Stage.BIOMETRIC_OFFER -> BiometricStep(viewModel)
+                            AuthViewModel.Stage.DONE -> Unit
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
+/**
+ * Kurulumun üç adımını gösteren ray.
+ *
+ * ### Neden gerekli
+ *
+ * Kurulum üç ekran sürüyor ve hiçbiri kaçıncı adımda olunduğunu söylemiyordu.
+ * Bir parola yöneticisinin ilk kurulumu, kullanıcının uygulamaya en az
+ * güvendiği an: ne kadar sürdüğünü bilmemek "bu daha ne kadar devam edecek"
+ * sorusunu doğuruyor ve o soru yarıda bırakmaya en yakın yer.
+ *
+ * ### Neden dolan bir ray, nokta değil
+ *
+ * Noktalar kaç adım kaldığını söylüyor ama bulunulan adımın **ne kadarının**
+ * bittiğini söylemiyor. Ray geçmiş adımları dolu, bulunulanı yarı dolu
+ * bırakıyor: üç bilgi (kaç adım, kaçıncısı, ne kadar ilerlendi) tek bir
+ * biçimde.
+ */
+@Composable
+private fun SetupRail(stage: AuthViewModel.Stage) {
+    val steps = listOf(
+        AuthViewModel.Stage.SETUP,
+        AuthViewModel.Stage.RECOVERY_SHOWN,
+        AuthViewModel.Stage.BIOMETRIC_OFFER
+    )
+    val current = steps.indexOf(stage).coerceAtLeast(0)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        steps.forEachIndexed { index, _ ->
+            // Geçmiş adım dolu, bulunulan yarı dolu, gelecek boş. Yarı dolu
+            // olan, adımın içinde bir yerde olunduğunu söylüyor; tam dolu
+            // olsaydı bitmiş görünürdü.
+            val target = when {
+                index < current -> 1f
+                index == current -> 0.5f
+                else -> 0f
+            }
+            val fill by animateFloatAsState(target, KasaMotion.large(), label = "rail$index")
+
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(RAIL_HEIGHT)
+                    .clip(RoundedCornerShape(KasaRadius.full))
+                    .background(KasaTheme.colors.ink3.copy(alpha = 0.20f))
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(fill)
+                        .clip(RoundedCornerShape(KasaRadius.full))
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
+        }
+    }
+}
+
+private val RAIL_HEIGHT = 4.dp
 
 @Composable
 private fun SetupStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState) {
@@ -146,28 +241,39 @@ private fun SetupStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState)
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(24.dp))
-        MorphDial(
-            strength = strength,
-            color = when {
-                strength > 0.5f -> KasaTheme.colors.badgeStrongBg
-                strength > 0.28f -> KasaTheme.colors.badgeMidBg
-                else -> KasaTheme.colors.badgeWeakBg
-            },
-            modifier = Modifier.size(150.dp)
-        )
+        // Sırayla beliren dört öğe. Aynı anda gelen bir ekran tek bir blok
+        // olarak okunuyor ve gözün nereden başlayacağı belli olmuyor; sırayla
+        // gelince okuma yönü hareketin kendisinden çıkıyor. Gecikmeler
+        // KasaMotion'ın 26 ms'lik adımının katları — burada daha uzun, çünkü
+        // bunlar bir menünün öğeleri değil, bir ekranın bölümleri.
+        KasaReveal(visible = true, delayMillis = 0) {
+            MorphDial(
+                strength = strength,
+                color = when {
+                    strength > 0.5f -> KasaTheme.colors.badgeStrongBg
+                    strength > 0.28f -> KasaTheme.colors.badgeMidBg
+                    else -> KasaTheme.colors.badgeWeakBg
+                },
+                modifier = Modifier.size(150.dp)
+            )
+        }
         Spacer(Modifier.height(20.dp))
-        Text(
-            stringResource(R.string.onb_title),
-            style = KasaTheme.text.hero,
-            color = KasaTheme.colors.ink
-        )
+        KasaReveal(visible = true, delayMillis = STEP_DELAY) {
+            Text(
+                stringResource(R.string.onb_title),
+                style = KasaTheme.text.hero,
+                color = KasaTheme.colors.ink
+            )
+        }
         Spacer(Modifier.height(10.dp))
-        Text(
-            stringResource(R.string.onb_sub),
-            style = MaterialTheme.typography.bodyMedium,
-            color = KasaTheme.colors.ink2,
-            textAlign = TextAlign.Center
-        )
+        KasaReveal(visible = true, delayMillis = STEP_DELAY * 2) {
+            Text(
+                stringResource(R.string.onb_sub),
+                style = MaterialTheme.typography.bodyMedium,
+                color = KasaTheme.colors.ink2,
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(28.dp))
 
         KasaPasswordField(
@@ -251,35 +357,54 @@ private fun RecoveryStep(viewModel: AuthViewModel, state: AuthViewModel.SetupSta
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(60.dp))
-        Text(
-            stringResource(R.string.onb_recovery_title),
-            style = KasaTheme.text.sheetTitle,
-            color = KasaTheme.colors.ink,
-            textAlign = TextAlign.Center
-        )
+        KasaReveal(visible = true, delayMillis = 0) {
+            Text(
+                stringResource(R.string.onb_recovery_title),
+                style = KasaTheme.text.sheetTitle,
+                color = KasaTheme.colors.ink,
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(12.dp))
-        Text(
-            stringResource(R.string.onb_recovery_sub),
-            style = MaterialTheme.typography.bodyMedium,
-            color = KasaTheme.colors.ink2,
-            textAlign = TextAlign.Center
-        )
+        KasaReveal(visible = true, delayMillis = STEP_DELAY) {
+            Text(
+                stringResource(R.string.onb_recovery_sub),
+                style = MaterialTheme.typography.bodyMedium,
+                color = KasaTheme.colors.ink2,
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(28.dp))
 
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(KasaRadius.xl))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .padding(24.dp)
+        // Anahtarın kendisi en son ve en güçlü bulanıklıktan çözülüyor.
+        //
+        // Bu ekranın tek gerçek işi bu koda bakılmasını sağlamak. Kod
+        // ötekilerle birlikte belirseydi sayfanın bir parçası olurdu; sonradan
+        // ve farklı bir hareketle gelince, hareketin kendisi "asıl mesele bu"
+        // diyor. Aynı bulanıklıktan-çözülme, kasa açılırken parola alanında da
+        // kullanılıyor — yani öğrenilmiş bir hareket, yeni bir süs değil.
+        KasaReveal(
+            visible = true,
+            delayMillis = STEP_DELAY * 3,
+            blurRadius = CODE_BLUR,
+            lift = 0.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                state.recoveryCode.orEmpty(),
-                style = KasaTheme.text.mono,
-                color = KasaTheme.colors.ink,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(KasaRadius.xl))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .padding(24.dp)
+            ) {
+                Text(
+                    state.recoveryCode.orEmpty(),
+                    style = KasaTheme.text.mono,
+                    color = KasaTheme.colors.ink,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
 
         Spacer(Modifier.height(28.dp))
@@ -313,25 +438,31 @@ private fun BiometricStep(viewModel: AuthViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        MorphDial(
-            strength = 1f,
-            color = KasaTheme.colors.badgeStrongBg,
-            modifier = Modifier.size(140.dp)
-        )
+        KasaReveal(visible = true, delayMillis = 0) {
+            MorphDial(
+                strength = 1f,
+                color = KasaTheme.colors.badgeStrongBg,
+                modifier = Modifier.size(140.dp)
+            )
+        }
         Spacer(Modifier.height(28.dp))
-        Text(
-            stringResource(R.string.onb_biometric_title),
-            style = KasaTheme.text.sheetTitle,
-            color = KasaTheme.colors.ink,
-            textAlign = TextAlign.Center
-        )
+        KasaReveal(visible = true, delayMillis = STEP_DELAY) {
+            Text(
+                stringResource(R.string.onb_biometric_title),
+                style = KasaTheme.text.sheetTitle,
+                color = KasaTheme.colors.ink,
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(12.dp))
-        Text(
-            stringResource(R.string.onb_biometric_sub),
-            style = MaterialTheme.typography.bodyMedium,
-            color = KasaTheme.colors.ink2,
-            textAlign = TextAlign.Center
-        )
+        KasaReveal(visible = true, delayMillis = STEP_DELAY * 2) {
+            Text(
+                stringResource(R.string.onb_biometric_sub),
+                style = MaterialTheme.typography.bodyMedium,
+                color = KasaTheme.colors.ink2,
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(32.dp))
         KasaButton(
             text = stringResource(R.string.onb_biometric_enable),
@@ -361,3 +492,20 @@ private fun BiometricStep(viewModel: AuthViewModel) {
         )
     }
 }
+
+/**
+ * Sırayla belirmede iki öğe arasındaki gecikme.
+ *
+ * Menü öğelerinin 26 ms'inden uzun: orada dört küçük şey aynı hareketin
+ * parçası, burada bir ekranın ayrı bölümleri. Aynı değeri kullanmak, bölümleri
+ * tek bir blok gibi getiriyordu.
+ */
+private const val STEP_DELAY = 90
+
+/**
+ * Kurtarma anahtarının çözülme bulanıklığı.
+ *
+ * Ötekilerden yüksek: kodun okunamaz başlayıp okunur hâle gelmesi, ekranın
+ * asıl olayının o olduğunu söyleyen şey.
+ */
+private val CODE_BLUR = 26.dp

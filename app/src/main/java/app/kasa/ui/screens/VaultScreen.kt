@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.HeaderCollapse
 import app.kasa.ui.components.edgeDepth
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -79,7 +81,16 @@ fun VaultScreen(
     onOpenSearch: () -> Unit,
     /** Arama çubuğunun kök koordinatlardaki yeri; açılış oradan büyüyor. */
     onSearchBounds: ((androidx.compose.ui.geometry.Rect, Float) -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Başlığın ne kadar yukarı çıktığı (0..1).
+     *
+     * Üstteki cam çubuk bu ekranın kardeşinde çiziliyor ve kaydırma durumu
+     * burada duruyor; oran yukarı bildiriliyor. Çubuğun kendisi buraya
+     * konulsaydı, ekranın kaydedilmiş kopyasının içine düşerdi ve kendi
+     * bulanıklığını bulanıklaştırırdı.
+     */
+    onHeaderCollapse: (Float) -> Unit = {}
 ) {
     val data by viewModel.data.collectAsStateWithLifecycle()
     val items by viewModel.visibleItems.collectAsStateWithLifecycle()
@@ -104,7 +115,12 @@ fun VaultScreen(
     val sorted = remember(items, settings.sortOrder) { sortItems(items, settings.sortOrder) }
     val compact = settings.listDensity == SettingsStore.ListDensity.COMPACT
 
+    val listState = rememberLazyListState()
+
+    HeaderCollapse(listState, onHeaderCollapse)
+
     LazyColumn(
+        state = listState,
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars),

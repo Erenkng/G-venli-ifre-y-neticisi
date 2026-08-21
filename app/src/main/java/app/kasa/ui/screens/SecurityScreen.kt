@@ -2,6 +2,7 @@ package app.kasa.ui.screens
 
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import app.kasa.ui.components.HeaderCollapse
 import app.kasa.ui.components.glassSurface
 import app.kasa.ui.components.ScoreRing
 import androidx.compose.animation.core.animateFloatAsState
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Autorenew
@@ -77,7 +79,16 @@ fun SecurityScreen(
     viewModel: SecurityViewModel,
     settings: SettingsStore.Settings,
     onOpenCollection: (SmartFolder) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Başlığın ne kadar yukarı çıktığı (0..1).
+     *
+     * Üstteki cam çubuk bu ekranın kardeşinde çiziliyor ve kaydırma durumu
+     * burada duruyor; oran yukarı bildiriliyor. Çubuğun kendisi buraya
+     * konulsaydı, ekranın kaydedilmiş kopyasının içine düşerdi ve kendi
+     * bulanıklığını bulanıklaştırırdı.
+     */
+    onHeaderCollapse: (Float) -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val vaultData by viewModel.items.collectAsStateWithLifecycle()
@@ -92,7 +103,12 @@ fun SecurityScreen(
         else -> KasaTheme.colors.strengthWeak
     }
 
+    val listState = rememberLazyListState()
+
+    HeaderCollapse(listState, onHeaderCollapse)
+
     LazyColumn(
+        state = listState,
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars),
