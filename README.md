@@ -9,7 +9,7 @@
 [![Android](https://img.shields.io/badge/Android-16%2B%20%C2%B7%20API%2036-0B5347?style=for-the-badge&logo=android&logoColor=A6F0DE&labelColor=04241F)](#kurulum)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-0B5347?style=for-the-badge&logo=kotlin&logoColor=A6F0DE&labelColor=04241F)](#mimari)
 [![Compose](https://img.shields.io/badge/Compose-2025.04-0B5347?style=for-the-badge&logo=jetpackcompose&logoColor=A6F0DE&labelColor=04241F)](#tasarım-dili)
-[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-1.3-0B5347?style=for-the-badge&labelColor=04241F)](#sürüm-yayımlama)
+[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-1.6-0B5347?style=for-the-badge&labelColor=04241F)](#sürüm-yayımlama)
 
 [![CI](https://github.com/Erenkng/G-venli-ifre-y-neticisi/actions/workflows/android.yml/badge.svg?branch=claude%2Fandroid-app-design-features-awluov)](https://github.com/Erenkng/G-venli-ifre-y-neticisi/actions/workflows/android.yml)
 
@@ -437,6 +437,87 @@ içerik de sağdan gelir; dört sekmenin sırası zihinde bir şerit olarak kal�
 
 Sistemde animasyonlar kapalıysa (`ANIMATOR_DURATION_SCALE = 0`) sözlüğün tamamı
 anlık geçişe düşüyor; bu tek bir `CompositionLocal` üzerinden aşağıya iniyor.
+
+</details>
+
+<details>
+<summary><b>Akıllı titreşim motoru</b> — desen tablosu yerine duygu uzayı</summary>
+
+<br>
+
+Uygulamanın hiçbir yerinde titreşim deseni yazılı değil. Çağıran taraf ne
+**hissettirmek** istediğini söylüyor; motor onu o cihazda çalınabilecek en iyi
+şeye çeviriyor.
+
+Önceki katman yedi sabit desendi (`TAP` = 8 ms, 90 genlik) ve iki yerden
+kırılıyordu. Tablo büyüdükçe yeni bir olay ya var olan bir deseni yeniden
+kullanmak — iki farklı şeyi aynı hissettirmek — ya da elle uydurulmuş yeni bir
+satır demekti. Ve sabit süre/genlik, onu yazanın telefonunda doğru hissediyordu;
+başka bir aktüatörde aynı sayılar bambaşka bir şey üretiyordu.
+
+Bir olay artık dört eksende tanımlanıyor ve titreşim bunlardan **üretiliyor**:
+
+| Eksen | Ne söylüyor | Neye dönüşüyor |
+|---|---|---|
+| `valence` | hoşluk (−1…1) | keskinlik — olumsuz olan sert, olumlu olan yayvan |
+| `arousal` | uyarılma (0…1) | şiddet — Stevens güç yasasıyla (üs 0.72) |
+| `certainty` | kesinlik (0…1) | ritim — biten tek darbe, süren düzensiz nabız |
+| `weight` | ağırlık (0…1) | süre ve zarf — ağır olan yükselen bir giriş alıyor |
+
+Aynı kurallar sözlükteki yirmi üç duyguyu da, ikisinin karışımını da üretiyor.
+Güvenlik taraması bittiğinde çalan şey bulgu sayısına göre onay ile alarm
+arasında bir yerde — ara değer diye bir şey var, çünkü eksenler sürekli.
+
+Donanım tarafında dört basamaklı bir merdiven: **zarf** (Android 16+, şiddet ve
+keskinliği doğrudan alıyor) → **ilkeller** → **dalga biçimi** → **tek atış**. Her
+basamak bir öncekinin gerçek yedeği. İlkellerde bütün-ya-da-hiç kuralı var: bir
+bileşimde tek bir desteklenmeyen ilkel varsa cihaz hiçbir şey çalmıyor, bu
+yüzden yol yalnızca gereken ilkellerin hepsi doğrulanmışsa seçiliyor.
+
+Motorun kendi aklı:
+
+- Aynı olay arka arkaya geldiğinde üstel olarak sessizleşiyor — alarmlar hariç,
+  ikincisi de birincisi kadar acil.
+- Kayan bir pencerede toplam titreşim süresi tavanlı; düşen istek kuyruğa
+  alınmıyor, çünkü geç gelen bir dokunsal geri bildirim yanlış olayı işaret eder.
+- Sessiz kip sıfırlıyor, pil tasarrufu ölçeği düşürüyor.
+- Bir donanım yolu fırlatırsa o yol bir daha denenmiyor.
+
+Rastgelelik **yok**: aynı duygu her zaman aynı hissediyor. Çeşitlilik, dokunsal
+geri bildirimin tek işini — olayla eşleşmeyi — bozardı.
+
+</details>
+
+<details>
+<summary><b>Cam yüzeyler</b> — derinliği gölge değil bulanıklık anlatıyor</summary>
+
+<br>
+
+Gölge "bu yükseltilmiş" diyor. Bulanıklık "arkasında bir şey **var** ve hâlâ
+orada" diyor. Android 16–17 boyunca sistem arayüzü ikincisine geçti; uygulama da.
+
+İki ayrı mekanizma gerekiyor, çünkü çizim sırası tek yönlü:
+
+- **Aynı pencere içindeki** yüzeyler (gezinme çubuğu, durum çubuğu camı, eylem
+  menüsü örtüsü, bildirim çubuğu) ekranın kaydedilmiş bir kopyasını
+  bulanıklaştırıyor. Kopya bir kez alınıyor ve dördü de onu paylaşıyor.
+- **Ayrı pencerede** açılanlar (pencereler, alt sayfalar) o kopyayı göremiyor;
+  onlar için sistemin kendi `FLAG_BLUR_BEHIND` mekanizması var — güç menüsünü
+  bulanıklaştıran şeyin aynısı.
+
+Bulanıklık tek başına okunabilirliği **taşımıyor**: sistem onu pil tasarrufunda,
+düşük güçlü cihazlarda ve geliştirici seçeneklerinden kapatıyor. Kapalıyken
+yüzeyin kendi rengi zaten yeterli kontrastı veriyor; tersi kurulsaydı pil
+tasarrufuna geçen kullanıcının penceresi okunamaz hâle gelirdi.
+
+İçerik yüzeyleri (liste satırları, kartlar, arama pili, ayar kategorileri)
+bulanıklaştırmıyor ama geçirgen: altlarındaki zemin gradyanı görünüyor, üst
+kenarları ışık alıyor, altları sönük kalıyor. Dördü birlikte olmadan cam olmuyor
+— geçirgenlik, ton geçişi, kenar ışığı, sınır.
+
+Bu bir **buzlu cam**, mercek değil: bulanıklaştırıyor ve renk çalıyor,
+çarpıtmıyor. Kırılma ya da büyütme eklemek başka bir tasarım dilini konuşmak
+olurdu.
 
 </details>
 

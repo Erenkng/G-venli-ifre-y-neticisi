@@ -6,7 +6,72 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
-## 1.5'te yenilikler
+## 1.6'da yenilikler
+
+### Her titreşim, gerçekte olan olayın titreşimi
+
+1.5 motoru yazdı ama uygulama onu kullanmıyordu: kırk küsur çağrı yerinin on
+sekizi `SUCCESS`, on beşi `WARNING` çalıyordu. Kaydetmek ile kilidi açmak,
+çöpe atmak ile kasayı sıfırlamak parmakta aynı hissediyordu — motorun ayırt
+edebildiği şeyleri uygulama söylemiyordu.
+
+Duygu sözlüğüne dokuz giriş eklendi ve her çağrı yeri gerçekte olan olaya
+bağlandı:
+
+- **Kilit açıldı** — yükselen üç darbe, sonuncusu en yumuşak. Günün en
+  beklenen anı.
+- **Kasa kendini sildi** — alarm. Yanlış paroladan on kez sonra gelen bu an,
+  yanlış parolayla aynı hissedemez.
+- **Bekleme süresi** — nabız gibi tekrarlı. "Yanlış" değil "henüz değil"
+  diyor; tek sert bir darbe olsaydı kullanıcı parolasını yeniden yazmayı
+  denerdi.
+- **Kalıcı silme, çöp boşaltma, kasa sıfırlama** — geri alınamaz olanın
+  ağırlığı.
+- **Çöpe atma** — olumsuz ama daha hafif: geri alınabilir. Aradaki fark
+  parmakta, ekrana bakmadan.
+- **Geri yükleme** — bir şeyin geri dönmesi.
+- **Ana parola, PIN, biyometri, anahtar döndürme** — mühür. Kasanın kilidi
+  açılmıyor, kilidin **kendisi** değişiyor.
+- **Yeni kayıt** ile **güncelleme** ayrı; **gizli değer kopyalama** ile düz
+  kopyalama ayrı.
+- **Güvenlik taraması** biterken sonucun kendisini çalıyor: temiz bir kasa
+  rahatlama, dolu bir bulgu listesi uyarı. Karışım oranı bulgu sayısıyla
+  artıyor.
+
+Yeni titreşim noktaları: göz tuşu (gizli bir alanı açan her yol aynı
+bileşenden geçiyor) ve kaydırıcının **her adımı** — rayın üzerindeki noktalar
+parmağın altında kalıyor, adım hissini artık tıkırtı taşıyor.
+
+### Cam yüzey katmanı
+
+Uygulamanın zemini üç radyal duraklı, günün saatine göre kayan bir gradyan —
+ve üzerindeki her satır, her kart onu **tamamen** kapatıyordu.
+
+Artık kapatmıyor. Liste satırları, kartlar, son kullanılanlar, arama pili,
+güvenlik bulguları ve ayar kategorileri zemini geçiriyor; üst kenarları ışık
+alıyor, altları sönük kalıyor. Fark tek tek bakınca görünmüyor ama liste
+kayarken yüzeyler zeminin üstünde **geziniyor**.
+
+Örtücülük bilerek yüksek: geçirgenlik derinlik ekliyor, kontrast taşımıyor.
+Tersi kurulsaydı sabah açık, gece koyu bir zeminde aynı yazı iki farklı
+okunabilirlikte olurdu.
+
+### Gerçek bulanıklık, uygulamanın içinde
+
+- **Ana eylem menüsü** açıldığında ekran gerçekten buzlanıyor. Eski düz
+  karartmanın altında liste okunmaya devam ediyordu ve menüyle dikkat için
+  yarışıyordu.
+- **Bildirim çubuğunun** altı bulanıklaşıyor: altındaki satırlar çubuğun
+  kenarına kadar okunabiliyordu.
+
+İkisi de gezinme çubuğunun kullandığı kaydedilmiş ekran kopyasını kullanıyor;
+ikinci bir ekran kaydı alınmıyor, yani kare bütçesine ek yük yok.
+
+Gezinme çubuğuna yine dokunulmadı.
+
+---
+
+## 1.5'te gelenler
 
 ### Akıllı titreşim motoru
 
