@@ -6,9 +6,59 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
-## 1.3'te yenilikler
+## 1.4'te yenilikler
 
-Bu sürüm 1.2'de yapılanları da içeriyor; 1.2 ayrı yayımlanmadı.
+### Chrome'dan gelen parolalar kayboluyordu — düzeltildi
+
+İçe aktarmadan sonra ad, adres ve e-posta duruyor ama parola boş kalıyordu.
+
+Sebebi sahiplikti. Kayıtlar depoya verildikten hemen sonra, çağıran kendi
+kopyasını temizlemek için gizli metni siliyordu — ve sildiği şey kasanın
+içindeki tamponun ta kendisiydi, çünkü ikisi aynı diziyi paylaşıyordu. Ad ve
+adres birer `String` olduğu için sağ kalıyor, yalnızca parola boşalıyordu:
+içe aktarma başarılı görünüp parolasız kayıtlar bırakıyordu.
+
+Depo artık sakladığı gizli veriyi kopyalıyor. Aynı dosyadaki ikinci kusur da
+düzeltildi: bayt sırası işareti (BOM) yalnızca metnin başında duruyor ama iki
+uçta birden aranıyordu, bu yüzden ilk sütunun adı hiç tanınmıyordu.
+
+**Chrome'dan aktardığı kayıtlarda parolası boş görünenler varsa, o kayıtları
+silip dosyayı yeniden aktarmak gerekiyor** — eski içe aktarmada parola diske
+hiç yazılmadı.
+
+### Üreteç
+
+- Kadran koyu kalıyordu: kap renkleri kullanılıyordu ve onlar **üzerine yazı
+  gelsin diye** seçilmiş tonlar. Renk artık güç tonlarından geliyor (iki
+  temada da canlı) ve kadran kendi içinde üç duraklı bir degrade kuruyor.
+- Üretilen değer kadranın içinden çıktı. Uzun bir sonuç dönen biçime sığmıyor
+  ve kırpılıyordu; kopyalama ile yeniden üretme de ekranın başka yerlerindeydi.
+  Değer şimdi kendi kartında, iki eylemiyle.
+- İki yeni tür: **UUID** ve **yedek giriş kodları**.
+
+### Efektler artık çerçevede
+
+Yüzeyin tamamına yayılan ışık, üzerindeki metnin kontrastını düşürüyordu.
+Üçü de yalnızca kenar bandına çiziliyor — gerçek nesnelerde de ilk parlayan
+yer kenar.
+
+### Arama açılışındaki takılma
+
+Animasyon değeri **beste aşamasında** okunuyordu: her karede değiştiği için
+ana iskele saniyede 120 kez yeniden besteleniyor, altındaki bütün ekran onunla
+geçiyordu. Değer artık yalnızca çizim aşamasında okunuyor.
+
+### Kategoriye özel açılış
+
+Kart kendi yüzüyle açılıyordu ama kalan yedi tür aynı görünüyordu. Giriş
+sitenin işaretiyle, kimlik belge yerleşimiyle, şema tabanlı türler kendi rengi
+ve simgesiyle açılıyor.
+
+---
+
+## 1.3'te gelenler
+
+Bu sürüm 1.2 ve 1.3'te yapılanları da içeriyor; 1.2 ayrı yayımlanmadı.
 
 ### Arayüz baştan geçti
 
