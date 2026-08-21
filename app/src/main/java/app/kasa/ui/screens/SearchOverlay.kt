@@ -63,7 +63,11 @@ fun SearchOverlay(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            // Cam yüzey: altındaki liste görünür kalıyor ama okunmuyor.
+            // Tamamen opak bir zemin, aramanın kasanın **üstünde** açıldığı
+            // bilgisini siliyordu; kullanıcı geri gittiğinde nereye döneceğini
+            // ancak dönünce öğreniyordu.
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = SEARCH_GLASS_ALPHA))
             .windowInsetsPadding(WindowInsets.statusBars)
     ) {
         SearchTopBar(
@@ -143,3 +147,12 @@ fun SearchOverlay(
  * listeyi klavye açılırken kaydırıyordu.
  */
 private const val RESULTS_DELAY_MILLIS = 90
+
+/**
+ * Arama yüzeyinin örtücülüğü.
+ *
+ * Alt sayfalardan yüksek: arama ekranı uzun bir sonuç listesi taşıyor ve
+ * altından geçen satırlar okunanla karışıyordu. Cam burada derinlik için
+ * değil, yalnızca bağlamı korumak için.
+ */
+private const val SEARCH_GLASS_ALPHA = 0.94f

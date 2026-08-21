@@ -1,5 +1,7 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.DialogBlurBehind
+import app.kasa.ui.components.GlassPlate
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -53,11 +55,10 @@ fun WifiQrDialog(item: VaultItem, onDismiss: () -> Unit) {
     val bitmap = remember(payload) { WifiQr.bitmap(payload, QR_SIZE_PX) }
 
     Dialog(onDismissRequest = onDismiss) {
+        DialogBlurBehind()
+        GlassPlate(shape = RoundedCornerShape(KasaRadius.l)) {
         Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(KasaRadius.l))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(24.dp),
+            modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -109,6 +110,7 @@ fun WifiQrDialog(item: VaultItem, onDismiss: () -> Unit) {
                 tone = ButtonTone.TONAL,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
         }
     }
 }

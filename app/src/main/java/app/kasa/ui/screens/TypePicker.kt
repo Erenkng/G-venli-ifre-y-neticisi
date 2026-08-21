@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.SheetBlurBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.heightIn
@@ -62,9 +63,14 @@ fun TypePickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        // Cam levha: altındaki ekran görünür kalıyor ama okunmuyor.
+        // Pencerenin arkası SheetBlurBehind ile bulanıklaşıyor; ikisi
+        // birlikte Android 17'nin alt sayfa yüzeyini kuruyor.
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = SHEET_GLASS_ALPHA),
+
         dragHandle = null
     ) {
+        SheetBlurBehind()
         Column(
             Modifier
                 .fillMaxWidth()
@@ -156,3 +162,11 @@ private fun categoryHint(category: Category): Int = when (category) {
     Category.LICENSE -> R.string.type_hint_license
     Category.WIFI -> R.string.type_hint_wifi
 }
+
+/**
+ * Alt sayfa levhasının örtücülüğü.
+ *
+ * Bundan düşüğü üzerindeki metni okunmaz yapıyor; yükseği camı opak bir
+ * yüzeye çevirip pencere bulanıklığına ödenen bedeli boşa çıkarıyor.
+ */
+private const val SHEET_GLASS_ALPHA = 0.88f

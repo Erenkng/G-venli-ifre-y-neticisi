@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.SheetBlurBehind
 import app.kasa.ui.components.CategoryHeroBand
 import androidx.compose.foundation.layout.heightIn
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -123,11 +124,16 @@ fun ItemDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        // Cam levha: altındaki ekran görünür kalıyor ama okunmuyor.
+        // Pencerenin arkası SheetBlurBehind ile bulanıklaşıyor; ikisi
+        // birlikte Android 17'nin alt sayfa yüzeyini kuruyor.
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = SHEET_GLASS_ALPHA),
+
         contentColor = KasaTheme.colors.ink,
         shape = RoundedCornerShape(topStart = KasaRadius.xl, topEnd = KasaRadius.xl),
         dragHandle = { SheetHandle() }
     ) {
+        SheetBlurBehind()
         Column(
             Modifier
                 // Sayfa telefonun üst kenarına dayanmıyor; gerekçesi
@@ -875,3 +881,11 @@ private fun CategoryHero(item: VaultItem) {
         }
     }
 }
+
+/**
+ * Alt sayfa levhasının örtücülüğü.
+ *
+ * Bundan düşüğü üzerindeki metni okunmaz yapıyor; yükseği camı opak bir
+ * yüzeye çevirip pencere bulanıklığına ödenen bedeli boşa çıkarıyor.
+ */
+private const val SHEET_GLASS_ALPHA = 0.88f

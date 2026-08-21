@@ -1,5 +1,7 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.DialogBlurBehind
+import app.kasa.ui.components.GlassPlate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -243,13 +245,24 @@ fun TypeToConfirmDialog(
 
 @Composable
 private fun DialogSurface(content: @Composable () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(KasaRadius.xl))
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
-            .padding(24.dp)
+    // ── Android 17 cam yüzeyi ─────────────────────────────────────────────
+    //
+    // Pencerenin arkası sistemin kendi mekanizmasıyla bulanıklaşıyor
+    // (FLAG_BLUR_BEHIND) — güç menüsünü ve ses panelini bulanıklaştıran şeyin
+    // aynısı. Levhanın kendisi yarı saydam: altındaki ekran görünür kalıyor
+    // ama okunmuyor, yani "buraya geri döneceksin" bilgisi duruyor.
+    //
+    // Bulanıklık okunabilirliği taşımıyor, yalnızca derinlik ekliyor. Sistem
+    // onu pil tasarrufunda ve düşük güçlü cihazlarda kapatıyor; kapatıldığında
+    // levhanın kendi rengi ve karartma zaten yeterli kontrastı veriyor.
+    DialogBlurBehind()
+
+    GlassPlate(
+        shape = RoundedCornerShape(KasaRadius.xl),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        content()
+        Column(Modifier.padding(24.dp)) {
+            content()
+        }
     }
 }
