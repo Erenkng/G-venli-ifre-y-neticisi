@@ -638,4 +638,9 @@
     <string name="set_group_effects">Deneysel efektler</string>
     <string name="set_effects">Yüzey efektleri</string>
     <string name="set_effects_sub">Kartlarda eğimle kayan ışık, dokunulan noktadan açılan parıltı, yüzeylerden geçen yansıma ve liste uçlarında derinlik. Kapatıldığında ivmeölçer hiç açılmıyor.</string>
+    <string name="gen_regenerate">Yeniden üret</string>
+    <string name="gen_mode_uuid">UUID</string>
+    <string name="gen_mode_recovery">Yedek kod</string>
+    <string name="gen_uuid_hint">Yapılandırma, veritabanı kaydı ve istemci kimliği için 8-4-4-4-12 biçiminde tanımlayıcı.</string>
+    <string name="gen_recovery_hint">İki adımlı doğrulama için yedek giriş kodları. Karışan karakterler (0/O, 1/I) alfabede yok.</string>
 </resources>

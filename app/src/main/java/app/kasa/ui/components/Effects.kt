@@ -1,5 +1,9 @@
 package app.kasa.ui.components
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.CornerRadius
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -137,57 +141,84 @@ fun rememberDeviceTilt(): DeviceTilt {
 }
 
 /**
- * Yüzeyin üzerinde eğimle birlikte kayan ışık.
+ * Yüzeyin **kenarında** eğimle birlikte gezinen ışık.
  *
- * Kart yüzü gibi parlak yüzeylerde gerçek bir plastik kartın camdan yansıması
- * gibi davranıyor: telefonu çevirdikçe ışık kartın üzerinde geziniyor. Etki
- * bilerek zayıf — fark edilmesi gereken bir efekt değil, yokluğunda yüzeyin
- * ölü görünmesini engelleyen bir doku.
+ * ### Neden yüzeyde değil, çerçevede
+ *
+ * Yüzeyin tamamına yayılan bir ışık, altındaki içeriğin kontrastını
+ * düşürüyor: kart numarasının, liste satırındaki adın, alan etiketinin
+ * üzerinden geçen beyaz bir örtü onları okunması gereken şey olmaktan
+ * çıkarıp efektin zeminine çeviriyor. Bir parola yöneticisinde ekranda duran
+ * her şey okunmak için orada.
+ *
+ * Kenar bandı bu çakışmayı tamamen kaldırıyor: ışık yalnızca yüzeyin
+ * sınırında, yani hiçbir metnin bulunmadığı yerde. Gerçek nesnelerde de
+ * böyle — cilalı bir yüzeyde ilk parlayan yer kenarın kendisi, çünkü ışığı
+ * en dik açıyla oradan yansıtıyor.
+ *
+ * ### Işık nereden geliyor
+ *
+ * Degradenin başlangıcı eğimle yer değiştiriyor: telefonu sola yatırınca
+ * parlak uç sola kayıyor. Çerçevenin tamamı aynı anda parlasaydı hareketin
+ * yönü kaybolur ve yalnızca "bir şey yanıp sönüyor" görünürdü.
  */
-fun Modifier.tiltSheen(tilt: DeviceTilt, strength: Float = 0.22f): Modifier = composed {
+fun Modifier.tiltRim(
+    tilt: DeviceTilt,
+    corner: Dp,
+    width: Dp = RIM_WIDTH,
+    strength: Float = 0.5f
+): Modifier = composed {
     if (!LocalExperimentalEffects.current) return@composed this
 
-    // Işığın merkezi eğimle yer değiştiriyor; kenardan taşmaması için
-    // yarıçapın yarısı kadar hareket alanı bırakılıyor.
-    val x by animateFloatAsState(tilt.x, label = "tiltX")
-    val y by animateFloatAsState(tilt.y, label = "tiltY")
+    val x by animateFloatAsState(tilt.x, label = "rimTiltX")
+    val y by animateFloatAsState(tilt.y, label = "rimTiltY")
 
     drawWithContent {
         drawContent()
-        val center = Offset(
-            size.width * (0.5f + x * 0.42f),
-            size.height * (0.5f + y * 0.42f)
-        )
-        drawRect(
-            brush = Brush.radialGradient(
+        val stroke = width.toPx()
+        val radius = CornerRadius(corner.toPx())
+        // Parlak ucun yeri eğimle dönüyor; karşı uç sönük kalıyor.
+        val start = Offset(size.width * (0.5f - x * 0.5f), size.height * (0.5f - y * 0.5f))
+        val end = Offset(size.width * (0.5f + x * 0.5f), size.height * (0.5f + y * 0.5f))
+        drawRoundRect(
+            brush = Brush.linearGradient(
                 colors = listOf(
                     Color.White.copy(alpha = strength),
-                    Color.White.copy(alpha = strength * 0.35f),
+                    Color.White.copy(alpha = strength * 0.18f),
                     Color.Transparent
                 ),
-                center = center,
-                radius = hypot(size.width, size.height) * 0.55f
-            )
+                start = start,
+                end = end
+            ),
+            topLeft = Offset(stroke / 2f, stroke / 2f),
+            size = Size(size.width - stroke, size.height - stroke),
+            cornerRadius = radius,
+            style = Stroke(width = stroke)
         )
     }
 }
 
 /**
- * Basıldığı noktadan açılan yumuşak ışık.
+ * Basılan noktaya en yakın kenarın parlaması.
  *
  * ### Material'ın dalgalanmasından farkı
  *
- * Material'ın `ripple`'ı bir daire çizip yüzeyin kenarında kesiyor ve rengi
- * temanın tek bir vurgusundan alıyor. Burada kesilen bir kenar yok: ışık
- * merkezden dışarı doğru **sönerek** gidiyor ve yüzeyin dışına taşmadan
- * kayboluyor. Dokunulan yer, dokunulan an belli oluyor; sınırları belli olan
- * bir daire ise dokunuşun kendisinden çok yüzeyin şeklini anlatıyor.
+ * Material'ın `ripple`'ı yüzeyin **içini** dolduruyor ve o sırada üzerindeki
+ * metnin kontrastını düşürüyor. Buradaki ışık çerçevede: dokunulan yere en
+ * yakın kenar parlıyor, uzak kenar sönük kalıyor. Dokunuşun nerede olduğu
+ * yine görünüyor — çerçevenin hangi tarafının parladığından — ama okunan
+ * hiçbir şeyin üzerinden geçmiyor.
  *
- * Konum `pointerInput` ile alınıyor: dokunuşun gerçek koordinatı olmadan
- * çiçeklenme yüzeyin ortasından açılırdı ve o zaman "nereye dokundum"
- * bilgisini hiç taşımazdı.
+ * Konum `pointerInput` ile alınıyor. Konum olmadan çerçevenin tamamı aynı
+ * anda parlardı ve efekt "dokundum" demekten öteye geçmezdi; nereye
+ * dokunduğunu da söylemesi, art arda basılan iki satırı ayırt ettiriyor.
  */
-fun Modifier.pressBloom(color: Color = Color.White, maxAlpha: Float = 0.16f): Modifier = composed {
+fun Modifier.pressRim(
+    corner: Dp,
+    color: Color = Color.White,
+    width: Dp = RIM_WIDTH,
+    maxAlpha: Float = 0.55f
+): Modifier = composed {
     if (!LocalExperimentalEffects.current) return@composed this
 
     var origin by remember { mutableStateOf(Offset.Unspecified) }
@@ -195,7 +226,7 @@ fun Modifier.pressBloom(color: Color = Color.White, maxAlpha: Float = 0.16f): Mo
     val progress by animateFloatAsState(
         targetValue = if (pressed) 1f else 0f,
         animationSpec = tween(durationMillis = if (pressed) BLOOM_IN_MILLIS else BLOOM_OUT_MILLIS),
-        label = "bloom"
+        label = "pressRim"
     )
 
     this
@@ -211,19 +242,23 @@ fun Modifier.pressBloom(color: Color = Color.White, maxAlpha: Float = 0.16f): Mo
         }
         .drawWithContent {
             drawContent()
-            if (progress > 0.01f && origin.isSpecifiedSafely()) {
-                val radius = hypot(size.width, size.height) * (0.25f + progress * 0.55f)
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            color.copy(alpha = maxAlpha * progress),
-                            Color.Transparent
-                        ),
-                        center = origin,
-                        radius = radius
-                    )
-                )
-            }
+            if (progress <= 0.01f || !origin.isSpecifiedSafely()) return@drawWithContent
+            val stroke = width.toPx()
+            drawRoundRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        color.copy(alpha = maxAlpha * progress),
+                        color.copy(alpha = maxAlpha * progress * 0.25f),
+                        Color.Transparent
+                    ),
+                    center = origin,
+                    radius = hypot(size.width, size.height) * (0.35f + progress * 0.35f)
+                ),
+                topLeft = Offset(stroke / 2f, stroke / 2f),
+                size = Size(size.width - stroke, size.height - stroke),
+                cornerRadius = CornerRadius(corner.toPx()),
+                style = Stroke(width = stroke)
+            )
         }
 }
 
@@ -231,16 +266,21 @@ private fun Offset.isSpecifiedSafely(): Boolean =
     this != Offset.Unspecified && x.isFinite() && y.isFinite()
 
 /**
- * Yüzeyin üzerinden geçen yavaş ışık şeridi.
+ * Çerçevenin üzerinden arada bir geçen ışık.
  *
  * Cam ve cilalı yüzeylerin ortak davranışı: kaynak sabitken bile en ufak
- * hareket yüzeyde gezinen bir yansıma üretiyor. Şerit köşeden köşeye eğik
- * geçiyor ve iki geçiş arasında uzun bir sessizlik var — sürekli dönen bir
- * parıltı yükleniyor gibi görünüyor, arada bir geçen ise canlı.
+ * hareket kenarda gezinen bir yansıma üretiyor. Şerit yüzeyin **sınırında**
+ * ilerliyor, içinden değil — içinden geçen bir şerit, altındaki metnin
+ * üzerinden geçmek zorunda kalırdı.
+ *
+ * İki geçiş arasında uzun bir sessizlik var: sürekli dönen bir parıltı
+ * "yükleniyor" gibi görünüyor, arada bir geçen ise canlı.
  */
-fun Modifier.shimmerSweep(
+fun Modifier.shimmerRim(
+    corner: Dp,
     color: Color = Color.White,
-    alpha: Float = 0.10f
+    width: Dp = RIM_WIDTH,
+    alpha: Float = 0.45f
 ): Modifier = composed {
     if (!LocalExperimentalEffects.current || LocalReducedMotion.current) return@composed this
 
@@ -260,19 +300,19 @@ fun Modifier.shimmerSweep(
         // Döngünün yalnızca ilk parçasında şerit geçiyor; gerisi sessizlik.
         if (phase > SHIMMER_ACTIVE) return@drawWithContent
         val travel = phase / SHIMMER_ACTIVE
-        val span = size.width * 0.42f
+        val stroke = width.toPx()
+        val span = size.width * 0.38f
         val head = -span + travel * (size.width + span * 2f)
-        drawRect(
+        drawRoundRect(
             brush = Brush.linearGradient(
-                colors = listOf(
-                    Color.Transparent,
-                    color.copy(alpha = alpha),
-                    Color.Transparent
-                ),
+                colors = listOf(Color.Transparent, color.copy(alpha = alpha), Color.Transparent),
                 start = Offset(head, 0f),
                 end = Offset(head + span, size.height)
             ),
-            size = Size(size.width, size.height)
+            topLeft = Offset(stroke / 2f, stroke / 2f),
+            size = Size(size.width - stroke, size.height - stroke),
+            cornerRadius = CornerRadius(corner.toPx()),
+            style = Stroke(width = stroke)
         )
     }
 }
@@ -328,6 +368,13 @@ private const val BLOOM_OUT_MILLIS = 360
 private const val SHIMMER_CYCLE_MILLIS = 5600
 /** Döngünün ne kadarında şerit geçiyor; gerisi bekleme. */
 private const val SHIMMER_ACTIVE = 0.28f
+/**
+ * Kenar bandının kalınlığı.
+ *
+ * İnce tutuluyor: kalın bir band yüzeye geri dönüyor ve "çerçeve" olmaktan
+ * çıkıp bir kenar dolgusuna dönüşüyor.
+ */
+private val RIM_WIDTH = 2.dp
 private const val FALLOFF_FRACTION = 0.10f
 private const val DEPTH_SCALE = 0.06f
 private const val DEPTH_ALPHA = 0.55f

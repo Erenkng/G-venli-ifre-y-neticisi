@@ -55,7 +55,16 @@ object CsvImport {
         val rows = parseCsv(text)
         if (rows.size < 2) return null
 
-        val header = rows.first().map { it.trim().lowercase().removeSurrounding("﻿") }
+        // Bayt sırası işareti (BOM) yalnızca **baştan** atılıyor.
+        //
+        // Öncesinde `removeSurrounding` kullanılıyordu ve o, karakteri iki
+        // uçta birden arıyor: yalnızca başta duran BOM olduğu gibi kalıyordu.
+        // Chrome'un ve Excel'in ürettiği dosyalarda BOM her zaman yalnızca
+        // başta ve sonucu ilk sütun adının `\uFEFFname` olarak okunması —
+        // yani "name" sütununun hiç bulunamaması.
+        val header = rows.first().map { cell ->
+            cell.removePrefix("\uFEFF").trim().trim('"').lowercase()
+        }
         val columns = Columns.from(header) ?: return null
 
         var skipped = 0

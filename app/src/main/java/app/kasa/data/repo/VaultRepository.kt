@@ -1128,7 +1128,30 @@ class VaultRepository(
                 }
             }
             added = fresh.size
-            if (fresh.isEmpty()) current else current.copy(items = existing + fresh)
+            // ── gizli veri burada kopyalanıyor ───────────────────────────
+            //
+            // `VaultItem` bir veri sınıfı ve `password` alanı bir **referans**.
+            // Gelen kaydı listeye eklemek parolayı kopyalamıyor; kasa ile
+            // çağıranın aynı `CharArray`i paylaşması demek.
+            //
+            // Bu tam olarak gerçekleşti ve CSV içe aktarmayı sessizce bozdu:
+            // çağıran, kayıtları verdikten sonra kendi kopyalarını silmek için
+            // `password.wipe()` çağırıyordu ve sildiği şey kasanın içindeki
+            // tamponun ta kendisiydi. Ad, adres ve kullanıcı adı `String`
+            // olduğu için sağ kalıyor, yalnızca parola boşalıyordu — yani
+            // içe aktarma çalışmış gibi görünüyordu.
+            //
+            // Kopya, sahipliği belirsiz bırakmayan tek çözüm: bu noktadan
+            // sonra kasadaki gizli veriyi yalnızca kasa siliyor ve çağıran
+            // kendi kopyasıyla ne isterse yapabiliyor.
+            val owned = fresh.map { item ->
+                if (item.password.isEmpty()) item
+                else {
+                    val chars = item.password.copyChars()
+                    item.copy(password = SecretText.adopt(chars))
+                }
+            }
+            if (owned.isEmpty()) current else current.copy(items = existing + owned)
         }
         return added
     }

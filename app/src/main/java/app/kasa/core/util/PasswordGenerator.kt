@@ -38,6 +38,12 @@ object PasswordGenerator {
     /** Entropi hedefi seçenekleri (bit). 0 = hedef yok, uzunluğu kullanıcı seçer. */
     val ENTROPY_TARGETS = listOf(0, 60, 80, 100, 128)
     const val BATCH_SIZE = 5
+    /** Kurtarma kodu setinde kaç kod ve her kodun öbek deseni. */
+    const val RECOVERY_CODES = 6
+    private const val RECOVERY_GROUP = 4
+    private const val RECOVERY_GROUPS = 2
+    /** Kurtarma kodu alfabesi: karışan harf ve rakamlar dışarıda. */
+    private const val RECOVERY_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
     const val MIN_SYLLABLES = 4
     const val MAX_SYLLABLES = 12
@@ -154,6 +160,83 @@ object PasswordGenerator {
         val number = Crypto.randomInt(100).toString().padStart(2, '0')
         val entropy = 2 * log2(words.size.toDouble()) + log2(100.0)
         return Generated("$first.$second$number", entropy)
+    }
+
+    /**
+     * UUID (sürüm 4).
+     *
+     * ### Ne işe yarıyor
+     *
+     * Yapılandırma dosyası, veritabanı kaydı, test verisi, bir API'nin
+     * istediği istemci kimliği. Parola üreticisiyle üretilmiş bir dize burada
+     * çalışmıyor: karşı taraf 8-4-4-4-12 biçimini ayrıştırıyor ve biçim
+     * tutmazsa reddediyor.
+     *
+     * ### Neden `UUID.randomUUID()` değil
+     *
+     * O yöntem `SecureRandom` kullanıyor ve doğru sonuç üretiyor ama
+     * uygulamanın geri kalanı rastgeleliği tek bir yerden alıyor. İkinci bir
+     * kaynak açmak, "bu uygulamada rastgelelik nereden geliyor" sorusunun
+     * cevabını ikiye bölerdi.
+     *
+     * Sürüm ve değişken alanları RFC 4122'nin istediği gibi zorlanıyor: 122
+     * bit rastgele, 6 bit sabit.
+     */
+    fun generateUuid(): Generated {
+        val bytes = Crypto.randomBytes(16)
+        try {
+            bytes[6] = ((bytes[6].toInt() and 0x0F) or 0x40).toByte()  // sürüm 4
+            bytes[8] = ((bytes[8].toInt() and 0x3F) or 0x80).toByte()  // değişken 1
+            val hex = bytes.joinToString("") { "%02x".format(it) }
+            val text = buildString(36) {
+                append(hex, 0, 8); append('-')
+                append(hex, 8, 12); append('-')
+                append(hex, 12, 16); append('-')
+                append(hex, 16, 20); append('-')
+                append(hex, 20, 32)
+            }
+            return Generated(text, 122.0)
+        } finally {
+            bytes.fill(0)
+        }
+    }
+
+    /**
+     * Kurtarma kodu seti.
+     *
+     * ### Ne işe yarıyor
+     *
+     * İki adımlı doğrulama kuran her servis bir avuç yedek kod veriyor ve
+     * kullanıcı onları bir yere yazmak zorunda. Tersi de gerekiyor: kendi
+     * sunucusunu, yönlendiricisini ya da paylaşılan bir hesabı kuran biri o
+     * kodları **üretmek** durumunda ve elle uydurulmuş "yedek1, yedek2"
+     * dizisi tam olarak tahmin edilebilir olanı üretiyor.
+     *
+     * ### Biçim
+     *
+     * `A3F2-9K1M` — kodlar okunup telefonda söyleniyor ve kâğıda yazılıyor,
+     * bu yüzden karışan karakterler (0/O, 1/I/l) alfabede yok. Tire, sekiz
+     * karakterlik bir bloğu gözle takip edilebilir kılıyor.
+     *
+     * Kodlar tek bir dizede, satır sonlarıyla dönüyor: kopyalandığında hepsi
+     * birden panoya giriyor ve kullanıcı tek tek üretmek zorunda kalmıyor.
+     */
+    fun generateRecoveryCodes(count: Int = RECOVERY_CODES): Generated {
+        val size = count.coerceIn(1, 12)
+        val perCode = RECOVERY_GROUP * RECOVERY_GROUPS
+        val codes = (0 until size).map {
+            (0 until RECOVERY_GROUPS).joinToString("-") {
+                buildString(RECOVERY_GROUP) {
+                    repeat(RECOVERY_GROUP) {
+                        append(RECOVERY_ALPHABET[Crypto.randomInt(RECOVERY_ALPHABET.length)])
+                    }
+                }
+            }
+        }
+        // Bildirilen güç **tek bir kodun** gücü: saldırganın kırması gereken
+        // şey setin tamamı değil, herhangi biri. Toplamı bildirmek gerçekte
+        // olmayan bir güvence gösterirdi.
+        return Generated(codes.joinToString("\n"), perCode * log2(RECOVERY_ALPHABET.length.toDouble()))
     }
 
     /**

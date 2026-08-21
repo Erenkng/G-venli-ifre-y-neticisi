@@ -126,6 +126,10 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
 
             GeneratorMode.HEX -> PasswordGenerator.generateHexKey(settings.generatorHexBits)
 
+            GeneratorMode.UUID -> PasswordGenerator.generateUuid()
+
+            GeneratorMode.RECOVERY -> PasswordGenerator.generateRecoveryCodes()
+
             GeneratorMode.USERNAME -> PasswordGenerator.generateUsername(
                 PasswordGenerator.words(container.appContext)
             )

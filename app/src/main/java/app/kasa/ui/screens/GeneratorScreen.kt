@@ -97,15 +97,21 @@ fun GeneratorScreen(
 
     // Kadranın rengi ve üstündeki yazının rengi birlikte seçilir; karanlık
     // modda zemin koyulaştığı için yazı da açık tona geçmeli.
+    // ── kadranın rengi ────────────────────────────────────────────────────
+    //
+    // Önceden kap renkleri (badgeStrongBg vb.) kullanılıyordu ve onlar
+    // **üzerine yazı gelsin diye** seçilmiş tonlar: karanlık temada
+    // #00504A gibi, neredeyse siyah bir jade. Kadranın üzerinde artık yazı
+    // yok — biçimin kendisi ekranın konusu — ve o tonlar orada koyu bir leke
+    // gibi duruyordu.
+    //
+    // Güç renkleri (strength*) iki temada da canlı: açıkta #0E8A6E,
+    // karanlıkta #3FD9B4. Kadran bunlardan besleniyor ve içindeki degradeyi
+    // MorphDial kendi üretiyor.
     val dialColor = when {
-        state.strength > 0.5f -> KasaTheme.colors.badgeStrongBg
-        state.strength > 0.28f -> KasaTheme.colors.badgeMidBg
-        else -> KasaTheme.colors.badgeWeakBg
-    }
-    val dialTextColor = when {
-        state.strength > 0.5f -> KasaTheme.colors.badgeStrongFg
-        state.strength > 0.28f -> KasaTheme.colors.badgeMidFg
-        else -> KasaTheme.colors.badgeWeakFg
+        state.strength > 0.5f -> KasaTheme.colors.strengthStrong
+        state.strength > 0.28f -> KasaTheme.colors.strengthMid
+        else -> KasaTheme.colors.strengthWeak
     }
 
     LazyColumn(
@@ -122,85 +128,74 @@ fun GeneratorScreen(
         }
 
         item(key = "dial") {
+            // ── neden değer kadranın içinde değil ──────────────────────────
+            //
+            // Değer kadranın ortasında duruyordu ve iki şeyi birden
+            // bozuyordu. Uzun bir sonuç — sözcük dizisi, 64 karakterlik
+            // parola, altı satırlık kurtarma kodu — dönen biçimin içine
+            // sığmıyor ve kırpılıyordu. Kopyalama ve yeniden üretme de
+            // ekranın başka yerlerindeydi, yani "üret, bak, kopyala"
+            // döngüsünün üç adımı üç ayrı yere dağılmıştı.
+            //
+            // Kadran şimdi yalnızca **gücü** anlatıyor: ne kadar dikenli ve
+            // ne kadar hızlı döndüğü. Değer altında, kendi kabında, yanında
+            // iki eylemiyle duruyor.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .defaultMinSize(minHeight = 236.dp)
-                    .padding(top = 6.dp, bottom = 2.dp),
+                    .defaultMinSize(minHeight = 190.dp)
+                    .padding(top = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 MorphDial(
                     strength = strength,
                     color = dialColor,
-                    modifier = Modifier.size(236.dp)
+                    modifier = Modifier.size(190.dp)
                 )
                 Column(
-                    modifier = Modifier.padding(horizontal = 34.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
-                        text = state.value.ifBlank { "·········" },
-                        style = KasaTheme.text.generatedPassword,
-                        color = dialTextColor,
-                        textAlign = TextAlign.Center
-                    )
                     Text(
                         text = stringResource(state.label),
                         style = KasaTheme.text.sectionLabel,
-                        color = dialTextColor.copy(alpha = 0.78f)
+                        color = Color.White
+                    )
+                    Text(
+                        text = stringResource(R.string.gen_entropy, state.entropyBits.toInt()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.82f)
                     )
                 }
             }
         }
 
-        item(key = "actions") {
-            SplitButton(
-                text = stringResource(R.string.gen_regen),
-                onPrimary = {
-                    viewModel.haptic(Haptics.Kind.MEDIUM)
-                    viewModel.regenerate()
-                },
-                onSecondary = { viewModel.copy(settings.clipboardClearSeconds) },
-                leading = {
-                    Icon(
-                        Icons.Rounded.Refresh,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                secondaryContent = {
-                    Icon(
-                        Icons.Rounded.ContentCopy,
-                        contentDescription = stringResource(R.string.gen_copy),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-            )
-        }
-
-        item(key = "meta") {
-            Row(
-                Modifier.fillMaxWidth().padding(top = 12.dp, start = 6.dp, end = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+        item(key = "value") {
+            KasaCard(modifier = Modifier.padding(top = 12.dp), padding = 18.dp) {
                 Text(
-                    stringResource(R.string.gen_entropy, state.entropyBits.toInt()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KasaTheme.colors.ink3
+                    text = state.value.ifBlank { "·········" },
+                    style = KasaTheme.text.generatedPassword,
+                    color = KasaTheme.colors.ink,
+                    // Kurtarma kodu seti çok satırlı; ötekiler tek satır.
+                    // Sabit bir satır sınırı, kodların çoğunu gizlerdi.
+                    modifier = Modifier.fillMaxWidth()
                 )
-                val crack = viewModel.crackTime()
-                Text(
-                    stringResource(
-                        R.string.gen_crack,
-                        crack.arg?.let { stringResource(crack.textRes, it) } ?: stringResource(crack.textRes)
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KasaTheme.colors.ink3
-                )
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KasaButton(
+                        text = stringResource(R.string.copy),
+                        onClick = { viewModel.copy(settings.clipboardClearSeconds) },
+                        height = 46.dp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    KasaButton(
+                        text = stringResource(R.string.gen_regenerate),
+                        onClick = viewModel::regenerate,
+                        tone = ButtonTone.TONAL,
+                        height = 46.dp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
 
@@ -318,6 +313,19 @@ fun GeneratorScreen(
                             )
                         }
                     }
+                } else if (mode == GeneratorMode.UUID || mode == GeneratorMode.RECOVERY) {
+                    // İkisinin de ayarı yok: UUID'nin biçimi RFC'de sabit,
+                    // kurtarma kodlarının alfabesi ve öbeklemesi okunabilirlik
+                    // için seçildi. Ayar sunmak, değiştirilmemesi gereken bir
+                    // şeyi değiştirilebilir göstermek olurdu.
+                    Text(
+                        stringResource(
+                            if (mode == GeneratorMode.UUID) R.string.gen_uuid_hint
+                            else R.string.gen_recovery_hint
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KasaTheme.colors.ink3
+                    )
                 } else if (mode == GeneratorMode.USERNAME || mode == GeneratorMode.PIN) {
                     // İkisinin de ayarı yok: kullanıcı adı sözlükten geliyor,
                     // PIN'in tek değişkeni uzunluk ve o yukarıda.
@@ -536,6 +544,8 @@ private fun generatorModeLabel(mode: GeneratorMode): Int = when (mode) {
     GeneratorMode.PIN -> R.string.gen_mode_pin
     GeneratorMode.USERNAME -> R.string.gen_mode_username
     GeneratorMode.HEX -> R.string.gen_mode_hex
+    GeneratorMode.UUID -> R.string.gen_mode_uuid
+    GeneratorMode.RECOVERY -> R.string.gen_mode_recovery
 }
 
 /** Kaydırıcının ne saydığı: karakter, sözcük, hece ya da hane. */

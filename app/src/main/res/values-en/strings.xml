@@ -620,4 +620,9 @@
     <string name="set_group_effects">Experimental effects</string>
     <string name="set_effects">Surface effects</string>
     <string name="set_effects_sub">Light that follows the device tilt on cards, a bloom from where you touch, a sweep across surfaces, and depth at the list edges. Turning this off never opens the accelerometer.</string>
+    <string name="gen_regenerate">Generate again</string>
+    <string name="gen_mode_uuid">UUID</string>
+    <string name="gen_mode_recovery">Backup codes</string>
+    <string name="gen_uuid_hint">An 8-4-4-4-12 identifier for config files, database rows and client IDs.</string>
+    <string name="gen_recovery_hint">Backup sign-in codes for two-step verification. Look-alike characters (0/O, 1/I) are left out.</string>
 </resources>

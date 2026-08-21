@@ -36,6 +36,16 @@ import androidx.compose.ui.graphics.Color
  * Arama çubuğu tam yuvarlak, ekran köşesiz. Yarıçapı sabit tutmak, büyüyen
  * kutuyu geçişin sonunda ekrana oturmayan bir hap gibi bırakıyordu.
  *
+ * ### İlerleme neden bir işlev
+ *
+ * Değer doğrudan verilseydi, her karede yeni bir değer okunduğu için bu
+ * bileşeni **çağıran** yeniden bestelenirdi — ve onu çağıran yer ana iskele,
+ * yani ekrandaki her şey. Animasyon boyunca saniyede 120 kez bütün ağacın
+ * yeniden bestelenmesi, arama açılırken hissedilen takılmanın kaynağıydı.
+ *
+ * İşlev olarak verildiğinde okuma çizim aşamasına erteleniyor: beste ve
+ * yerleşim hiç çalışmıyor, yalnızca çizim tekrarlanıyor.
+ *
  * @param progress 0 = kaynağın yerinde ve boyunda, 1 = ekranın tamamı
  * @param origin kaynağın kök koordinatlarındaki dikdörtgeni (piksel);
  *        `null` ise büyüme yapılamıyor ve yüzey doğrudan tam ekran çiziliyor —
@@ -44,7 +54,7 @@ import androidx.compose.ui.graphics.Color
  */
 @Composable
 fun ExpandingSurface(
-    progress: Float,
+    progress: () -> Float,
     origin: Rect?,
     color: Color,
     originCornerPx: Float,
@@ -53,7 +63,7 @@ fun ExpandingSurface(
     Canvas(modifier.fillMaxSize()) {
         val full = Rect(0f, 0f, size.width, size.height)
         val from = origin ?: full
-        val t = progress.coerceIn(0f, 1f)
+        val t = progress().coerceIn(0f, 1f)
 
         val left = from.left + (full.left - from.left) * t
         val top = from.top + (full.top - from.top) * t

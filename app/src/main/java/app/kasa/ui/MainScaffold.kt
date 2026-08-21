@@ -1,5 +1,8 @@
 package app.kasa.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -403,27 +406,52 @@ fun MainScaffold(
         // dokunuyor, başka bir şey beliriyordu. Şimdi açılan yüzey tam olarak
         // çubuğun bulunduğu yerden ve boyundan büyüyor, geri gidince oraya
         // dönüyor. Tekniğin gerekçesi ExpandingSurface üzerinde yazılı.
-        val searchExpand by animateFloatAsState(
-            targetValue = if (searchOpen) 1f else 0f,
-            animationSpec = KasaMotion.large(),
-            label = "searchExpand"
-        )
-        if (searchExpand > 0.002f) {
+        // ── neden Animatable ve neden ertelenmiş okuma ─────────────────────
+        //
+        // Önceki hâli `animateFloatAsState` ile bir Float okuyordu ve o okuma
+        // **beste aşamasındaydı**: değer her karede değiştiği için ana iskele
+        // saniyede 120 kez yeniden besteleniyor, altındaki bütün ekran onunla
+        // birlikte geçiyordu. Arama açılırken hissedilen takılma buydu.
+        //
+        // Değer artık bir `Animatable` içinde ve hiçbir yerde beste
+        // aşamasında okunmuyor: yüzeye işlev olarak, içeriğe `graphicsLayer`
+        // bloğunda geçiyor. İkisi de çizim aşamasında çalışıyor, yani
+        // animasyon boyunca tek bir yeniden besteleme yok.
+        val searchExpand = remember { Animatable(0f) }
+        // Bileşenin var olup olmadığı ayrı bir durum: bu **kaba** bir sinyal
+        // (açıldı/kapandı), kare başına değişmiyor.
+        var searchVisible by remember { mutableStateOf(false) }
+
+        LaunchedEffect(searchOpen) {
+            if (searchOpen) searchVisible = true
+            searchExpand.animateTo(
+                targetValue = if (searchOpen) 1f else 0f,
+                animationSpec = spring(
+                    dampingRatio = SEARCH_DAMPING,
+                    stiffness = SEARCH_STIFFNESS,
+                    visibilityThreshold = 0.001f
+                )
+            )
+            if (!searchOpen) searchVisible = false
+        }
+
+        if (searchVisible) {
             ExpandingSurface(
-                progress = searchExpand,
+                progress = { searchExpand.value },
                 origin = searchOrigin,
                 color = MaterialTheme.colorScheme.surface,
                 originCornerPx = searchOriginCorner
             )
-            val contentAlpha = contentRevealFraction(searchExpand, opening = searchOpen)
-            if (contentAlpha > 0.002f) {
-                Box(Modifier.alpha(contentAlpha)) {
-                    SearchOverlay(
-                        viewModel = vaultViewModel,
-                        settings = settings,
-                        onClose = { searchOpen = false }
-                    )
+            Box(
+                Modifier.graphicsLayer {
+                    alpha = contentRevealFraction(searchExpand.value, opening = searchOpen)
                 }
+            ) {
+                SearchOverlay(
+                    viewModel = vaultViewModel,
+                    settings = settings,
+                    onClose = { searchOpen = false }
+                )
             }
         }
 
@@ -549,3 +577,15 @@ private fun ShowMessages(
         }
     }
 }
+
+/**
+ * Arama açılışının yay katsayıları.
+ *
+ * Sönümleme 1'e yakın: aşma yok. Büyüyen bir yüzeyin ekran kenarını geçip
+ * geri gelmesi, kenarın kendisini esneyen bir şey gibi gösteriyordu ve ekran
+ * kenarı esnemiyor. Sertlik orta-düşük: geçiş yaklaşık 380 ms sürüyor, yani
+ * gözün büyümeyi takip edebileceği kadar yavaş, beklemeye dönüşmeyecek kadar
+ * hızlı.
+ */
+private const val SEARCH_DAMPING = 0.96f
+private const val SEARCH_STIFFNESS = 520f

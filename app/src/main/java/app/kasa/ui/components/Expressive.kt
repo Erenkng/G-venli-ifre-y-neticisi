@@ -1,5 +1,6 @@
 package app.kasa.ui.components
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -203,6 +204,20 @@ fun MorphDial(
     points: Int = 7,
     spin: Boolean = true
 ) {
+    // ── neden düz dolgu değil ──────────────────────────────────────────────
+    //
+    // Tek bir tonla doldurulan biçim, karanlık temada koyu bir leke gibi
+    // duruyordu: kap renkleri (badgeStrongBg vb.) zaten üzerine yazı gelsin
+    // diye koyu seçilmiş ve burada üzerine yazı gelmiyor, biçimin kendisi
+    // ekranın konusu.
+    //
+    // Aynı renkten türetilen üç duraklı bir degrade biçimi aydınlatıyor:
+    // üst-sol uç açık, alt-sağ uç kaynağın kendisi. Renk ailesi değişmiyor,
+    // yalnızca içinde bir ışık yönü beliriyor — dönen bir nesnenin hacmi de
+    // zaten buradan okunuyor.
+    val dialBrush = Brush.linearGradient(
+        listOf(color.lift(0.46f), color.lift(0.12f), color)
+    )
     val reduced = rememberReducedMotion()
     val transition = rememberInfiniteTransition(label = "morph")
     val rotation by transition.animateFloat(
@@ -239,7 +254,7 @@ fun MorphDial(
         val center = Offset(size.width / 2f, size.height / 2f)
         val radius = min(size.width, size.height) / 2f * 0.88f
 
-        fun fill(scale: Float, paint: Color) {
+        fun shape(scale: Float): Path {
             buildMorphPathInto(
                 path = scratchPath,
                 centerX = center.x,
@@ -251,7 +266,7 @@ fun MorphDial(
                 rotation = angle,
                 vertices = scratchVertices
             )
-            drawPath(scratchPath, paint)
+            return scratchPath
         }
 
         // Dıştan içe: en dıştaki halka en saydam. Tek bir yol nesnesi
@@ -259,9 +274,13 @@ fun MorphDial(
         // dört ayırma demekti.
         for (layer in glowLayers downTo 1) {
             val t = layer.toFloat() / glowLayers
-            fill(1f + GLOW_SPREAD * t, color.copy(alpha = 0.16f * (1f - t) + 0.04f))
+            drawPath(
+                shape(1f + GLOW_SPREAD * t),
+                color.copy(alpha = 0.16f * (1f - t) + 0.04f)
+            )
         }
-        fill(1f, color)
+        // Çekirdek degradeyle: biçimin hacmi buradan okunuyor.
+        drawPath(shape(1f), dialBrush)
     }
 }
 
@@ -309,3 +328,17 @@ fun ScanShape(
         drawPath(path, color)
     }
 }
+
+/**
+ * Rengi beyaza doğru çeker.
+ *
+ * Doygunluğu koruyarak açmanın (HSL üzerinden) görünür bir üstünlüğü yok ve
+ * bir renk uzayı dönüşümü getiriyor; buradaki kullanım tek bir degradenin
+ * açık ucunu üretmek ve doğrusal karışım o iş için yeterli.
+ */
+private fun Color.lift(fraction: Float): Color = Color(
+    red = red + (1f - red) * fraction,
+    green = green + (1f - green) * fraction,
+    blue = blue + (1f - blue) * fraction,
+    alpha = alpha
+)

@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.CategoryHeroBand
 import androidx.compose.foundation.layout.heightIn
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -145,15 +146,55 @@ fun ItemDetailSheet(
             //
             // Kilitli kayıtta çizilmiyor: kart yüzü zaten numarayı taşıyor,
             // doğrulamadan önce göstermek ek kilidi anlamsız kılardı.
-            if (item.category == Category.CARD && itemUnlocked) {
-                Spacer(Modifier.height(6.dp))
-                CardFace(
-                    item = item,
-                    revealed = revealed,
-                    // Kart alanlarının hepsi hassas: pano süreli temizleniyor.
-                    onCopy = { viewModel.copySecret(it, settings.clipboardClearSeconds) }
-                )
-                Spacer(Modifier.height(6.dp))
+            // ── türe özel başlık ──────────────────────────────────────────
+            //
+            // Kart kendi yüzüyle açılıyordu ama geri kalan yedi tür aynı
+            // görünüyordu: bir rozet, bir ad ve altında alan blokları. Kaydı
+            // açan kişi ne açtığını okuyarak anlamak zorunda kalıyordu.
+            //
+            // Her tür artık kendi başlığıyla geliyor. Anlatılan şey bilgi
+            // değil **tanıma**: kart karta, kimlik belgeye, 2FA dönen bir
+            // koda benziyor. Bilginin kendisi zaten aşağıdaki alanlarda.
+            //
+            // Kilitli kayıtta hiçbiri çizilmiyor: başlıklar gizli değeri
+            // taşıyabiliyor (kart numarası, kimlik seri numarası) ve
+            // doğrulamadan önce göstermek ek kilidi anlamsız kılardı.
+            if (itemUnlocked) {
+                when (item.category) {
+                    Category.CARD -> {
+                        Spacer(Modifier.height(6.dp))
+                        CardFace(
+                            item = item,
+                            revealed = revealed,
+                            // Kart alanlarının hepsi hassas: pano süreli temizleniyor.
+                            onCopy = { viewModel.copySecret(it, settings.clipboardClearSeconds) }
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+
+                    Category.LOGIN -> {
+                        Spacer(Modifier.height(6.dp))
+                        LoginHero(item)
+                        Spacer(Modifier.height(6.dp))
+                    }
+
+                    Category.IDENTITY -> {
+                        Spacer(Modifier.height(6.dp))
+                        IdentityHero(item)
+                        Spacer(Modifier.height(6.dp))
+                    }
+
+                    // Kalan türler ortak bir şeride düşüyor: simgesi, rengi ve
+                    // türe göre seçilen tek satırlık özeti. Her biri için ayrı
+                    // bir başlık çizmek, dört ekranı dört ayrı yerden bakıma
+                    // muhtaç bırakırdı ve kazandıracağı şey yalnızca farklı
+                    // görünmekti.
+                    else -> {
+                        Spacer(Modifier.height(6.dp))
+                        CategoryHero(item)
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
             }
 
             // ── başlık ────────────────────────────────────────────────────
@@ -781,5 +822,56 @@ private fun LockedItemNotice(onUnlock: () -> Unit) {
             onClick = onUnlock,
             height = 44.dp
         )
+    }
+}
+
+/**
+ * Şema tabanlı türlerin ortak başlığı.
+ *
+ * Türün kendi rengi ve simgesi büyük, yanında kaydın adı ve o tür için
+ * anlamlı olan tek satır: banka hesabında banka adı, Wi-Fi'da ağ adı,
+ * SSH anahtarında sunucu, lisansta ürün. Alt satır [CategorySchema] tarafından
+ * zaten "listede görünecek alan" olarak işaretlenmiş olandan geliyor — yani
+ * burada ikinci bir seçim yapılmıyor, var olan karar kullanılıyor.
+ */
+@Composable
+private fun CategoryHero(item: VaultItem) {
+    val (background, foreground) = categoryTint(item.category)
+    val subtitle = CategorySchema.subtitle(item)
+
+    CategoryHeroBand(background = background, height = 104.dp) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = categoryIcon(item.category),
+                contentDescription = null,
+                tint = foreground,
+                modifier = Modifier.size(40.dp)
+            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    categoryLabel(item.category).uppercase(),
+                    style = KasaTheme.text.fieldLabel,
+                    color = foreground.copy(alpha = 0.7f)
+                )
+                Text(
+                    item.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = foreground,
+                    maxLines = 1
+                )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = foreground.copy(alpha = 0.78f),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }

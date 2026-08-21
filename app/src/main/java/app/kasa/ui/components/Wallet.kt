@@ -101,7 +101,7 @@ fun CardFace(
                     listOf(Color(brand.startColor), Color(brand.endColor))
                 )
             )
-            .tiltSheen(tilt)
+            .tiltRim(tilt, corner = KasaRadius.l)
     ) {
         CardSheen(Modifier.fillMaxSize())
 

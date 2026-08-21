@@ -45,7 +45,11 @@ enum class GeneratorMode {
     /** Rastgele kullanıcı adı: kayıt olurken gerçek adı vermemek için. */
     USERNAME,
     /** Onaltılık anahtar: API anahtarı, şifreleme anahtarı, tuz. */
-    HEX
+    HEX,
+    /** UUID v4: yapılandırma, veritabanı kaydı, istemci kimliği. */
+    UUID,
+    /** Yedek giriş kodu seti: iki adımlı doğrulama kuranlar için. */
+    RECOVERY
 }
 
 /**

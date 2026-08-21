@@ -382,8 +382,15 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
             }
 
             val added = if (parsed == null) null else repository.importItems(parsed.items)
-            // Ayrıştırılan kayıtlar depoya kopyalandı; buradaki gizli metinler
-            // artık gereksiz ve silinebilir.
+            // Buradaki gizli metinler artık gereksiz.
+            //
+            // Silmek yalnızca depo kendi kopyasını aldığı için güvenli. Bir
+            // süre öyle değildi: `importItems` gelen kaydı olduğu gibi listeye
+            // koyuyordu, yani kasa ile buradaki kod aynı `CharArray`i
+            // paylaşıyordu ve bu satır kasadaki parolayı siliyordu. Ad, adres
+            // ve kullanıcı adı `String` olduğu için sağ kalıyor, yalnızca
+            // parola boşalıyordu — içe aktarma çalışmış gibi görünüp
+            // parolasız kayıtlar bırakıyordu.
             parsed?.items?.forEach { it.password.wipe() }
 
             _busy.value = false
