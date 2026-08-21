@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +44,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.drop
+import app.kasa.core.util.Haptics
+import app.kasa.core.util.rememberHapticPlayer
 import app.kasa.R
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.KasaButton
@@ -91,6 +96,19 @@ fun IntroPager(
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
     val onLastPage = pagerState.currentPage == pages.lastIndex
+
+    // Sayfa değişiminde bir yer değiştirme titreşimi. Düğmeye değil sayfanın
+    // kendisine bağlı: kaydırarak geçmek de aynı olay ve düğmeye bağlansaydı
+    // kullanıcının iki geçiş yolundan biri sessiz kalırdı.
+    //
+    // İlk değer atlanıyor; yoksa tanıtım ekranı, kullanıcı hiçbir şey
+    // yapmadan açılırken titriyor.
+    val play = rememberHapticPlayer()
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .drop(1)
+            .collect { play(Haptics.Kind.NAV) }
+    }
 
     Column(
         modifier = modifier.fillMaxSize(),
