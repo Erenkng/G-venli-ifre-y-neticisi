@@ -123,7 +123,8 @@ fun SearchBarButton(
                 shape = RoundedCornerShape(radius),
                 tint = if (pressed) MaterialTheme.colorScheme.surfaceContainerLow
                 else MaterialTheme.colorScheme.surfaceContainerLowest,
-                opacity = 0.84f
+                opacity = 0.84f,
+                edge = 0.8f
             )
             .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
             .padding(horizontal = 20.dp),

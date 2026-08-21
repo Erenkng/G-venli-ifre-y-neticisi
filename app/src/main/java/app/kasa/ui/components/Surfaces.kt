@@ -277,7 +277,10 @@ fun RecentCard(
             .width(104.dp)
             .scale(scale)
             .shadow(1.dp, RoundedCornerShape(radius), clip = false)
-            .glassSurface(RoundedCornerShape(radius), KasaTheme.colors.tile)
+            // Kenar ışığı kısık: 104dp'lik bir kartta tam güçteki ışık
+            // yüzeyin görünür bir kısmını kaplıyor ve levha değil çerçeve
+            // gibi duruyor.
+            .glassSurface(RoundedCornerShape(radius), KasaTheme.colors.tile, edge = 0.65f)
             .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
             .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)
     ) {
