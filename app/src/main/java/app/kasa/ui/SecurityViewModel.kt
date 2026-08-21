@@ -59,7 +59,7 @@ class SecurityViewModel(private val container: AppContainer) : ViewModel() {
         if (_state.value.scanning) return
         viewModelScope.launch {
             _state.value = _state.value.copy(scanning = true, progress = 0f)
-            container.haptics.play(Haptics.Kind.MEDIUM)
+            container.haptics.play(Haptics.Kind.WORKING)
 
             val onlineAllowed = container.settingsStore.settings.first().onlineBreachCheck
             val items = container.vaultRepository.data.value.liveItems
@@ -80,9 +80,23 @@ class SecurityViewModel(private val container: AppContainer) : ViewModel() {
                 report = report,
                 lastScanAt = report.scannedAt
             )
-            container.haptics.play(Haptics.Kind.SUCCESS)
-
             val count = report.findings.size
+            // Tarama biterken çalan şey sonucun kendisi: temiz bir kasa
+            // rahatlama, dolu bir bulgu listesi uyarı. İkisini aynı
+            // hissettirmek, kullanıcıya ekrana bakmadan önce yanlış bir haber
+            // vermek olurdu. Karışım oranı bulgu sayısıyla artıyor ve beşte
+            // doyuma ulaşıyor — altı bulgu ile on altı arasındaki fark
+            // parmakta zaten ayırt edilmiyor.
+            if (count == 0) {
+                container.haptics.play(Haptics.Kind.SUCCESS)
+            } else {
+                container.haptics.play(
+                    Haptics.Kind.SUCCESS,
+                    Haptics.Kind.ALARM,
+                    fraction = (count / 5f).coerceAtMost(1f)
+                )
+            }
+
             messages.send(
                 if (count == 0) UiMessage(R.string.sec_scan_clean)
                 else UiMessage(R.string.sec_scan_done, listOf(count))

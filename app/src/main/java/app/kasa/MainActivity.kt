@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import app.kasa.core.util.LocalHaptics
 import app.kasa.core.util.RecentShortcuts
 import app.kasa.data.SettingsStore
 import app.kasa.ui.BiometricGate
@@ -74,7 +75,10 @@ class MainActivity : FragmentActivity() {
                 gradientFollowsTime = settings.gradientFollowsTime,
                 experimentalEffects = settings.experimentalEffects
             ) {
-                CompositionLocalProvider(LocalBiometricGate provides gate) {
+                CompositionLocalProvider(
+                    LocalBiometricGate provides gate,
+                    LocalHaptics provides container.haptics
+                ) {
                     KasaApp(
                         settings = settings,
                         startAction = pendingAction,

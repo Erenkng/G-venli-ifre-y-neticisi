@@ -70,10 +70,10 @@ import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultFilter
 import app.kasa.ui.components.FabAction
 import app.kasa.ui.components.FabMenu
+import app.kasa.ui.components.GlassBackdropScrim
 import app.kasa.ui.components.KasaNavBar
 import app.kasa.ui.components.KasaSnackbarHost
 import app.kasa.ui.components.NavDestination
-import app.kasa.ui.components.Scrim
 import app.kasa.ui.screens.ConfirmDialog
 import app.kasa.ui.screens.GeneratorScreen
 import app.kasa.ui.screens.ItemDetailSheet
@@ -354,9 +354,15 @@ fun MainScaffold(
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
-        Scrim(
+        // Menü açıkken ekran buzlanıyor. Düz bir karartmanın altında liste
+        // hâlâ okunuyordu ve menüyle dikkat için yarışıyordu; gerekçesi
+        // GlassBackdropScrim üzerinde yazılı.
+        GlassBackdropScrim(
             visible = fabExpanded,
             onDismiss = { fabExpanded = false },
+            // Kaydedilmemiş bir kopyayı bulanıklaştırmak boş bir kare çizmek
+            // olurdu: boş kasada kayıt hiç alınmıyor.
+            backdrop = backdrop.takeIf { needsBackdrop },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -380,7 +386,7 @@ fun MainScaffold(
                 expanded = fabExpanded,
                 onExpandedChange = {
                     fabExpanded = it
-                    vaultViewModel.haptic(Haptics.Kind.MEDIUM)
+                    vaultViewModel.haptic(if (it) Haptics.Kind.THRESHOLD else Haptics.Kind.TAP)
                 },
                 icon = Icons.Rounded.Add,
                 // Beş birincil tür menüde, kalan dördü "Diğer" ile açılan

@@ -82,7 +82,7 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
         if (error != null) {
             confirm.fill('\u0000')
             password.fill('\u0000')
-            container.haptics.play(Haptics.Kind.WARNING)
+            container.haptics.play(Haptics.Kind.DENY)
             _setup.value = _setup.value.copy(error = error)
             return
         }
@@ -95,7 +95,7 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
             confirm.fill('\u0000')
             _setup.value = result.fold(
                 onSuccess = { code ->
-                    container.haptics.play(Haptics.Kind.SUCCESS)
+                    container.haptics.play(Haptics.Kind.SEAL)
                     SetupState(stage = Stage.RECOVERY_SHOWN, recoveryCode = code)
                 },
                 onFailure = {
@@ -123,7 +123,7 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             if (repository.enableBiometric(cipher)) {
                 container.settingsStore.setBiometricUnlock(true)
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(Haptics.Kind.SEAL)
             }
             _setup.value = _setup.value.copy(stage = Stage.DONE)
             finishOnboarding()
@@ -196,7 +196,7 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
     private suspend fun handleOutcome(outcome: VaultRepository.UnlockOutcome) {
         when (outcome) {
             VaultRepository.UnlockOutcome.Success -> {
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(Haptics.Kind.UNLOCK)
                 _unlock.value = UnlockState()
             }
             VaultRepository.UnlockOutcome.WrongSecret -> {
@@ -208,7 +208,7 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
                 )
             }
             is VaultRepository.UnlockOutcome.Blocked -> {
-                container.haptics.play(Haptics.Kind.WARNING)
+                container.haptics.play(Haptics.Kind.BLOCKED)
                 _unlock.value = _unlock.value.copy(
                     busy = false,
                     error = app.kasa.R.string.lock_wrong,
@@ -225,7 +225,7 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
                 )
             }
             VaultRepository.UnlockOutcome.Wiped -> {
-                container.haptics.play(Haptics.Kind.WARNING)
+                container.haptics.play(Haptics.Kind.ALARM)
                 _unlock.value = UnlockState(wiped = true)
             }
             is VaultRepository.UnlockOutcome.Error -> {

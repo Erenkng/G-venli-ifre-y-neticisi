@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntOffset
+import app.kasa.ui.components.glassSurface
 import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.theme.KasaMotion
@@ -1554,8 +1555,7 @@ private fun SettingsCategoryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(categoryShape(position))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .glassSurface(categoryShape(position), MaterialTheme.colorScheme.surfaceContainerLow)
             .clickableNoRipple(role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

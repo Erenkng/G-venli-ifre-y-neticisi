@@ -2,6 +2,7 @@ package app.kasa.ui.screens
 
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import app.kasa.ui.components.glassSurface
 import app.kasa.ui.components.ScoreRing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -182,8 +183,7 @@ fun SecurityScreen(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(KasaRadius.m))
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .glassSurface(RoundedCornerShape(KasaRadius.m), MaterialTheme.colorScheme.surfaceContainerLow)
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -406,8 +406,7 @@ private fun FindingRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(KasaTheme.colors.tile)
+            .glassSurface(shape, KasaTheme.colors.tile)
             .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {

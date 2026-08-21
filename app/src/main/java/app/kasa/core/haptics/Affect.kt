@@ -169,6 +169,74 @@ data class Affect(
 
         /** Geri alındı. Bir şeyin geri dönmesi: hoş ama tersine. */
         val Undo = Affect(valence = 0.45f, arousal = 0.4f, certainty = 0.8f, weight = 0.25f)
+
+        /**
+         * Panoya kopyalandı.
+         *
+         * [Confirm]'den ayrı bir girdi olmasının sebebi sıklık: kopyalama bu
+         * uygulamada en çok tekrarlanan olay ve kaydetmeyle aynı ağırlıkta
+         * hissettiğinde iki dakikada bir "bir şey tamamlandı" duyurusu almış
+         * gibi oluyor. Kısa, net, geçip giden.
+         */
+        val Copy = Affect(valence = 0.55f, arousal = 0.30f, certainty = 1f, weight = 0.10f)
+
+        /**
+         * Gizli bir değer panoya alındı.
+         *
+         * Kopyalamanın aynısı değil: parola artık panoda duruyor ve birazdan
+         * kendiliğinden silinecek. O "şimdi elimde ve geçici" hâli biraz daha
+         * ağırlık ve biraz daha uyarılma demek — ama olumsuz değil, çünkü olan
+         * şey kullanıcının istediği şey.
+         */
+        val Secret = Affect(valence = 0.45f, arousal = 0.42f, certainty = 1f, weight = 0.28f)
+
+        /**
+         * Korumanın kendisi değişti: ana parola, PIN, biyometri, anahtar
+         * döndürme, kasanın kurulması.
+         *
+         * Kasanın kilidi açılmıyor — kasanın **kilidi** değişiyor. Bu yüzden
+         * [Unlock]'tan daha ağır ve daha yavaş oturuyor: kullanıcının bir
+         * saniye durup "tamam, oldu" demesi gereken an.
+         */
+        val Seal = Affect(valence = 0.65f, arousal = 0.55f, certainty = 1f, weight = 0.62f)
+
+        /**
+         * Çöp kutusuna atıldı.
+         *
+         * Olumsuz ama [Destructive] değil: geri alınabilir. Aradaki farkı
+         * parmakta göstermek, "sildim mi yoksa yok mu ettim" sorusunu
+         * ekrana bakmadan cevaplıyor.
+         */
+        val Discard = Affect(valence = -0.45f, arousal = 0.42f, certainty = 1f, weight = 0.40f)
+
+        /**
+         * Şimdi olmaz: bekleme süresi işliyor.
+         *
+         * [Reject] "yanlış" diyor, bu "henüz değil" diyor. Kesinliği düşük
+         * tutuluyor ki sentezleyici tekrarlı bir nabız üretsin — kapalı bir
+         * kapıya vurmanın karşılığı. Tek sert bir darbe olsaydı yanlış
+         * paroladan ayırt edilemezdi ve kullanıcı parolasını yeniden yazmayı
+         * denerdi.
+         */
+        val Wait = Affect(valence = -0.40f, arousal = 0.45f, certainty = 0.20f, weight = 0.55f)
+
+        /** Dosya eklendi. Bir şeyin gelip yerine oturması. */
+        val Attach = Affect(valence = 0.50f, arousal = 0.40f, certainty = 1f, weight = 0.32f)
+
+        /** Ek kaldırıldı, PIN silindi. Bir şeyin yerinden çıkması: kuru, kısa. */
+        val Detach = Affect(valence = -0.20f, arousal = 0.30f, certainty = 1f, weight = 0.22f)
+
+        /** Gizli bir alan açıldı ya da kapandı. Neredeyse bir nefes. */
+        val Reveal = Affect(valence = 0.35f, arousal = 0.22f, certainty = 0.85f, weight = 0.14f)
+
+        /**
+         * Form kabul etmedi: parolalar eşleşmiyor, alan boş.
+         *
+         * [Reject]'in hafif hâli. Yanlış ana parola ile eksik doldurulmuş bir
+         * alan aynı şiddette uyarı alırsa, ikincisi kullanıcıyı gereksiz yere
+         * ürkütüyor ve birincisi sıradanlaşıyor.
+         */
+        val Deny = Affect(valence = -0.55f, arousal = 0.50f, certainty = 1f, weight = 0.20f)
     }
 }
 

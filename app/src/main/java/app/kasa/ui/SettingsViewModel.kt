@@ -65,7 +65,10 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setHaptics(value: Boolean) = launchSetting {
         settingsStore.setHaptics(value)
         container.haptics.enabled = value
-        if (value) container.haptics.play(Haptics.Kind.SUCCESS)
+        // Açılışta çalan şey bir onay değil, bir örnek: kullanıcı ayarı
+        // açtığı anda motorun üç darbeli yükselen jestini duyuyor ve neyi
+        // açtığını anlıyor.
+        if (value) container.haptics.play(Haptics.Kind.UNLOCK)
     }
 
     fun setBlockScreenshots(value: Boolean) = launchSetting { settingsStore.setBlockScreenshots(value) }
@@ -115,7 +118,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 // Ana parola değişti; eski biyometrik sarmalayıcı hâlâ geçerlidir
                 // (kasa anahtarı aynı), ama kullanıcıya yeniden onaylatmak daha
                 // temiz: eski parolayı bilen biri sarmalayıcıyı kuramaz.
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(Haptics.Kind.SEAL)
                 messages.send(UiMessage(R.string.chg_done))
             }
         }
@@ -133,7 +136,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun copyRecoveryCode(code: String, clearSeconds: Int) {
         SecureClipboard.copySensitive(container.appContext, code, clearSeconds)
-        container.haptics.play(Haptics.Kind.SUCCESS)
+        container.haptics.play(Haptics.Kind.SECRET)
         viewModelScope.launch { messages.send(UiMessage(R.string.copied_clip, listOf(clearSeconds))) }
     }
 
@@ -150,7 +153,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
             _busy.value = true
             val ok = repository.enablePin(pin, length)
             _busy.value = false
-            container.haptics.play(if (ok) Haptics.Kind.SUCCESS else Haptics.Kind.WARNING)
+            container.haptics.play(if (ok) Haptics.Kind.SEAL else Haptics.Kind.WARNING)
             messages.send(UiMessage(if (ok) R.string.pin_enabled else R.string.imp_failed))
         }
     }
@@ -158,7 +161,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun clearPin() {
         viewModelScope.launch {
             repository.disablePin()
-            container.haptics.play(Haptics.Kind.TOGGLE)
+            container.haptics.play(Haptics.Kind.DETACH)
             messages.send(UiMessage(R.string.pin_disabled))
         }
     }
@@ -185,7 +188,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 settingsStore.setDeviceCredentialUnlock(
                     authClass == KeystoreKeys.AuthClass.DEVICE_CREDENTIAL
                 )
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(Haptics.Kind.SEAL)
             }
         }
     }
@@ -215,7 +218,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
             }
             settingsStore.setTrustedNetworkHash(fingerprint)
             settingsStore.setContextLockEnabled(true)
-            container.haptics.play(Haptics.Kind.SUCCESS)
+            container.haptics.play(Haptics.Kind.CREATE)
             messages.send(UiMessage(R.string.set_context_saved))
         }
     }
@@ -282,7 +285,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 container.haptics.play(Haptics.Kind.WARNING)
                 messages.send(UiMessage(R.string.rotate_failed))
             } else {
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(Haptics.Kind.SEAL)
                 settingsStore.setBiometricUnlock(false)
                 _recoveryCode.value = code
                 messages.send(UiMessage(R.string.rotate_done))
@@ -411,7 +414,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
             _busy.value = true
             repository.wipeEverything()
             _busy.value = false
-            container.haptics.play(Haptics.Kind.WARNING)
+            container.haptics.play(Haptics.Kind.DESTRUCTIVE)
             messages.send(UiMessage(R.string.wipe_done))
             onDone()
         }

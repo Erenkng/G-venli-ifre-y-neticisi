@@ -549,25 +549,6 @@ private fun FabMenuItem(action: FabAction, modifier: Modifier = Modifier) {
     }
 }
 
-/** Alt sayfa ve menüler açıkken içeriği karartan örtü. */
-@Composable
-fun Scrim(
-    visible: Boolean,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val alpha by animateFloatAsState(if (visible) 1f else 0f, label = "scrimAlpha")
-    if (alpha > 0.01f) {
-        Box(
-            modifier = modifier
-                .background(Color(0xFF09201B).copy(alpha = 0.34f * alpha))
-                .then(
-                    if (visible) Modifier.clickableNoRipple(onClick = onDismiss) else Modifier
-                )
-        )
-    }
-}
-
 /** Ana eylem düğmesinin çapı. Köşe animasyonunun hedefi buradan türetiliyor. */
 private val FAB_SIZE = 66.dp
 

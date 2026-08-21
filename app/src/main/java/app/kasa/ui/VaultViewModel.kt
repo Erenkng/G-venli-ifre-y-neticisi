@@ -127,7 +127,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val isNew = repository.byId(item.id) == null
             if (repository.upsert(item)) {
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(if (isNew) Haptics.Kind.CREATE else Haptics.Kind.SUCCESS)
                 messages.send(
                     UiMessage(
                         if (isNew) R.string.detail_created else R.string.detail_updated,
@@ -145,7 +145,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun moveToTrash(item: VaultItem) {
         viewModelScope.launch {
             if (repository.moveToTrash(item.id)) {
-                container.haptics.play(Haptics.Kind.WARNING)
+                container.haptics.play(Haptics.Kind.DISCARD)
                 _selectedId.value = null
                 messages.send(
                     UiMessage(
@@ -162,7 +162,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun restoreFromTrash(item: VaultItem) {
         viewModelScope.launch {
             if (repository.restoreFromTrash(item.id)) {
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(Haptics.Kind.UNDO)
                 messages.send(UiMessage(R.string.trash_restored, listOf(item.name)))
             }
         }
@@ -171,7 +171,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun purge(item: VaultItem) {
         viewModelScope.launch {
             if (repository.purge(item.id)) {
-                container.haptics.play(Haptics.Kind.WARNING)
+                container.haptics.play(Haptics.Kind.DESTRUCTIVE)
                 _selectedId.value = null
                 messages.send(UiMessage(R.string.trash_purged, listOf(item.name)))
             }
@@ -181,7 +181,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun emptyTrash() {
         viewModelScope.launch {
             if (repository.emptyTrash()) {
-                container.haptics.play(Haptics.Kind.WARNING)
+                container.haptics.play(Haptics.Kind.DESTRUCTIVE)
                 messages.send(UiMessage(R.string.trash_emptied))
             }
         }
@@ -192,7 +192,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun createFolder(name: String, thenAssignTo: String? = null) {
         viewModelScope.launch {
             val id = repository.createFolder(name) ?: return@launch
-            container.haptics.play(Haptics.Kind.SUCCESS)
+            container.haptics.play(Haptics.Kind.CREATE)
             if (thenAssignTo != null) repository.moveToFolder(thenAssignTo, id)
             messages.send(UiMessage(R.string.folder_created, listOf(name.trim())))
         }
@@ -205,7 +205,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun deleteFolder(id: String) {
         viewModelScope.launch {
             if (repository.deleteFolder(id)) {
-                container.haptics.play(Haptics.Kind.WARNING)
+                container.haptics.play(Haptics.Kind.DISCARD)
                 if ((_view.value as? VaultFilter.InFolder)?.folderId == id) _view.value = VaultFilter.All
             }
         }
@@ -239,7 +239,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
             if (attachment == null) {
                 messages.send(UiMessage(R.string.att_failed))
             } else {
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(Haptics.Kind.ATTACH)
                 messages.send(UiMessage(R.string.att_added, listOf(attachment.name)))
             }
         }
@@ -248,7 +248,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun removeAttachment(itemId: String, attachmentId: String) {
         viewModelScope.launch {
             if (repository.removeAttachment(itemId, attachmentId)) {
-                container.haptics.play(Haptics.Kind.TOGGLE)
+                container.haptics.play(Haptics.Kind.DETACH)
                 messages.send(UiMessage(R.string.att_removed))
             }
         }
@@ -306,7 +306,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val copy = repository.duplicate(item.id)
             if (copy != null) {
-                container.haptics.play(Haptics.Kind.SUCCESS)
+                container.haptics.play(Haptics.Kind.CREATE)
                 _editing.value = copy
             }
         }
@@ -338,7 +338,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun copySecret(text: String, clearSeconds: Int) {
         if (text.isEmpty()) return
         SecureClipboard.copySensitive(container.appContext, text, clearSeconds)
-        container.haptics.play(Haptics.Kind.SUCCESS)
+        container.haptics.play(Haptics.Kind.SECRET)
         viewModelScope.launch {
             if (clearSeconds > 0) messages.send(UiMessage(R.string.copied_clip, listOf(clearSeconds)))
             else messages.send(UiMessage(R.string.copied))
@@ -348,7 +348,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun copyPlain(text: String) {
         if (text.isEmpty()) return
         SecureClipboard.copyPlain(container.appContext, text)
-        container.haptics.play(Haptics.Kind.SUCCESS)
+        container.haptics.play(Haptics.Kind.COPY)
         viewModelScope.launch { messages.send(UiMessage(R.string.copied)) }
     }
 

@@ -439,7 +439,7 @@ fun ItemDetailSheet(
                 }
                 ToolbarAction(
                     onClick = {
-                        viewModel.haptic(Haptics.Kind.WARNING)
+                        viewModel.haptic(Haptics.Kind.THRESHOLD)
                         confirmDelete = true
                     },
                     danger = true,

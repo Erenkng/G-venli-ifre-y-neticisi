@@ -258,7 +258,8 @@ fun GeneratorScreen(
                                     else -> viewModel.setLength(it)
                                 }
                             },
-                            onDragEnd = { viewModel.haptic(Haptics.Kind.TICK) }
+                            onStep = { viewModel.haptic(Haptics.Kind.TICK) },
+                            onDragEnd = { viewModel.haptic(Haptics.Kind.TOGGLE) }
                         )
                     } else {
                         Text(

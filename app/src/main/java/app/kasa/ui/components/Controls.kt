@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -382,11 +383,21 @@ fun ExpressiveSlider(
     range: IntRange,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Sürüklerken her adım değişiminde çağrılıyor.
+     *
+     * Rayın üzerindeki noktalar adımı **gösteriyor** ama parmak rayın üstünde
+     * olduğu için o noktaların çoğu parmağın altında kalıyor. Adım hissini
+     * taşıyan şey görüntü değil, her adımda gelen kısa tıkırtı: kullanıcı
+     * kaç adım gittiğini ekrana bakmadan biliyor.
+     */
+    onStep: () -> Unit = {},
     onDragEnd: () -> Unit = {}
 ) {
     val density = LocalDensity.current
     var width by remember { mutableFloatStateOf(1f) }
     var dragging by remember { mutableStateOf(false) }
+    var lastReported by remember { mutableIntStateOf(value) }
 
     val fraction = ((value - range.first).toFloat() / (range.last - range.first).toFloat()).coerceIn(0f, 1f)
 
@@ -418,11 +429,29 @@ fun ExpressiveSlider(
             }
             .pointerInput(range, width) {
                 detectHorizontalDragGestures(
-                    onDragStart = { dragging = true; onValueChange(valueFor(it.x)) },
+                    onDragStart = {
+                        dragging = true
+                        // Sürükleme parmağın indiği değerden başlıyor;
+                        // son bildirilen değer de oraya çekiliyor,
+                        // yoksa ilk hareket bir adım atlamış gibi
+                        // görünüyordu.
+                        val start = valueFor(it.x)
+                        lastReported = start
+                        onValueChange(start)
+                    },
                     onDragEnd = { dragging = false; onDragEnd() },
                     onDragCancel = { dragging = false }
                 ) { change, _ ->
-                    onValueChange(valueFor(change.position.x))
+                    val next = valueFor(change.position.x)
+                    // Karşılaştırma `value` ile değil son bildirilen değerle
+                    // yapılıyor: `value` bir yeniden birleştirme sonrası
+                    // geliyor ve hızlı sürüklemede bir kare geriden gelen
+                    // değere bakmak aynı adımı iki kez tıklatıyordu.
+                    if (next != lastReported) {
+                        lastReported = next
+                        onStep()
+                    }
+                    onValueChange(next)
                 }
             },
         contentAlignment = Alignment.CenterStart

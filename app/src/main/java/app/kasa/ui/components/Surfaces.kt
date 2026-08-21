@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
@@ -93,8 +94,12 @@ fun KasaTile(
         modifier = modifier
             .fillMaxWidth()
             .scale(scale)
-            .clip(groupShape(position, tight, loose))
-            .background(if (pressed) KasaTheme.colors.tilePressed else KasaTheme.colors.tile)
+            // Cam yüzey: satır zemindeki gradyanı geçiriyor, üst kenarı
+            // ışık alıyor. Gerekçesi glassSurface üzerinde yazılı.
+            .glassSurface(
+                shape = groupShape(position, tight, loose),
+                tint = if (pressed) KasaTheme.colors.tilePressed else KasaTheme.colors.tile
+            )
             // Dokunulan yere en yakın kenarın parlaması. Yüzeyin içine
             // yayılan bir ışık, satırdaki adın ve alt satırın kontrastını
             // düşürüyordu; gerekçesi pressRim üzerinde yazılı.
@@ -225,14 +230,24 @@ fun KasaCard(
             .fillMaxWidth()
             .shadow(2.dp, RoundedCornerShape(KasaRadius.xl), clip = false)
             .clip(RoundedCornerShape(KasaRadius.xl))
-            .background(background)
+            // Kart kendi degradesini taşıyor (jade–kehribar geçişi), bu yüzden
+            // glassSurface'in düz tonu yerine aynı degrade geçirgen çiziliyor.
+            .background(background, alpha = SURFACE_OPACITY)
             // Cilalı bir yüzeyin kenarından arada bir geçen yansıma.
             .shimmerRim(
                 corner = KasaRadius.xl,
                 color = if (colors.isDark) Color.White else colors.ink,
                 alpha = if (colors.isDark) 0.30f else 0.12f
             )
-            .border(1.dp, if (colors.isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.9f), RoundedCornerShape(KasaRadius.xl))
+            .border(
+                1.dp,
+                Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = if (colors.isDark) 0.14f else 0.90f),
+                    0.5f to Color.White.copy(alpha = if (colors.isDark) 0.05f else 0.34f),
+                    1f to Color.White.copy(alpha = if (colors.isDark) 0.02f else 0.10f)
+                ),
+                RoundedCornerShape(KasaRadius.xl)
+            )
             .padding(padding),
         content = content
     )
@@ -262,8 +277,7 @@ fun RecentCard(
             .width(104.dp)
             .scale(scale)
             .shadow(1.dp, RoundedCornerShape(radius), clip = false)
-            .clip(RoundedCornerShape(radius))
-            .background(KasaTheme.colors.tile)
+            .glassSurface(RoundedCornerShape(radius), KasaTheme.colors.tile)
             .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
             .padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 12.dp)
     ) {

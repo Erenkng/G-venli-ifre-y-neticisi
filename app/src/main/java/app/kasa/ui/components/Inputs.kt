@@ -55,6 +55,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.kasa.core.util.Haptics
+import app.kasa.core.util.rememberHapticPlayer
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
@@ -114,12 +116,15 @@ fun SearchBarButton(
             )
             .scale(scale)
             .shadow(1.dp, RoundedCornerShape(radius), clip = false)
-            .clip(RoundedCornerShape(radius))
-            .background(
-                if (pressed) MaterialTheme.colorScheme.surfaceContainerLow
-                else MaterialTheme.colorScheme.surfaceContainerLowest
+            // Cam pil: ekranın en üstündeki yüzey ve zeminin en aydınlık
+            // bölgesinin üstünde duruyor. Opak hâli oradaki gradyanı bir
+            // dikdörtgen olarak kesiyordu.
+            .glassSurface(
+                shape = RoundedCornerShape(radius),
+                tint = if (pressed) MaterialTheme.colorScheme.surfaceContainerLow
+                else MaterialTheme.colorScheme.surfaceContainerLowest,
+                opacity = 0.84f
             )
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(radius))
             .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -343,7 +348,18 @@ fun KasaPinField(
 
 @Composable
 fun RevealButton(revealed: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    KasaIconButton(onClick = onClick, modifier = modifier, size = 36.dp) {
+    // Titreşim burada, tuşun kendisinde: gizli bir alanı açan her yol bu
+    // bileşenden geçiyor ve her çağrı yerine ayrı ayrı eklenseydi biri
+    // unutulduğunda aynı hareket ekranın bir yerinde sessiz kalırdı.
+    val play = rememberHapticPlayer()
+    KasaIconButton(
+        onClick = {
+            play(Haptics.Kind.REVEAL)
+            onClick()
+        },
+        modifier = modifier,
+        size = 36.dp
+    ) {
         Icon(
             imageVector = if (revealed) Icons.Rounded.VisibilityOff
             else Icons.Rounded.Visibility,

@@ -1,6 +1,9 @@
 package app.kasa.core.util
 
 import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import app.kasa.core.haptics.Affect
 import app.kasa.core.haptics.SmartHaptics
 
@@ -103,7 +106,34 @@ class Haptics(context: Context) {
         ALARM,
 
         /** Uzun bir iş sürüyor. */
-        WORKING
+        WORKING,
+
+        /** Panoya kopyalandı. */
+        COPY,
+
+        /** Gizli bir değer panoya alındı. */
+        SECRET,
+
+        /** Korumanın kendisi değişti: ana parola, PIN, biyometri, anahtar. */
+        SEAL,
+
+        /** Çöp kutusuna atıldı; geri alınabilir. */
+        DISCARD,
+
+        /** Şimdi olmaz: bekleme süresi işliyor. */
+        BLOCKED,
+
+        /** Dosya eklendi. */
+        ATTACH,
+
+        /** Ek kaldırıldı, bir koruma katmanı silindi. */
+        DETACH,
+
+        /** Gizli alan açıldı ya da kapandı. */
+        REVEAL,
+
+        /** Form kabul etmedi. */
+        DENY
     }
 
     fun play(kind: Kind) = engine.play(affectOf(kind))
@@ -136,5 +166,37 @@ class Haptics(context: Context) {
         Kind.DESTRUCTIVE -> Affect.Destructive
         Kind.ALARM -> Affect.Alarm
         Kind.WORKING -> Affect.Working
+        Kind.COPY -> Affect.Copy
+        Kind.SECRET -> Affect.Secret
+        Kind.SEAL -> Affect.Seal
+        Kind.DISCARD -> Affect.Discard
+        Kind.BLOCKED -> Affect.Wait
+        Kind.ATTACH -> Affect.Attach
+        Kind.DETACH -> Affect.Detach
+        Kind.REVEAL -> Affect.Reveal
+        Kind.DENY -> Affect.Deny
     }
+}
+
+/**
+ * Dokunsal motorun bileşen ağacındaki karşılığı.
+ *
+ * Bir onay kutusunun ya da göz tuşunun titreşim verebilmek için görünüm
+ * modeline erişmesi gerekmiyor — ve gerekseydi, o bileşenler yalnızca titreşim
+ * uğruna kendilerini bir ekrana bağlamak zorunda kalırdı. Motor burada duruyor,
+ * sağlanmadığı yerde (önizlemeler, testler) sessizce yok sayılıyor.
+ */
+val LocalHaptics = staticCompositionLocalOf<Haptics?> { null }
+
+/**
+ * Bileşenler için kısayol.
+ *
+ * Dönen işlev `remember` ile sabitleniyor: her yeniden birleştirmede yeni bir
+ * lambda üretmek, onu parametre olarak alan bileşenleri gereksiz yere yeniden
+ * birleştiriyor.
+ */
+@Composable
+fun rememberHapticPlayer(): (Haptics.Kind) -> Unit {
+    val haptics = LocalHaptics.current
+    return remember(haptics) { { kind: Haptics.Kind -> haptics?.play(kind) } }
 }

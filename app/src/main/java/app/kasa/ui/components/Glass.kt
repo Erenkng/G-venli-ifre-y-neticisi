@@ -1,6 +1,7 @@
 package app.kasa.ui.components
 
 import android.view.WindowManager
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -8,18 +9,35 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaTheme
 
 /**
@@ -219,3 +237,222 @@ private val GLASS_EDGE = 0.8.dp
  */
 private const val GLASS_OPACITY = 0.82f
 private const val SCRIM_OPACITY = 0.72f
+
+/**
+ * Cam yüzey malzemesi.
+ *
+ * ### Neden düz renk yetmiyor
+ *
+ * Uygulamanın zemini üç radyal duraklı, günün saatine göre kayan bir gradyan.
+ * Üzerindeki her satır, her kart, her yonga o zemini **tamamen** kapatıyordu:
+ * arkada özenle kurulmuş bir renk geçişi vardı ve kullanıcı onun yalnızca
+ * kenar boşluklarını görüyordu. Zemin bir arka plan resmi değil, derinliğin
+ * kendisi; yüzeylerin ondan haberdar olması gerekiyor.
+ *
+ * Yüzeyi geçirgen yapmak bunu çözüyor: listenin üst tarafındaki satır zeminin
+ * jade ucundan, alt tarafındaki mavi ucundan bir tutam alıyor. Fark çok küçük
+ * ve tek tek bakınca görünmüyor — ama liste kayarken yüzeylerin zeminin
+ * üstünde **gezindiği** hissediliyor, çünkü gerçekten öyle oluyor.
+ *
+ * ### Dört özellik
+ *
+ * Bir cam yüzeyi cam yapan şey saydamlık değil, dördünün birlikte olması:
+ *
+ * 1. **Geçirgenlik** — arkasındaki zeminin rengini geçiriyor.
+ * 2. **Ton geçişi** — üstü altından biraz daha aydınlık. Düz bir renk
+ *    katmanı, geçirgenliğin kurduğu derinliği tekrar düzleştiriyor; gerçek bir
+ *    levhanın üstü ile altı asla aynı ışığı almıyor.
+ * 3. **Kenar ışığı** — üst kenar parlak, alt kenar sönük. Işığın yukarıdan
+ *    geldiğini söyleyen tek işaret bu ve yüzeyin kalınlığı buradan okunuyor.
+ * 4. **Sınır** — yarı saydam bir levhanın nerede bittiği, arkasındaki zemin
+ *    açık renkliyse belirsizleşiyor. Kenar ışığı aynı zamanda o sınırı
+ *    veriyor; gölge veremiyor, çünkü gölge de aynı açık zeminde kayboluyor.
+ *
+ * ### Okunabilirlik geçirgenliğe bağlı değil
+ *
+ * Örtücülük bilerek yüksek: metnin kontrastı zeminin o anki rengine
+ * bırakılmıyor. Geçirgenlik derinlik ekliyor, kontrast taşımıyor — tersi
+ * kurulsaydı sabah açık, gece koyu bir zeminde aynı yazı iki farklı
+ * okunabilirlikte olurdu.
+ *
+ * @param shape yüzeyin biçimi; kırpma ve sınır aynı biçimi kullanıyor
+ * @param tint yüzeyin kendi rengi (`colors.tile`, `colors.card`, …)
+ * @param opacity örtücülük; küçük yazı taşıyan yüzeylerde düşürülmemeli
+ */
+fun Modifier.glassSurface(
+    shape: Shape,
+    tint: Color,
+    opacity: Float = SURFACE_OPACITY,
+    /**
+     * Kenar ışığının gücü.
+     *
+     * Küçük yüzeylerde (yonga, rozet) düşürülüyor: aynı kalınlıktaki bir
+     * ışık, küçük bir yüzeyin alanının görünür bir kısmını kaplıyor ve levha
+     * değil çerçeve gibi duruyor.
+     */
+    edge: Float = 1f
+): Modifier = composed {
+    val colors = KasaTheme.colors
+    val fill = remember(tint, opacity) {
+        Brush.verticalGradient(
+            0f to tint.copy(alpha = (opacity + 0.07f).coerceIn(0f, 1f)),
+            0.55f to tint.copy(alpha = opacity.coerceIn(0f, 1f)),
+            1f to tint.copy(alpha = (opacity - 0.05f).coerceIn(0f, 1f))
+        )
+    }
+    val rim = remember(colors.isDark, edge) {
+        // Karanlıkta ışık beyaz kalıyor ama çok kısılıyor: koyu bir yüzeyde
+        // aynı beyaz, aydınlıktakinin birkaç katı kadar göze çarpıyor.
+        val top = if (colors.isDark) 0.14f else 0.80f
+        val bottom = if (colors.isDark) 0.02f else 0.10f
+        Brush.verticalGradient(
+            0f to Color.White.copy(alpha = top * edge),
+            0.5f to Color.White.copy(alpha = (top * 0.32f) * edge),
+            1f to Color.White.copy(alpha = bottom * edge)
+        )
+    }
+
+    this
+        .clip(shape)
+        .background(fill)
+        .border(SURFACE_EDGE, rim, shape)
+}
+
+/**
+ * Kaydedilmiş ekran kopyasının bu alana düşen parçasını bulanıklaştırır.
+ *
+ * ### Neden kopya üzerinden
+ *
+ * Bir yüzeyin arkasındaki içeriği bulanıklaştırmanın doğrudan yolu yok:
+ * çizim sırası tek yönlü, üstteki yüzey altındakine bakamıyor. Ekran bir kez
+ * çizilirken aynı anda bir katmana kaydediliyor; bu bileşen o kaydı kendi
+ * altına düşen parçası için yeniden çizip bulanıklaştırıyor. İçerik iki kez
+ * **bestelenmiyor**, yalnızca bir kez daha kopyalanıyor.
+ *
+ * ### Konum kökten alınıyor
+ *
+ * Kopya kök düzenin (0,0) noktasından başlıyor; bu bileşen ekranın herhangi
+ * bir yerinde olabilir. Doğru parçayı göstermek için kökteki konumu kadar
+ * ters yöne kaydırmak gerekiyor — `positionInParent` burada sessizce yanlış
+ * sonuç veriyor, çünkü bileşen kabını doldurduğunda o değer her zaman sıfır.
+ *
+ * ### Yarıçap sabit, güç saydamlıkta
+ *
+ * Açılış animasyonu boyunca yarıçapı büyütmek, her karede bulanıklığın
+ * yeniden hesaplanması demek. Yarıçap sabit tutulup katmanın saydamlığı
+ * animasyonlanıyor: aynı görüntü, kare başına tek bir çarpım.
+ */
+@Composable
+fun BackdropBlur(
+    backdrop: GraphicsLayer?,
+    modifier: Modifier = Modifier,
+    radius: Dp = BACKDROP_BLUR,
+    strength: Float = 1f
+) {
+    if (backdrop == null || strength <= 0.01f) return
+
+    val blurLayer = rememberGraphicsLayer()
+    val blurRadius = with(LocalDensity.current) { radius.toPx() }
+    var origin by remember { mutableStateOf(Offset.Zero) }
+
+    Box(
+        modifier
+            .onGloballyPositioned { origin = it.positionInRoot() }
+            .graphicsLayer {
+                compositingStrategy = CompositingStrategy.Offscreen
+                alpha = strength.coerceIn(0f, 1f)
+            }
+            .drawBehind {
+                // Katman kaydı beste dağıtılırken serbest bırakılmış olabilir;
+                // o durumda bu geçiş sessizce atlanıyor, ekran kaybolmuyor.
+                runCatching {
+                    blurLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
+                    blurLayer.clip = true
+                    blurLayer.record {
+                        translate(left = -origin.x, top = -origin.y) { drawLayer(backdrop) }
+                    }
+                    drawLayer(blurLayer)
+                }
+            }
+    )
+}
+
+/**
+ * Menü açıkken ekranı buzlayan örtü.
+ *
+ * ### Neden karartma tek başına yetmiyordu
+ *
+ * Eski örtü düz bir koyu katmandı ve tek işi menünün altındaki her şeyi
+ * eşit ölçüde soldurmaktı. Altındaki liste hâlâ **okunabiliyordu**: gözü
+ * çeken şey menü değil, arkasındaki yarı görünür on iki satırdı.
+ *
+ * Bulanıklık ikisini birden yapıyor. Altındaki içerik tanınabilir kalıyor —
+ * kullanıcı nereye döneceğini biliyor — ama okunamıyor, dolayısıyla dikkat
+ * için yarışmıyor. Sistem güç menüsü de tam olarak bunu yapıyor ve bir
+ * uygulamanın kendi menüsünün ondan farklı davranması için sebep yok.
+ *
+ * Karartma yine de duruyor, yalnızca daha hafif: bulanıklığın kapalı olduğu
+ * durumda (kaydedilecek içerik yokken) ayrımı taşıyan tek şey o kalıyor.
+ */
+@Composable
+fun GlassBackdropScrim(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    backdrop: GraphicsLayer?,
+    modifier: Modifier = Modifier
+) {
+    // İki belirteç de koşulsuz okunuyor: KasaMotion sistem ayarını
+    // CompositionLocal'dan aldığı için yalnızca beste içinde çağrılabiliyor ve
+    // koşula bağlı çağırmak, açılış ile kapanış arasında beste ağacının
+    // biçimini değiştirirdi.
+    val enterSpec = KasaMotion.enter()
+    val exitSpec = KasaMotion.exit()
+    val progress by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = if (visible) enterSpec else exitSpec,
+        label = "glassScrim"
+    )
+
+    if (progress > 0.01f) {
+        Box(
+            modifier.then(
+                if (visible) Modifier.clickableNoRipple(onClick = onDismiss) else Modifier
+            )
+        ) {
+            BackdropBlur(backdrop, Modifier.matchParentSize(), strength = progress)
+            Box(Modifier.matchParentSize().background(SCRIM_TINT.copy(alpha = SCRIM_DIM * progress)))
+        }
+    }
+}
+
+/** Örtü rengi: iki temada da koyu, çünkü işi ışığı azaltmak. */
+private val SCRIM_TINT = Color(0xFF09201B)
+
+/**
+ * Örtünün karartması.
+ *
+ * Eskisinin (0.34) altında: ayrımın bir kısmını artık bulanıklık taşıyor ve
+ * ikisi tam güçte üst üste gelince altındaki ekran tamamen yok oluyordu — o
+ * zaman da bulanıklığın gösterecek bir şeyi kalmıyor.
+ */
+private const val SCRIM_DIM = 0.22f
+
+/**
+ * Menü örtüsünün bulanıklık yarıçapı.
+ *
+ * Gezinme çubuğununkinden yüksek: orada bulanıklık ince bir şeridin altında
+ * duruyor ve içeriğin devam ettiğini göstermesi gerekiyor. Burada bütün ekranı
+ * kaplıyor ve işi okunabilirliği **bitirmek**.
+ */
+private val BACKDROP_BLUR = 30.dp
+
+/**
+ * İçerik yüzeylerinin örtücülüğü.
+ *
+ * Bundan düşüğü küçük yazının kontrastını zeminin o anki rengine bırakıyor;
+ * yükseği zemini tamamen kapatıyor ve geçirgenliğe ödenen bedel boşa gidiyor.
+ */
+const val SURFACE_OPACITY = 0.88f
+
+/** Yüzeyin kenar ışığı; kalınlaşırsa cam değil çerçeve olur. */
+private val SURFACE_EDGE = 1.dp
