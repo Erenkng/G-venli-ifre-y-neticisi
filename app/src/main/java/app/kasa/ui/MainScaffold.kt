@@ -51,6 +51,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
@@ -392,13 +394,22 @@ fun MainScaffold(
         // güçte bir buzlu cam orada yalnızca zemini bulandırıyor.
         val contentBehind = needsBackdrop
 
+        // Çubuğun yüksekliği ölçülüyor, çünkü menü örtüsünün bulanıklığı
+        // orada bitmek zorunda: kaydedilmiş kopya çubuğu içermiyor ve o
+        // kopyayı çubuğun üstüne çizmek çubuğu görünmez yapıyor. Yükseklik
+        // sabit bir sayı değil — sistem çubuğu boşluğu cihaza göre değişiyor.
+        var navBarHeight by remember { mutableStateOf(0.dp) }
+        val density = LocalDensity.current
+
         KasaNavBar(
             destinations = destinations,
             selected = tab,
             onSelect = onNavigate,
             backdrop = backdrop,
             contentBehind = contentBehind,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .onSizeChanged { navBarHeight = with(density) { it.height.toDp() } }
         )
 
         // Durum çubuğunun altındaki ince cam.
@@ -447,6 +458,7 @@ fun MainScaffold(
             // Kaydedilmemiş bir kopyayı bulanıklaştırmak boş bir kare çizmek
             // olurdu: boş kasada kayıt hiç alınmıyor.
             backdrop = backdrop.takeIf { needsBackdrop },
+            blurBottomInset = navBarHeight,
             modifier = Modifier.fillMaxSize()
         )
 

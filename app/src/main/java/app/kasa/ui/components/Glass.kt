@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -421,7 +422,17 @@ fun GlassBackdropScrim(
     visible: Boolean,
     onDismiss: () -> Unit,
     backdrop: GraphicsLayer?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Bulanıklığın alttan ne kadarını boş bırakacağı.
+     *
+     * Kaydedilmiş kopya gezinme çubuğunu **içermiyor** — çubuk kayıttan sonra
+     * çiziliyor. O kopyayı çubuğun üstüne tam güçte çizmek, çubuğun yerine
+     * altındaki listenin bulanık hâlini koymak, yani çubuğu görünmez yapmak
+     * demek. Bulanıklık çubuğun üstünde bitiyor; karartma bütün ekranı
+     * kaplamaya devam ediyor, çünkü onun çubuğu gizlemek gibi bir etkisi yok.
+     */
+    blurBottomInset: Dp = 0.dp
 ) {
     // İki belirteç de koşulsuz okunuyor: KasaMotion sistem ayarını
     // CompositionLocal'dan aldığı için yalnızca beste içinde çağrılabiliyor ve
@@ -441,7 +452,15 @@ fun GlassBackdropScrim(
                 if (visible) Modifier.clickableNoRipple(onClick = onDismiss) else Modifier
             )
         ) {
-            BackdropBlur(backdrop, Modifier.matchParentSize(), strength = progress)
+            BackdropBlur(
+                backdrop = backdrop,
+                modifier = Modifier.matchParentSize().padding(bottom = blurBottomInset),
+                strength = progress,
+                // Alt kenar sert bitmesin: çubuğun kendi degradesi orada
+                // saydam başlıyor ve sert bir kenar iki cam arasında bir
+                // dikiş gibi görünüyordu.
+                fadeBottom = SCRIM_FADE
+            )
             Box(Modifier.matchParentSize().background(SCRIM_TINT.copy(alpha = SCRIM_DIM * progress)))
         }
     }
@@ -458,6 +477,9 @@ private val SCRIM_TINT = Color(0xFF09201B)
  * zaman da bulanıklığın gösterecek bir şeyi kalmıyor.
  */
 private const val SCRIM_DIM = 0.22f
+
+/** Örtü bulanıklığının alt kenarındaki yumuşama bölgesi. */
+private const val SCRIM_FADE = 0.06f
 
 /**
  * Menü örtüsünün bulanıklık yarıçapı.
