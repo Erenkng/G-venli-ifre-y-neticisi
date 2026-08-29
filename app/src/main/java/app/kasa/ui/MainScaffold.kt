@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -183,6 +184,8 @@ fun MainScaffold(
     // dışında duruyor ve kategori gezinmesi ekranın içinde.
     var settingsSection by remember { mutableStateOf<String?>(null) }
 
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+
     // Çubuktaki başlık gezinme etiketiyle aynı değil: gezinme çubuğunda
     // "Kasa" yazan sekme, çöp kutusundayken çöp kutusunu gösteriyor.
     val topBarTitle = when {
@@ -192,6 +195,12 @@ fun MainScaffold(
         tab == TAB_SECURITY -> stringResource(R.string.sec_title)
         else -> settingsSection ?: stringResource(R.string.set_title)
     }
+
+    // Üst çubuğun geri oku hangi durumlarda anlamlı: ayarlarda bir kategori
+    // açıkken ve kasada "Tümü" dışında bir görünümdeyken. İkisinin de zaten
+    // bir BackHandler'ı var; ok yalnızca onu görünür kılıyor.
+    val canGoBack = (tab == TAB_SETTINGS && settingsSection != null) ||
+        (tab == TAB_VAULT && vaultView != VaultFilter.All)
 
     val destinations = listOf(
         NavDestination(TAB_VAULT, stringResource(R.string.nav_vault), Icons.Rounded.Lock),
@@ -415,6 +424,17 @@ fun MainScaffold(
             visible = barVisible && !searchOpen,
             progress = { headerCollapse.floatValue },
             backdrop = backdrop.takeIf { needsBackdrop },
+            // Geri oku yalnızca gerçekten dönülecek bir yer varken. Düğme
+            // kendi eylemini taşımıyor, sistemin geri gönderisini
+            // tetikliyor: yukarıdaki BackHandler'lar hangisinin çalışacağına
+            // zaten karar veriyor ve buraya ikinci bir karar tablosu yazmak,
+            // ikisinin zamanla ayrışmasına açık kapı bırakırdı.
+            onBack = if (canGoBack) {
+                {
+                    vaultViewModel.haptic(Haptics.Kind.NAV)
+                    backDispatcher?.onBackPressed()
+                }
+            } else null,
             modifier = Modifier.align(Alignment.TopCenter)
         )
 

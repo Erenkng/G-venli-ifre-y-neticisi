@@ -1,14 +1,20 @@
 package app.kasa.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,8 +27,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.kasa.R
 import app.kasa.ui.theme.KasaTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -70,8 +78,21 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * İkisini tek bir sayıya sıkıştırmak, ya her karede yeniden birleşme ya da
  * görünmezken de bulanıklık hesaplayan bir çubuk demekti.
  *
+ * ### Geri düğmesi
+ *
+ * Bir kategorinin ya da süzülmüş bir görünümün içindeyken geri dönme yolu
+ * listenin başındaki çubuktaydı ve o da kaydırınca gidiyordu. Sistem geri
+ * hareketi çalışmaya devam ediyordu ama görünür hiçbir çıkış kalmıyordu —
+ * ve bir arayüzde yalnızca bilenlerin bulabildiği bir çıkış, çıkış sayılmaz.
+ *
+ * Düğme kendi eylemini taşımıyor, sistemin geri gönderisini tetikliyor.
+ * Ekranların zaten kayıtlı `BackHandler`'ları var ve hangisinin çalışacağına
+ * onlar karar veriyor; buraya ikinci bir karar tablosu yazmak, ikisinin
+ * zamanla ayrışmasına açık kapı bırakırdı.
+ *
  * @param visible çubuk beste ağacında var mı
  * @param progress 0 çubuk yok, 1 tamamen yerinde; yalnızca çizimde okunuyor
+ * @param onBack verilirse başta bir geri oku çıkıyor
  */
 @Composable
 fun KasaTopBar(
@@ -79,7 +100,8 @@ fun KasaTopBar(
     visible: Boolean,
     progress: () -> Float,
     backdrop: GraphicsLayer?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null
 ) {
     if (!visible) return
 
@@ -116,15 +138,34 @@ fun KasaTopBar(
             fadeBottom = FADE_FRACTION
         )
         Box(Modifier.matchParentSize().background(plate))
-        Box(
+        Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
                 .height(inset + BAR_HEIGHT)
                 .padding(top = inset)
-                .padding(horizontal = 22.dp),
-            contentAlignment = Alignment.CenterStart
+                // Geri oku varken sol boşluk daralıyor: okun kendi dokunma
+                // alanı zaten o boşluğun yerini tutuyor ve ikisi üst üste
+                // gelince başlık ortaya doğru kayıyordu.
+                .padding(start = if (onBack == null) 22.dp else 8.dp, end = 22.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            if (onBack != null) {
+                // Açıklama düğmede, simgede değil: ikisine birden verilirse
+                // ekran okuyucu aynı şeyi iki kez söylüyor.
+                KasaIconButton(
+                    onClick = onBack,
+                    contentDescription = stringResource(R.string.back)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = null,
+                        tint = KasaTheme.colors.ink2,
+                        modifier = Modifier.size(21.dp)
+                    )
+                }
+            }
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
