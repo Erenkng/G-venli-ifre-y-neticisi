@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import app.kasa.R
 import app.kasa.data.model.Folder
 import app.kasa.ui.components.KasaTile
+import app.kasa.ui.components.SheetBlurBehind
+import app.kasa.ui.components.sheetGlassColor
 import app.kasa.ui.components.groupPositionOf
 import app.kasa.ui.theme.KasaTheme
 
@@ -57,10 +59,10 @@ fun FolderPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = SHEET_ALPHA),
+        containerColor = sheetGlassColor(),
         dragHandle = null
     ) {
-        app.kasa.ui.components.SheetBlurBehind()
+        SheetBlurBehind()
         Column(
             Modifier
                 .fillMaxWidth()
@@ -117,4 +119,3 @@ fun FolderPickerSheet(
     }
 }
 
-private const val SHEET_ALPHA = 0.88f

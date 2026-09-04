@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -222,6 +223,42 @@ fun GlassScrim(
 fun SheetBlurBehind() {
     DialogBlurBehind(radius = SHEET_BLUR, dimAmount = 0f)
 }
+
+/**
+ * Alt sayfaların cam yüzey rengi.
+ *
+ * ### Neden tek yerde
+ *
+ * Aynı karar altı dosyada altı kez yazılıydı ve dördü zaten ayrışmıştı:
+ * dördü `surface`, ikisi `surfaceContainerLowest` kullanıyordu. Yani sayfalar
+ * hangi dosyada tanımlandıklarına göre iki ayrı tonda duruyordu ve bunu
+ * ekranda görmenin tek yolu ikisini arka arkaya açmaktı.
+ *
+ * ### Neden `surfaceContainerLowest`
+ *
+ * `surface` ekranın **zemin** belirteci. Zeminin belirtecini onun üstünde
+ * duran bir yüzeye vermek, o yüzeyin ayrı bir düzlem olduğunu söyleyen tek
+ * ipucunu — ton farkını — siliyor. `surfaceContainerLowest` açık temada beyaz,
+ * koyu temada zeminden daha derin: iki yönde de sayfa zeminden **ayrılıyor**.
+ * Kayıt ayrıntısı sayfası zaten bunu kullanıyordu; en çok açılan ve en çok
+ * çalışılmış yüzey oydu.
+ *
+ * ### Neden tam örtücü değil
+ *
+ * Arkasındaki bulanık kopya görünsün diye. Örtücülük yine de yüksek:
+ * geçirgenlik derinlik ekliyor, kontrast taşımıyor.
+ */
+@Composable
+fun sheetGlassColor(): Color =
+    MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = SHEET_GLASS_ALPHA)
+
+/**
+ * Alt sayfa levhasının örtücülüğü.
+ *
+ * Bundan düşüğü üzerindeki metni okunmaz yapıyor; yükseği camı opak bir
+ * yüzeye çevirip pencere bulanıklığına ödenen bedeli boşa çıkarıyor.
+ */
+private const val SHEET_GLASS_ALPHA = 0.88f
 
 private val SHEET_BLUR = 26.dp
 

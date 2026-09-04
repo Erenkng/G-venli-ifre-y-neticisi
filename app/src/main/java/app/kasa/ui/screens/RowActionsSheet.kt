@@ -1,6 +1,7 @@
 package app.kasa.ui.screens
 
 import app.kasa.ui.components.SheetBlurBehind
+import app.kasa.ui.components.sheetGlassColor
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.heightIn
@@ -177,7 +178,7 @@ fun RowActionsSheet(
         // Cam levha: altındaki ekran görünür kalıyor ama okunmuyor.
         // Pencerenin arkası SheetBlurBehind ile bulanıklaşıyor; ikisi
         // birlikte Android 17'nin alt sayfa yüzeyini kuruyor.
-        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = SHEET_GLASS_ALPHA),
+        containerColor = sheetGlassColor(),
 
         dragHandle = null
     ) {
@@ -268,11 +269,3 @@ private fun secretLabel(category: Category): Int = when (category) {
     Category.OTP -> R.string.copy_code
     else -> R.string.copy_password
 }
-
-/**
- * Alt sayfa levhasının örtücülüğü.
- *
- * Bundan düşüğü üzerindeki metni okunmaz yapıyor; yükseği camı opak bir
- * yüzeye çevirip pencere bulanıklığına ödenen bedeli boşa çıkarıyor.
- */
-private const val SHEET_GLASS_ALPHA = 0.88f

@@ -36,6 +36,7 @@ import app.kasa.R
 import app.kasa.data.model.PasswordHistoryEntry
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.components.GroupPosition
+import app.kasa.ui.components.sheetGlassColor
 import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.RevealButton
 import app.kasa.ui.components.SheetBlurBehind
@@ -90,7 +91,7 @@ fun PasswordHistorySheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = SHEET_ALPHA),
+        containerColor = sheetGlassColor(),
         dragHandle = null
     ) {
         SheetBlurBehind()
@@ -224,4 +225,3 @@ private fun formatChangedAt(millis: Long): String =
 /** Kapalıyken görünen maske; uzunluğu gerçek parolayı ele vermiyor. */
 private const val MASK = "••••••••••••"
 
-private const val SHEET_ALPHA = 0.88f
