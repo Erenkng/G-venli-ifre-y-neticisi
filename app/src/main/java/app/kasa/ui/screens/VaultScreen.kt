@@ -30,9 +30,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +73,8 @@ import app.kasa.ui.components.SearchBarButton
 import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.StrengthDot
 import app.kasa.ui.components.clickableNoRipple
+import app.kasa.ui.components.glassSurface
+import app.kasa.ui.components.pressRim
 import app.kasa.ui.components.groupPositionOf
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
@@ -171,6 +175,29 @@ fun VaultScreen(
                     .fillMaxWidth()
                     .padding(bottom = 8.dp)
             )
+        }
+
+        // ── güvenlik uyarısı ─────────────────────────────────────────────
+        //
+        // Sızmış parolalar zaten tespit ediliyordu ama kullanıcı güvenlik
+        // sekmesine gitmedikçe görmüyordu — ve oraya gitmek için bir sebebi
+        // olmuyordu, çünkü bir şey olduğunu bilmiyordu. Uyarı, kullanıcının
+        // zaten olduğu yerde duruyor.
+        //
+        // Yalnızca sızıntı için: zayıf ve tekrar eden parolalar da bulgu ama
+        // onlar "bir gün düzelt" işi. Sızıntı, parolanın **şu anda** başkasının
+        // elinde olduğu anlamına geliyor ve listenin başında durmayı hak eden
+        // tek bulgu bu. Her bulguyu buraya koymak, hiçbirinin okunmamasıyla
+        // sonuçlanırdı.
+        val leakedCount = smartCounts[SmartFolder.LEAKED] ?: 0
+        if (leakedCount > 0 && !inTrash && view == VaultFilter.All) {
+            item(key = "leak-alert") {
+                LeakAlert(
+                    count = leakedCount,
+                    onOpen = { viewModel.setView(VaultFilter.Smart(SmartFolder.LEAKED)) },
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
         }
 
         // ── koleksiyonlar ────────────────────────────────────────────────
@@ -426,6 +453,76 @@ private fun SelectionMark(selected: Boolean) {
                 modifier = Modifier.size(24.dp)
             )
         }
+    }
+}
+
+/**
+ * Sızmış parola uyarısı.
+ *
+ * ### Neden kırmızı bir kart değil
+ *
+ * Tam kırmızı bir yüzey, listenin başında her açılışta duran bir alarm
+ * oluyor ve üçüncü açılışta artık okunmuyor — uyarı körlüğü. Burada zemin
+ * sakin, yalnızca işaret ve sayı güç renginde. Uyarının işi korkutmak değil,
+ * bir yere **götürmek**.
+ *
+ * ### Neden kapatılamıyor
+ *
+ * Kapatılabilir bir uyarı, kapatıldığı anda sorunun kendisini de gizliyor.
+ * Kart bulgunun kendisi çözüldüğünde kendiliğinden gidiyor: sayı sıfıra
+ * indiğinde çizilmiyor. Yani "kapat" düğmesinin yerini parolayı değiştirmek
+ * alıyor.
+ */
+@Composable
+private fun LeakAlert(
+    count: Int,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = KasaTheme.colors
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .glassSurface(RoundedCornerShape(KasaRadius.l), colors.tile)
+            .pressRim(corner = KasaRadius.l, color = colors.strengthWeak)
+            .clickableNoRipple(role = Role.Button, onClick = onOpen)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(KasaRadius.full))
+                .background(colors.strengthWeak.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Rounded.PrivacyTip,
+                contentDescription = null,
+                tint = colors.strengthWeak,
+                modifier = Modifier.size(21.dp)
+            )
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.leak_alert_title, count),
+                style = KasaTheme.text.tileName,
+                color = colors.ink
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stringResource(R.string.leak_alert_sub),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.ink3
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.ink3,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 

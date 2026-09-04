@@ -126,6 +126,8 @@
     <string name="bulk_folder">Klasöre taşı</string>
     <string name="bulk_no_folder">Klasörsüz</string>
     <string name="vault_clear_filters">Süzgeçleri temizle</string>
+    <string name="leak_alert_title">%1$d parolan sızıntılarda görüldü</string>
+    <string name="leak_alert_sub">Bu parolalar başkasının elinde. Değiştirmek için dokun.</string>
     <string name="detail_leak_warning">Bu parola bilinen bir sızıntıda geçiyor. Bugün değiştir.</string>
     <string name="detail_mid_warning">Fena değil ama kısa. Uzunluğu 16 karakterin üstüne çıkar.</string>
     <string name="detail_ok_note">İyi görünüyor. 12 ayda bir yenilemen yeterli.</string>
