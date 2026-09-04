@@ -80,6 +80,8 @@ import app.kasa.ui.components.KasaSnackbarHost
 import app.kasa.ui.components.KasaTopBar
 import app.kasa.ui.components.NavDestination
 import app.kasa.ui.components.SelectionBar
+import app.kasa.ui.components.predictiveBack
+import app.kasa.ui.components.rememberBackGesture
 import app.kasa.ui.screens.ConfirmDialog
 import app.kasa.ui.screens.FolderPickerSheet
 import app.kasa.ui.screens.GeneratorScreen
@@ -219,14 +221,16 @@ fun MainScaffold(
 
     // Geri tuşu: en üstteki katmanı kapat, hiçbiri yoksa kasa sekmesine dön.
     BackHandler(enabled = qrTarget != null) { qrTarget = null }
-    BackHandler(enabled = qrTarget == null && trashOpen) {
+    val trashBack = rememberBackGesture(enabled = qrTarget == null && trashOpen) {
         // Seçim kümesi kasayla çöp kutusu arasında ortak. Geçişte
         // temizlenmezse çöp kutusunda "3 seçildi" yazarken silinecek olan
         // kasadaki üç kayıt oluyordu; kalıcı silmede bunun bedeli ağır.
         vaultViewModel.clearSelection()
         trashOpen = false
     }
-    BackHandler(enabled = qrTarget == null && editing != null) { vaultViewModel.cancelEdit() }
+    val editorBack = rememberBackGesture(enabled = qrTarget == null && editing != null) {
+        vaultViewModel.cancelEdit()
+    }
     BackHandler(enabled = qrTarget == null && editing == null && selectedItem != null) {
         vaultViewModel.dismissDetail()
     }
@@ -639,12 +643,14 @@ fun MainScaffold(
             ) + fadeOut(KasaMotion.exit())
         ) {
             editing?.let { item ->
-                ItemEditorScreen(
-                    initial = item,
-                    viewModel = vaultViewModel,
-                    onScanQr = { onResult -> qrTarget = onResult },
-                    onClose = { vaultViewModel.cancelEdit() }
-                )
+                Box(Modifier.predictiveBack(editorBack)) {
+                    ItemEditorScreen(
+                        initial = item,
+                        viewModel = vaultViewModel,
+                        onScanQr = { onResult -> qrTarget = onResult },
+                        onClose = { vaultViewModel.cancelEdit() }
+                    )
+                }
             }
         }
 
@@ -661,13 +667,15 @@ fun MainScaffold(
                 animationSpec = KasaMotion.exit()
             ) + fadeOut(KasaMotion.exit())
         ) {
-            TrashScreen(
-                viewModel = vaultViewModel,
-                onClose = {
-                    vaultViewModel.clearSelection()
-                    trashOpen = false
-                }
-            )
+            Box(Modifier.predictiveBack(trashBack)) {
+                TrashScreen(
+                    viewModel = vaultViewModel,
+                    onClose = {
+                        vaultViewModel.clearSelection()
+                        trashOpen = false
+                    }
+                )
+            }
         }
 
         if (typePickerOpen) {
