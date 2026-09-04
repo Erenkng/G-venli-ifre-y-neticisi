@@ -127,7 +127,11 @@ fun VaultScreen(
     val compact = settings.listDensity == SettingsStore.ListDensity.COMPACT
     val listReady by viewModel.listReady.collectAsStateWithLifecycle()
     val selection by viewModel.selection.collectAsStateWithLifecycle()
-    val selecting = selection.isNotEmpty()
+    // Çöp kutusunda seçim kipi kapalı: çubuğun eylemleri (sık kullanılana
+    // ekle, klasöre taşı, çöpe at) silinmiş kayıtlar için ya anlamsız ya da
+    // etkisiz. Oradaki toplu iş geri yükleme ve kalıcı silme; ikisi de çöp
+    // kutusu ekranının kendi işleri.
+    val selecting = selection.isNotEmpty() && !inTrash
 
     val listState = rememberLazyListState()
 
@@ -409,7 +413,7 @@ fun VaultScreen(
             // Seçim kipine giriş buradan: basılı tutmanın kendisi zaten bu
             // sayfayı açıyor ve o hareketi seçime bağlamak, sayfanın öteki
             // sekiz işlemini erişilmez yapardı.
-            onSelect = { viewModel.startSelection(target.id) },
+            onSelect = if (target.inTrash) null else ({ viewModel.startSelection(target.id) }),
             onDismiss = { actionTarget = null }
         )
     }

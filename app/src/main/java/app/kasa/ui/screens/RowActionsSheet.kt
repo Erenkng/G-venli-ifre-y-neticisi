@@ -81,8 +81,14 @@ fun RowActionsSheet(
     onShowWifiQr: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
-    /** Seçim kipini bu kayıtla başlatır. */
-    onSelect: () -> Unit,
+    /**
+     * Seçim kipini bu kayıtla başlatır.
+     *
+     * Null geçildiğinde işlem menüde hiç görünmüyor: çöp kutusundaki bir
+     * kaydı seçmenin karşılığı yok, çubuğun eylemleri orada ya anlamsız ya
+     * da etkisiz.
+     */
+    onSelect: (() -> Unit)?,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -136,12 +142,14 @@ fun RowActionsSheet(
         }
         // Seçim kipine giriş buradan. Basılı tutmanın kendisini seçime
         // bağlamak, bu sayfanın öteki sekiz işlemini erişilmez yapardı.
-        add(
-            RowAction(
-                label = stringResource(R.string.bulk_select),
-                icon = Icons.Rounded.Checklist
-            ) { onSelect() }
-        )
+        if (onSelect != null) {
+            add(
+                RowAction(
+                    label = stringResource(R.string.bulk_select),
+                    icon = Icons.Rounded.Checklist
+                ) { onSelect() }
+            )
+        }
         add(
             RowAction(
                 label = stringResource(

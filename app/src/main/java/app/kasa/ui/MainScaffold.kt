@@ -465,7 +465,11 @@ fun MainScaffold(
         // yerine geçmiyor: kullanıcı seçim yaparken sekme değiştirmek
         // isteyebiliyor ve gezinme çubuğunun kaybolması o yolu kapatıyor.
         SelectionBar(
-            count = selection.size,
+            // Seçim kasa sekmesine ait. Başka sekmedeyken seçim **duruyor**
+            // (kullanıcı klasörlerine bakıp dönebilsin diye) ama çubuk
+            // görünmüyor: ayarlar ekranının üstünde duran bir "12 seçildi"
+            // çubuğu, orada işe yaramayan bir eylem takımı demek.
+            count = if (tab == TAB_VAULT) selection.size else 0,
             allSelected = allVisibleSelected,
             onSelectAll = vaultViewModel::toggleSelectAllVisible,
             onFavorite = { vaultViewModel.favoriteSelected(true) },
