@@ -34,7 +34,7 @@ Hesap yok, sunucu yok, eşitleme yok — kaybedilecek bir hesap da yok.
 | 🧮 **Cihazda ölçülen Argon2id** | Sabit maliyet, amiral gemisinde gereksiz zayıf ve eski telefonda kullanılamaz yavaştır. Kurulumda ~800 ms'ye ayarlanır. |
 | 🧷 **Beş kilit katmanı** | Ana parola, kurtarma anahtarı, biyometri/StrongBox, hızlı PIN, kayıt bazlı ek kilit. |
 | 🕳️ **Zorlama parolası** | İkinci bir parola yem kasayı açar; dosyaya bakarak kurulu olup olmadığı anlaşılamaz. |
-| ⌨️ **Otomatik doldurma** | Klavye şeridinde satır içi öneri, `assetlinks.json` ile doğrulanmış eşleştirme, 2FA kodunu da doldurma. |
+| ⌨️ **Otomatik doldurma** | Giriş, üye olma, 2FA ve ödeme formları; klavye şeridinde satır içi öneri, `assetlinks.json` ile doğrulanmış eşleştirme. |
 | 🔍 **Güvenlik merkezi** | Sızmış, tekrar kullanılmış, zayıf, eski, 2FA'sız — haftalık arka plan taramasıyla. |
 | 📥 **Taşınabilir** | Chrome, Firefox, Bitwarden, 1Password, LastPass CSV içe aktarma; şifreli `.kasa` dışa aktarma. |
 | 📴 **İnternet isteğe bağlı** | Tek çevrimiçi uç nokta sızıntı denetimi ve o da k-anonimlik: parola cihazdan çıkmaz. |
@@ -418,8 +418,9 @@ Kod baştan sona düşman gözüyle okundu. Bulunan gerçek kusurlar:
 ### 📱 Telefon
 
 - Biyometrik kilit (Class 3), Keystore + StrongBox
-- **Otomatik doldurma**: klavye şeridinde satır içi öneri, `assetlinks.json`
-  doğrulaması, 2FA kodunu doldurma, "güncelle mi yeni kayıt mı" ayrımı
+- **Otomatik doldurma**: giriş, üye olma, iki adımlı doğrulama ve **ödeme**
+  formları; klavye şeridinde satır içi öneri, `assetlinks.json` doğrulaması,
+  "güncelle mi yeni kayıt mı" ayrımı
 - Kamera ile 2FA karekod okuma (ZXing, çevrimdışı)
 - **Wi-Fi kaydından karekod**: misafir parolayı hiç görmeden bağlanır
 - Son kullanılan kayıtlar için **başlatıcı kısayolları**
@@ -710,6 +711,134 @@ Her projede kullanmak için kullanıcı dizinine kopyalanıyor:
 ```bash
 cp -r .claude/skills/android-expressive-ui ~/.claude/skills/
 ```
+
+</details>
+
+## Otomatik doldurma
+
+<details>
+<summary><b>Hangi formlar</b></summary>
+
+<br>
+
+| Form | Kaynak | Yazılan alanlar |
+|---|---|---|
+| Giriş | giriş kaydı | kullanıcı adı, parola, varsa tek kullanımlık kod |
+| Üye ol | **üretilen** parola | parola ve tekrarı |
+| İki adımlı doğrulama | TOTP anahtarı olan kayıt | kod |
+| Ödeme | kart kaydı | numara, sahip, son kullanma, güvenlik kodu |
+
+Formun hangisi olduğu alanlarından anlaşılıyor. Aynı ağaçta hem kart hem giriş
+alanı bulunabiliyor (ödeme sayfasında hesap girişi de olabiliyor); kart öne
+geçiyor ama yalnızca **güçlü** bir kanıt varsa — tek başına bir "güvenlik kodu"
+alanı ödeme formu olduğunu söylemeye yetmiyor.
+
+Son kullanma tarihi formun istediği biçime çevriliyor: ay ile yılı ayrı isteyen
+forma ayrı, tek alanda isteyene `AA/YY`, dört haneli yıl alanına `20YY`.
+
+</details>
+
+---
+
+<details>
+<summary><b>Alan tanıma</b> — üç kaynak, artan güvenilirlikle</summary>
+
+<br>
+
+1. **Android ipuçları** (`autofillHints`) — teoride yeterli, pratikte
+   uygulamaların çoğu koymuyor.
+2. **HTML `autocomplete` belirteci** (`cc-number`, `new-password`,
+   `one-time-code`) — web formlarında Android'in kendi ipuçlarından belirgin
+   biçimde daha sık ve daha doğru yazılıyor.
+3. **Giriş türü ve anahtar sözcükler**, hem Türkçe hem İngilizce.
+
+Anahtar sözcük yolu kanıt istiyor. Kart numarası için alanın sayısal ya da kart
+numarası uzunluğunda olması, güvenlik kodu için 3–4 hane sınırı, tek kullanımlık
+kod için 4–10 hane sınırı aranıyor. Sınırı olmayan bir metin alanına kart
+güvenlik kodu yazmak, oranın gerçekten CVV olduğu bilgisi olmadan yapılan bir
+tahmin olurdu.
+
+**"Güvenlik kodu" Türkçede iki şey demek** — kartın CVV'si ve SMS ile gelen
+doğrulama kodu. Ayrım formun geri kalanından çıkıyor: ortada kart numarası ya da
+son kullanma tarihi yoksa o alan CVV değil. Karar ağaç gezildikten sonra
+veriliyor, çünkü kart numarası o alandan **sonra** da gelebiliyor.
+
+</details>
+
+---
+
+<details>
+<summary><b>Kime neyin önerildiği</b> — üç güven kademesi, başka eşleşme yok</summary>
+
+<br>
+
+| Kademe | Dayanak | Ne kadar güçlü |
+|---|---|---|
+| Bağlı uygulama | kayıtta saklı `paket\|imza parmak izi` | kesin |
+| Alan adı | tanınan tarayıcıdaki sayfanın adresi | tarayıcı kadar |
+| Devredilmiş | alan adının `assetlinks.json` beyanı | alan adı sahibi kadar |
+
+Bunların dışında **otomatik eşleşme yok**. Eşleşme bulunamadığında kasadan
+rastgele kayıtlar sunulmuyor — parola alanı olan herhangi bir uygulamanın
+kullanıcının hesap listesini görmesi, doldurmanın en geniş kapısıydı. Onun
+yerine tek bir "Kasa'dan seç" satırı çıkıyor; o satır kimlik doğrulamasından
+geçiyor ve seçim Kasa'nın kendi ekranında yapılıyor. Orada seçilen kayıt
+uygulamayla kalıcı olarak eşleşiyor, yani bu yol yalnızca bir kez yürünüyor.
+
+Bağ `paket adı|imza parmak izi` biçiminde saklanıyor. Tek başına paket adı
+yetmiyor: bir uygulama kaldırıldıktan sonra aynı paket adıyla **başka bir
+imzayla** yeniden kurulabiliyor ve o artık aynı uygulama değil.
+
+**Kartın alan adı yok**, yani alan adı ve `assetlinks.json` kademeleri onun için
+hiç çalışmıyor. Kart eşleşmesi tek yoldan kuruluyor: kullanıcı o uygulamada
+kartı bir kez elle seçiyor. Bir ödeme yapılırken bir kez sormak, kolaylıktan
+daha çok istenen şey.
+
+Yanlış kaydı bağlamışsan kayıt ayrıntısındaki **Bağlı uygulamalar** bölümünden
+kaldırabiliyorsun.
+
+</details>
+
+---
+
+<details>
+<summary><b>Üye olma formunda parola üretme</b></summary>
+
+<br>
+
+İki parola alanı ya da açık bir `new-password` beyanı, formun üye olma formu
+olduğunu söylüyor. Orada "Güçlü parola üret" satırı çıkıyor ve kasada eşleşen
+bir kayıt olsa bile duruyor: üye olurken istenen şey zaten var olan bir parola
+değil, yenisi.
+
+Üretilen parola **aynı anda kasaya yazılıyor**. Kasaya yazmayı kaydetme akışına
+bırakmak yeterli değil: uygulama kaydetmeyi tetiklemezse — bölünmüş formlarda
+bu sık oluyor — kullanıcı bir daha hiçbir yerde bulamayacağı bir parolayla üye
+olmuş oluyor ve kaybedilen şey bir kayıt değil, hesabın kendisi. Üye olmaktan
+vazgeçilirse kasada kullanılmayan bir kayıt kalıyor; iki sonucun bedeli
+arasında karşılaştırma bile yok.
+
+Parolanın tekrarı da dolduruluyor. Yalnızca ilkini doldurmak, kullanıcıyı yirmi
+karakteri elle yazmaya bırakıp otomatik doldurmanın kazandırdığı şeyi olduğu
+gibi geri alıyordu.
+
+</details>
+
+---
+
+<details>
+<summary><b>Bölünmüş giriş akışları</b></summary>
+
+<br>
+
+Giriş akışlarının çoğu iki ekrana bölünmüş durumda: önce kullanıcı adı, sonra
+parola. Sistem her ekranı ayrı bir bağlam olarak veriyor ve kaydetme yalnızca
+sonuncusuna bakarsa kullanıcı adı her seferinde boş kalıyor — kayıt açılıyor
+ama kimin hesabı olduğu yazmıyor. Kaydetme artık bütün bağlamları tarıyor.
+
+Aynı sebeple `SAVE_ON_ALL_VIEWS_INVISIBLE` kullanılıyor: o bayrak olmadan
+sistem kaydetmeyi ilk ekran kapanırken — parola daha yazılmamışken — soruyor
+ve kaydetme hiç gerçekleşmiyor.
 
 </details>
 

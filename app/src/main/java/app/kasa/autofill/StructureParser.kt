@@ -371,8 +371,23 @@ class StructureParser(private val structure: AssistStructure) {
         return node.maxTextLength in CARD_NUMBER_LENGTHS
     }
 
+    /**
+     * Alanın metinlerinde anahtar sözcük aranıyor.
+     *
+     * ### Neden önce parçalanıyor
+     *
+     * Ham metinde arama yapmak kısa sözcüklerde çalışmıyor: ay alanını bulan
+     * `"ay"`, `payment_name` alanının **içinde** de geçiyor ve o alanı kartın
+     * son kullanma ayı sanıyor. Sözcük sınırı aramak da yetmiyor, çünkü alan
+     * adları çoğu zaman `otpCode` gibi bitişik yazılıyor ve orada sınır yok.
+     *
+     * Metin bu yüzden önce parçalanıyor: büyük harften önce ve harf-rakam
+     * dışındaki her yerde bölünüyor. `otpCode` → `otp code`,
+     * `payment_name` → `payment name`. Sonra kısa sözcükler **tam parça**
+     * olarak, uzun olanlar içerik olarak aranıyor.
+     */
     private fun matchesKeyword(node: AssistStructure.ViewNode, keywords: Array<String>): Boolean {
-        val haystack = buildString {
+        val raw = buildString {
             node.idEntry?.let { append(it).append(' ') }
             node.hint?.let { append(it).append(' ') }
             node.contentDescription?.let { append(it).append(' ') }
@@ -383,10 +398,34 @@ class StructureParser(private val structure: AssistStructure) {
                     append(attribute.second).append(' ')
                 }
             }
-        }.lowercase()
+        }
+        if (raw.isBlank()) return false
 
-        if (haystack.isBlank()) return false
-        return keywords.any { haystack.contains(it) }
+        val haystack = tokenize(raw)
+        val tokens = haystack.split(' ').filter { it.isNotBlank() }.toSet()
+
+        return keywords.any { keyword ->
+            // Anahtar sözcük de aynı biçime getiriliyor: parçalanmış metinde
+            // tire ve alt çizgi yok, hepsi boşluk. Aksi hâlde `exp-month`
+            // hiçbir zaman eşleşmezdi.
+            val needle = keyword.replace('-', ' ').replace('_', ' ')
+            if (needle.length <= SHORT_KEYWORD) needle in tokens else haystack.contains(needle)
+        }
+    }
+
+    /** `otpCode kart_no` → `otp code kart no` */
+    private fun tokenize(raw: String): String = buildString {
+        raw.forEachIndexed { index, char ->
+            when {
+                char.isLetterOrDigit() -> {
+                    val previous = raw.getOrNull(index - 1)
+                    // Bitişik yazımda büyük harf yeni bir sözcüğün başı.
+                    if (char.isUpperCase() && previous != null && previous.isLowerCase()) append(' ')
+                    append(char.lowercaseChar())
+                }
+                else -> append(' ')
+            }
+        }
     }
 
     /**
@@ -438,6 +477,14 @@ class StructureParser(private val structure: AssistStructure) {
             "com.android.browser"
         )
 
+        /**
+         * Bu uzunluğa kadar olan sözcükler tam parça olarak aranıyor.
+         *
+         * Üç harf, kısa sözcüklerin başka sözcüklerin içinde kaybolduğu sınır:
+         * `ay` ile `payment`, `skt` ile `riskten`, `cvc` ile `cvcode`.
+         */
+        const val SHORT_KEYWORD = 3
+
         val PASSWORD_KEYWORDS = arrayOf(
             // "pass" tek başına yok: "passport", "passenger", "compass" gibi
             // alanları parola sanıp oraya parola yazdırırdı.
@@ -481,28 +528,37 @@ class StructureParser(private val structure: AssistStructure) {
             "kullanici", "kullanıcı", "eposta", "e-posta", "hesap", "giris", "giriş", "telefon"
         )
 
+        // Her sözcüğün iki yazımı da duruyor: bitişik (`cardnumber`) ve ayrık
+        // (`card number`). Parçalayıcı `cardNumber` gibi bitişik yazımları
+        // ayırdığı için ikisi farklı kaynakları yakalıyor.
         val CARD_NUMBER_KEYWORDS = arrayOf(
-            "cardnumber", "card-number", "card_number", "cardno", "ccnumber", "creditcard",
-            "kart numara", "kartnumara", "kart no", "kartno"
+            "cardnumber", "card number", "cardno", "card no",
+            "ccnumber", "cc number", "creditcard", "credit card",
+            "kartnumara", "kart numara", "kartno", "kart no"
         )
 
         val CARD_HOLDER_KEYWORDS = arrayOf(
-            "cardholder", "card-holder", "card_holder", "cardname", "name on card", "ccname",
-            "kart sahibi", "kartsahibi", "kart uzerindeki", "kart üzerindeki"
+            "cardholder", "card holder", "cardname", "card name",
+            "ccname", "cc name", "name on card",
+            "kartsahibi", "kart sahibi", "kart uzerindeki", "kart üzerindeki"
         )
 
         val EXPIRY_KEYWORDS = arrayOf(
-            "expiry", "expiration", "expdate", "exp-date", "exp_date", "valid thru", "validthru",
-            "son kullanma", "sonkullanma", "gecerlilik", "geçerlilik", "skt"
+            "expiry", "expiration", "expdate", "exp date", "validthru", "valid thru",
+            "sonkullanma", "son kullanma", "gecerlilik", "geçerlilik", "skt"
         )
 
-        val MONTH_KEYWORDS = arrayOf("expmonth", "exp-month", "exp_month", "expirymonth", "ay")
+        val MONTH_KEYWORDS = arrayOf(
+            "expmonth", "exp month", "expirymonth", "expiry month", "expiration month", "ay"
+        )
 
-        val YEAR_KEYWORDS = arrayOf("expyear", "exp-year", "exp_year", "expiryyear", "yil", "yıl")
+        val YEAR_KEYWORDS = arrayOf(
+            "expyear", "exp year", "expiryyear", "expiry year", "expiration year", "yil", "yıl"
+        )
 
         val CVV_KEYWORDS = arrayOf(
-            "cvv", "cvc", "csc", "cid", "security code", "securitycode",
-            "guvenlik kodu", "güvenlik kodu"
+            "cvv", "cvc", "csc", "cid", "securitycode", "security code",
+            "guvenlikkodu", "guvenlik kodu", "güvenlik kodu"
         )
     }
 }
