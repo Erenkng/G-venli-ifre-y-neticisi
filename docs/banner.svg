@@ -56,10 +56,7 @@
     </g>
 
     <g font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
-      <text x="404" y="200" font-size="132" font-weight="700" letter-spacing="1" fill="#EAFFF9">Kasa</text>
-      <text x="408" y="250" font-size="28" font-weight="500" fill="#8FD8C8">Android için çevrimdışı parola kasası</text>
       <rect x="408" y="276" width="52" height="2" fill="#A6F0DE" fill-opacity="0.55"/>
-      <text x="408" y="314" font-size="20" font-weight="600" letter-spacing="3.5" fill="#5DAF9E">ARGON2ID · AES-256-GCM · SUNUCU YOK</text>
     </g>
   </g>
 </svg>

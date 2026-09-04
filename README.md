@@ -50,11 +50,12 @@ Hesap yok, sunucu yok, eşitleme yok — kaybedilecek bir hesap da yok.
 
 <div align="center">
 
-<img src="docs/screens.svg" alt="Kasa listesi, kart ayrıntısı ve üreteç ekranları" width="100%">
+<img src="docs/screens.svg" alt="Kasa listesi, kart ayrıntısı ve üreteç ekranlarının yazısız taslağı" width="100%">
 
-<sub><b>Bunlar ekran görüntüsü değil, çizim.</b> Bu depo yazılırken cihaz ve emülatör erişimi yoktu;
-görseller uygulamanın kendi ölçüleri, renkleri ve bileşenleri kullanılarak elle çizildi.
-Gerçek ekran görüntüleri bir cihazda alınabildiğinde bunların yerini alacak.</sub>
+<sub><b>Bunlar ekran görüntüsü değil, taslak.</b> Bu depo yazılırken cihaz ve emülatör erişimi
+yoktu. Yazı bilerek yok: uydurulmuş kayıt adları ve sahte parolalar, gerçek bir ekran görüntüsü
+gibi okunup yanlış bir izlenim bırakıyordu. Taslak yalnızca yerleşimi, ölçüleri ve renk ailesini
+gösteriyor. Gerçek ekran görüntüleri bir cihazda alınabildiğinde bunların yerini alacak.</sub>
 
 </div>
 
@@ -71,6 +72,8 @@ Gerçek ekran görüntüleri bir cihazda alınabildiğinde bunların yerini alac
 <div align="center">
 
 <img src="docs/mark.svg" alt="Kasa simgesi farklı boylarda ve tek renkli hâliyle" width="100%">
+
+<sub>Soldan sağa: 192, 112, 72, 48 ve 32 piksel, sonda tek renkli hâli.</sub>
 
 </div>
 
@@ -91,6 +94,8 @@ göstermek ikisini de koruyor.
 
 <img src="docs/themes.svg" alt="Üç gradyan ailesi, günün beş dilimine göre" width="100%">
 
+<sub>Satırlar: jade, gün batımı, derin. Sütunlar sabahtan geceye doğru beş dilim.</sub>
+
 </div>
 
 Zemin sabahtan geceye doğru kayıyor ve değişim **fark edilmeyecek kadar yavaş** olmak zorunda:
@@ -104,7 +109,9 @@ saate uyum kapatılabiliyor.
 
 <div align="center">
 
-<img src="docs/brands.svg" alt="Visa, Mastercard, Troy, Amex, Maestro, JCB, UnionPay ve Diners işaretleri" width="100%">
+<img src="docs/brands.svg" alt="Visa, Mastercard, Troy, Amex, Maestro, JCB, UnionPay ve Diners kart yüzleri" width="100%">
+
+<sub>Soldan sağa: Visa, Mastercard, Troy, Amex, Maestro, JCB, UnionPay, Diners.</sub>
 
 </div>
 

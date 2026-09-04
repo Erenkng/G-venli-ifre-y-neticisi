@@ -22,7 +22,6 @@
       <path transform="rotate(270 54 54)" fill="url(#mspoke)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
       <path fill="url(#mhub)" fill-rule="evenodd" d="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
     </g>
-    <text x="130" y="272.0" font-size="12" font-weight="600" letter-spacing="1" text-anchor="middle" fill="#7C8D88">192 px</text>
   </g>
   <g>
     <rect x="280.0" y="94.0" width="112" height="112" rx="25.2" fill="url(#backdrop)"/>
@@ -33,7 +32,6 @@
       <path transform="rotate(270 54 54)" fill="url(#mspoke)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
       <path fill="url(#mhub)" fill-rule="evenodd" d="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
     </g>
-    <text x="336" y="232.0" font-size="12" font-weight="600" letter-spacing="1" text-anchor="middle" fill="#7C8D88">112 px</text>
   </g>
   <g>
     <rect x="468.0" y="118.0" width="64" height="64" rx="14.4" fill="url(#backdrop)"/>
@@ -44,7 +42,6 @@
       <path transform="rotate(270 54 54)" fill="url(#mspoke)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
       <path fill="url(#mhub)" fill-rule="evenodd" d="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
     </g>
-    <text x="500" y="208.0" font-size="12" font-weight="600" letter-spacing="1" text-anchor="middle" fill="#7C8D88">64 px</text>
   </g>
   <g>
     <rect x="596.0" y="130.0" width="40" height="40" rx="9.0" fill="url(#backdrop)"/>
@@ -55,7 +52,6 @@
       <path transform="rotate(270 54 54)" fill="url(#mspoke)" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
       <path fill="url(#mhub)" fill-rule="evenodd" d="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
     </g>
-    <text x="616" y="196.0" font-size="12" font-weight="600" letter-spacing="1" text-anchor="middle" fill="#7C8D88">40 px</text>
   </g>
   <line x1="700" y1="60" x2="700" y2="240" stroke="#D7E0DD" stroke-width="1.5"/>
   <rect x="756" y="54" width="192" height="192" rx="43" fill="#DCE7E3"/>
@@ -66,10 +62,4 @@
       <path transform="rotate(270 54 54)" fill="#2C3A37" d="M50.5,31.5 a3.5,3.5 0 0,1 7,0 v13 a3.5,3.5 0 0,1 -7,0 Z"/>
       <path fill="#2C3A37" fill-rule="evenodd" d="M54,54 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0 Z M54,54 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
     </g>
-  <text x="852" y="276" font-size="12" font-weight="600" letter-spacing="1" text-anchor="middle" fill="#7C8D88">TEK RENKLİ</text>
-  <text x="990" y="120" font-size="14" font-weight="700" fill="#1B2B27">Gradyan neden var</text>
-  <text x="990" y="146" font-size="12" fill="#4A5C57">Başlatıcıda simge 48 dp</text>
-  <text x="990" y="164" font-size="12" fill="#4A5C57">civarında çiziliyor. O ölçekte</text>
-  <text x="990" y="182" font-size="12" fill="#4A5C57">hacmi taşıyabilecek tek şey</text>
-  <text x="990" y="200" font-size="12" fill="#4A5C57">rengin kendi içindeki değişim.</text>
 </svg>
