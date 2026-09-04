@@ -41,6 +41,8 @@ import app.kasa.data.model.VaultItem
 import app.kasa.data.repo.VaultRepository
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
+import app.kasa.ui.components.floatingBarWidth
+import app.kasa.ui.components.readablePane
 import app.kasa.ui.components.SelectionAction
 import app.kasa.ui.components.SelectionBar
 import app.kasa.ui.components.KasaBackground
@@ -109,8 +111,10 @@ fun TrashScreen(
     // seçim yokken kapanıyor ve sıra yukarıdaki harekete geliyor.
     BackHandler(enabled = selecting) { viewModel.clearSelection() }
 
+    // Zemin ekranın tamamını kaplıyor, içerik ortalanıyor: geniş pencerede
+    // gradyanın kenarlarda kesilmesi yerine içeriğin altında sürmesi doğru.
     KasaBackground(modifier = modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().readablePane()) {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -220,6 +224,7 @@ fun TrashScreen(
                         onClose = viewModel::clearSelection,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
+                            .floatingBarWidth()
                             .padding(bottom = 20.dp)
                     ) {
                         SelectionAction(

@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -130,6 +131,13 @@ fun IntroPager(
             ) {
                 Box(
                     Modifier
+                        // Genişlik sınırı çizimin ekranı taşırmasını
+                        // engelliyor. En-boy oranı sabit olduğu için geniş bir
+                        // pencerede `fillMaxWidth` yüksekliği de ekranın
+                        // ötesine taşıyor ve altındaki yazıyı ekran dışına
+                        // itiyordu — tablette yatay tutulduğunda görülen şey
+                        // buydu.
+                        .widthIn(max = INTRO_ART_MAX)
                         .fillMaxWidth()
                         .aspectRatio(1.15f)
                         .graphicsLayer {
@@ -504,3 +512,11 @@ private fun DrawScope.drawOfflineScene(t: Float, accent: Color, ink: Color, soft
 private const val SATELLITES = 7
 private const val BOUNCERS = 6
 private const val SCENE_CYCLE_MILLIS = 5200
+
+/**
+ * Tanıtım çiziminin en geniş hâli.
+ *
+ * Telefonda bu sınıra hiç ulaşılmıyor (ekran zaten dar); iş gördüğü yer geniş
+ * pencereler.
+ */
+private val INTRO_ART_MAX = 340.dp

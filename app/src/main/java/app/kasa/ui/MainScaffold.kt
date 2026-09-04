@@ -1,5 +1,7 @@
 package app.kasa.ui
 
+import app.kasa.ui.components.readablePane
+import app.kasa.ui.components.floatingBarWidth
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
@@ -361,7 +363,10 @@ fun MainScaffold(
                 label = "tab",
                 modifier = Modifier.fillMaxSize()
             ) { current ->
-                Box(Modifier.fillMaxSize()) {
+                // Geniş pencerede içerik ortalanıp okunabilir bir genişlikte
+                // tutuluyor. Dört sekmenin dördü de buradan geçiyor, yani
+                // kural tek yerde duruyor ve bir sekme onsuz kalamıyor.
+                Box(Modifier.fillMaxSize().readablePane()) {
                     when (current) {
                         TAB_VAULT -> VaultScreen(
                             viewModel = vaultViewModel,
@@ -494,6 +499,7 @@ fun MainScaffold(
             onClose = { vaultViewModel.clearSelection() },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .floatingBarWidth()
                 .padding(bottom = SELECTION_BAR_LIFT)
         ) {
             SelectionAction(

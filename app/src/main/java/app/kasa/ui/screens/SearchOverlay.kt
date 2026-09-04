@@ -31,6 +31,7 @@ import app.kasa.data.SettingsStore
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.EmptyState
+import app.kasa.ui.components.readablePane
 import app.kasa.ui.components.SearchTopBar
 import app.kasa.ui.components.KasaReveal
 import app.kasa.ui.components.groupPositionOf
@@ -71,6 +72,10 @@ fun SearchOverlay(
             // ancak dönünce öğreniyordu.
             .background(MaterialTheme.colorScheme.surface.copy(alpha = SEARCH_GLASS_ALPHA))
             .windowInsetsPadding(WindowInsets.statusBars)
+            // Cam zemin ekranın tamamını kaplıyor, içerik ortalanıyor: geniş
+            // pencerede arama kutusunun bir metreye yayılması, yazılanı
+            // görmeyi kolaylaştırmıyor.
+            .readablePane()
     ) {
         SearchTopBar(
             query = query,

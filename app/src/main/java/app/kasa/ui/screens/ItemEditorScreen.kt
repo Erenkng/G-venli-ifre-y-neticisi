@@ -60,6 +60,7 @@ import app.kasa.data.model.Folder
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
+import app.kasa.ui.components.readablePane
 import app.kasa.ui.components.kasaBackdrop
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaButtonGroup
@@ -134,6 +135,10 @@ fun ItemEditorScreen(
             .kasaBackdrop()
             .windowInsetsPadding(WindowInsets.statusBars)
             .imePadding()
+            // Zemin ekranın tamamını kaplıyor, form ortalanıyor: geniş
+            // pencerede alan bloklarının bir metreye yayılması, yazılanı
+            // okumayı kolaylaştırmıyor.
+            .readablePane()
     ) {
         // ── üst çubuk ─────────────────────────────────────────────────────
         Row(

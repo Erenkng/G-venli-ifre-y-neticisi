@@ -42,6 +42,7 @@ import app.kasa.data.SettingsStore
 import app.kasa.ui.AuthViewModel
 import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.components.ButtonTone
+import app.kasa.ui.components.readablePane
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.KasaPinField
@@ -137,6 +138,9 @@ fun UnlockScreen(
             .verticalScroll(rememberScrollState())
             .heightIn(min = available)
             .padding(horizontal = 24.dp)
+            // Geniş pencerede alan ortalanıyor: parola kutusunun bir metreye
+            // yayılması yazılanı okumayı kolaylaştırmıyor.
+            .readablePane(UNLOCK_MAX_WIDTH)
             .animateContentSize(KasaMotion.medium()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -334,3 +338,12 @@ private fun formatCooldown(millis: Long): String {
     val seconds = totalSeconds % 60
     return if (minutes > 0) "$minutes:${seconds.toString().padStart(2, '0')}" else "$seconds"
 }
+
+/**
+ * Kilit ekranının en geniş hâli.
+ *
+ * Listelerdekinden dar: burada tek bir metin kutusu ve iki düğme var, satır
+ * uzunluğu diye bir sorun yok. Dar tutmak alanı bir "pencere" gibi
+ * gösteriyor ve gözü tek yere topluyor.
+ */
+private val UNLOCK_MAX_WIDTH = 460.dp
