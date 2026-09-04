@@ -75,7 +75,6 @@ import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.StrengthDot
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.components.glassSurface
-import app.kasa.ui.components.pressRim
 import app.kasa.ui.components.groupPositionOf
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
@@ -488,16 +487,10 @@ private fun LeakAlert(
     modifier: Modifier = Modifier
 ) {
     val colors = KasaTheme.colors
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .glassSurface(RoundedCornerShape(KasaRadius.l), colors.tile)
-            .pressRim(corner = KasaRadius.l, color = colors.strengthWeak)
-            .clickableNoRipple(role = Role.Button, onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
+    // Satırın kabı KasaTile: basınca küçülme, köşe yuvarlanması, kenar ışığı
+    // ve cam yüzey listedeki her satırla aynı. Kendi kabını kurmak, aynı
+    // davranışı ikinci kez — ve zamanla farklı — yazmak olurdu.
+    KasaTile(position = GroupPosition.ONLY, onClick = onOpen, modifier = modifier) {
         Box(
             modifier = Modifier
                 .size(40.dp)
