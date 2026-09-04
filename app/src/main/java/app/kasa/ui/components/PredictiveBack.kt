@@ -144,6 +144,27 @@ fun Modifier.predictiveBack(gesture: BackGesture): Modifier = graphicsLayer {
     shape = RoundedCornerShape(PULL_CORNER * pulled)
 }
 
+/**
+ * Aynı hareket, **itmeli** gezinme için.
+ *
+ * Ayarlarda kategoriler yan yana duruyor: içeri girerken içerik sağdan
+ * geliyor, çıkarken sağa dönüyor. Orada pencere eğretilemesi yanlış olurdu —
+ * kategori ekranı ayrı bir pencere değil, aynı listenin bir sonraki durağı.
+ * Bu yüzden küçülme ve köşe yuvarlanması yok; yalnızca gidilen yolun tersine
+ * kayma ve hafif solma.
+ *
+ * Yön parmağın hangi kenardan geldiğine bakmıyor: itmeli gezinmede geri,
+ * ileri gidilen yolun tersi demek ve o yol her zaman aynı yönde.
+ */
+fun Modifier.predictiveBackPush(gesture: BackGesture): Modifier = graphicsLayer {
+    val raw = gesture.progress
+    if (raw <= 0f) return@graphicsLayer
+
+    val pulled = raw * (2f - raw)
+    translationX = pulled * size.width * PUSH_SHIFT
+    alpha = 1f - pulled * PUSH_FADE
+}
+
 /** Hareket sonunda yüzey bu oranda küçülüyor. */
 private const val PULL_SCALE = 0.11f
 
@@ -152,3 +173,9 @@ private val PULL_SHIFT = 18.dp
 
 /** Ekranı kaplayan sıfır yarıçaptan pencere köşesine. */
 private val PULL_CORNER = 30.dp
+
+/** İtmeli gezinmede geri çekilirken kat edilen yol, genişliğin oranı olarak. */
+private const val PUSH_SHIFT = 0.22f
+
+/** Solma. Tam saydamlığa gitmiyor: bırakılırsa geri gelecek olan bir yüzey. */
+private const val PUSH_FADE = 0.30f

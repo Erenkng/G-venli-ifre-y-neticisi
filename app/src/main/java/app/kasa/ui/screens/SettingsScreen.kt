@@ -1,9 +1,10 @@
 package app.kasa.ui.screens
 
 import app.kasa.ui.components.HeaderCollapse
+import app.kasa.ui.components.predictiveBackPush
+import app.kasa.ui.components.rememberBackGesture
 import app.kasa.ui.components.headerHandoff
 import app.kasa.data.GradientTheme
-import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -286,7 +287,9 @@ fun SettingsScreen(
     // pencereyi açtığını tek bakışta görebilmek olurdu.
     var section by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
 
-    BackHandler(enabled = section != null) { section = null }
+    // Kategoriden çıkış parmakla birlikte yürüyor: kullanıcı kenardan çekerken
+    // içerik gidilen yolun tersine kayıyor, bırakınca oradan devam ediyor.
+    val sectionBack = rememberBackGesture(enabled = section != null) { section = null }
 
     val sectionTitle = section?.let { stringResource(it.titleRes) }
     LaunchedEffect(sectionTitle) { onSectionTitle(sectionTitle) }
@@ -327,7 +330,10 @@ fun SettingsScreen(
         state = listState,
         modifier = modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.statusBars),
+            .windowInsetsPadding(WindowInsets.statusBars)
+            // Yalnızca kategori ekranı çekiliyor. Kök liste geri gidilecek
+            // yerin kendisi; onu da kaydırmak, varılan yeri de yola çıkarırdı.
+            .then(if (current != null) Modifier.predictiveBackPush(sectionBack) else Modifier),
         contentPadding = listContentPadding(),
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
