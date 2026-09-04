@@ -56,7 +56,13 @@
     </g>
 
     <g font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
-      <rect x="408" y="276" width="52" height="2" fill="#A6F0DE" fill-opacity="0.55"/>
+      <text x="408" y="118" font-size="21" font-weight="600" letter-spacing="4.5"
+            fill="#A6F0DE" fill-opacity="0.72">ANDROID 16+ &#183; ÇEVR&#304;MDI&#350;I</text>
+      <text x="404" y="212" font-size="96" font-weight="700" letter-spacing="-2"
+            fill="#EAFFF8">Kasa</text>
+      <rect x="408" y="248" width="52" height="2" fill="#A6F0DE" fill-opacity="0.55"/>
+      <text x="408" y="298" font-size="30" font-weight="400"
+            fill="#A6F0DE" fill-opacity="0.86">Cihazdan çıkmayan parola kasası</text>
     </g>
   </g>
 </svg>
