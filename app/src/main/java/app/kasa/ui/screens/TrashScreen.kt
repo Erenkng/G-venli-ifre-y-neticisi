@@ -3,6 +3,7 @@ package app.kasa.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -49,6 +50,24 @@ import app.kasa.ui.components.groupPositionOf
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaTheme
 import java.util.concurrent.TimeUnit
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import app.kasa.ui.theme.KasaRadius
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DoneAll
+import app.kasa.ui.components.GlassPlate
 
 /**
  * Çöp kutusu — kendi ekranı.
@@ -74,8 +93,20 @@ fun TrashScreen(
     val data by viewModel.data.collectAsStateWithLifecycle()
     val items = remember(data) { data.items.filter { it.inTrash }.sortedByDescending { it.deletedAt } }
     var confirmEmpty by remember { mutableStateOf(false) }
+    var confirmPurge by remember { mutableStateOf(false) }
 
-    BackHandler { onClose() }
+    val selection by viewModel.selection.collectAsStateWithLifecycle()
+    val selecting = selection.isNotEmpty()
+
+    // Ekrandan çıkarken seçim bırakılıyor: kimlikler kasa listesinin seçim
+    // çubuğuyla aynı kümede duruyor ve çöp kutusunda seçilen kayıtlar orada
+    // "12 seçildi" olarak görünürdü — üstelik hepsi silinmiş kayıtlar.
+    DisposableEffect(Unit) { onDispose { viewModel.clearSelection() } }
+
+    // Geri tuşu önce seçimi bırakıyor: otuz kaydı seçtikten sonra ekranın
+    // tamamen kapanması, yapılan işi sessizce çöpe atmak olurdu.
+    BackHandler(enabled = selecting) { viewModel.clearSelection() }
+    BackHandler(enabled = !selecting) { onClose() }
 
     KasaBackground(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -125,31 +156,69 @@ fun TrashScreen(
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = 24.dp
-                    )
-                ) {
-                    itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                        TrashRow(
-                            item = item,
-                            index = index,
-                            total = items.size,
-                            onRestore = { viewModel.restoreFromTrash(item) },
-                            onPurge = { viewModel.purge(item) },
-                            modifier = Modifier.animateItem(
-                                fadeInSpec = KasaMotion.effect(),
-                                placementSpec = KasaMotion.medium(),
-                                fadeOutSpec = KasaMotion.exit()
-                            )
+                Box(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = 24.dp
                         )
-                    }
+                    ) {
+                        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                            TrashRow(
+                                item = item,
+                                index = index,
+                                total = items.size,
+                                selectable = selecting,
+                                selected = item.id in selection,
+                                onRestore = {
+                                    if (selecting) viewModel.toggleSelected(item.id)
+                                    else viewModel.restoreFromTrash(item)
+                                },
+                                onPurge = { viewModel.purge(item) },
+                                onLongPress = { viewModel.startSelection(item.id) },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = KasaMotion.effect(),
+                                    placementSpec = KasaMotion.medium(),
+                                    fadeOutSpec = KasaMotion.exit()
+                                )
+                            )
+                        }
+                }
+
+                // Seçim çubuğu listenin üstünde: kasa listesindekiyle aynı
+                // yerleşim ama farklı eylemler. Burada toplu iş yalnızca iki
+                // şey — geri almak ve kalıcı silmek.
+                TrashSelectionBar(
+                    count = selection.size,
+                    allSelected = items.isNotEmpty() && selection.containsAll(items.map { it.id }),
+                    onSelectAll = { viewModel.toggleSelectAll(items.map { it.id }) },
+                    onRestore = viewModel::restoreSelected,
+                    onPurge = { confirmPurge = true },
+                    onClose = viewModel::clearSelection,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 20.dp)
+                )
                 }
             }
         }
+    }
+
+    if (confirmPurge) {
+        ConfirmDialog(
+            title = stringResource(R.string.bulk_purge_title),
+            body = stringResource(R.string.bulk_purge_body, selection.size),
+            confirmText = stringResource(R.string.delete_forever),
+            dismissText = stringResource(R.string.cancel),
+            destructive = true,
+            onConfirm = {
+                confirmPurge = false
+                viewModel.purgeSelected()
+            },
+            onDismiss = { confirmPurge = false }
+        )
     }
 
     if (confirmEmpty) {
@@ -175,7 +244,10 @@ private fun TrashRow(
     total: Int,
     onRestore: () -> Unit,
     onPurge: () -> Unit,
-    modifier: Modifier = Modifier
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier,
+    selectable: Boolean = false,
+    selected: Boolean = false
 ) {
     val daysLeft = remember(item.deletedAt) {
         val elapsed = System.currentTimeMillis() - item.deletedAt
@@ -183,8 +255,13 @@ private fun TrashRow(
         (VaultRepository.TRASH_RETENTION_DAYS - days).coerceAtLeast(0)
     }
 
-    KasaTile(position = groupPositionOf(index, total), onClick = onRestore, modifier = modifier) {
-        EntryBadge(item = item)
+    KasaTile(
+        position = groupPositionOf(index, total),
+        onClick = onRestore,
+        onLongClick = if (selectable) null else onLongPress,
+        modifier = modifier
+    ) {
+        if (selectable) TrashSelectionMark(selected = selected) else EntryBadge(item = item)
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(
                 text = item.name,
@@ -199,7 +276,9 @@ private fun TrashRow(
                 color = if (daysLeft <= 3) KasaTheme.colors.badgeWeakFg else KasaTheme.colors.ink2
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Seçim kipinde satır düğmeleri gizleniyor: aynı satırda hem "bunu geri
+        // al" hem "bunu seç" olması, dokunuşun ne yapacağını belirsiz kılıyor.
+        if (!selectable) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             KasaIconButton(onClick = onRestore, contentDescription = stringResource(R.string.restore)) {
                 Icon(
                     Icons.Rounded.Restore,
@@ -219,4 +298,136 @@ private fun TrashRow(
         }
     }
     Spacer(Modifier.height(2.dp))
+}
+
+/**
+ * Çöp kutusundaki satırın seçim işareti.
+ *
+ * Kasa listesindekiyle aynı biçim ama ayrı bir işlev: ikisi farklı dosyalarda
+ * ve birini ortak bir yere taşımak, iki ekranın rozet yerleşimini de birbirine
+ * bağlardı. Aynı görünen iki şeyin aynı olmak zorunda olmadığı yer burası —
+ * çöp kutusunda rozet kalan günü de taşımıyor.
+ */
+@Composable
+private fun TrashSelectionMark(selected: Boolean) {
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1f else 0.86f,
+        animationSpec = KasaMotion.small(),
+        label = "trashSelectionMark"
+    )
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(KasaRadius.full))
+            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+            .then(
+                if (selected) Modifier
+                else Modifier.border(
+                    2.dp,
+                    KasaTheme.colors.ink3.copy(alpha = 0.45f),
+                    RoundedCornerShape(KasaRadius.full)
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Rounded.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Çöp kutusunun seçim çubuğu.
+ *
+ * Kasa listesindekinden ayrı, çünkü eylemleri ayrı: burada bir kaydı sık
+ * kullanılana eklemenin ya da klasöre taşımanın karşılığı yok. Ortak bir
+ * çubuk yazıp eylemleri parametreye almak mümkündü ama o zaman iki ekranın
+ * eylem takımı tek bir yerde birbirine bağlanırdı ve birine eklenen her şey
+ * ötekinde "burada görünmesin" koşulu doğururdu.
+ */
+@Composable
+private fun TrashSelectionBar(
+    count: Int,
+    allSelected: Boolean,
+    onSelectAll: () -> Unit,
+    onRestore: () -> Unit,
+    onPurge: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = count > 0,
+        modifier = modifier,
+        enter = slideInVertically(KasaMotion.medium()) { it } + fadeIn(KasaMotion.enter()),
+        exit = slideOutVertically(KasaMotion.exit()) { it } + fadeOut(KasaMotion.exit())
+    ) {
+        GlassPlate(
+            shape = RoundedCornerShape(KasaRadius.full),
+            modifier = Modifier.padding(horizontal = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.bulk_selected, count),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = KasaTheme.colors.ink
+                )
+                Row(modifier = Modifier.padding(start = 10.dp)) {
+                    TrashBarAction(
+                        icon = Icons.Rounded.DoneAll,
+                        label = stringResource(R.string.bulk_select_all),
+                        accent = allSelected,
+                        onClick = onSelectAll
+                    )
+                    TrashBarAction(
+                        icon = Icons.Rounded.Restore,
+                        label = stringResource(R.string.bulk_restore),
+                        onClick = onRestore
+                    )
+                    TrashBarAction(
+                        icon = Icons.Rounded.DeleteForever,
+                        label = stringResource(R.string.delete_forever),
+                        danger = true,
+                        onClick = onPurge
+                    )
+                    TrashBarAction(
+                        icon = Icons.Rounded.Close,
+                        label = stringResource(R.string.bulk_clear),
+                        onClick = onClose
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrashBarAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    accent: Boolean = false,
+    danger: Boolean = false
+) {
+    KasaIconButton(onClick = onClick, size = 48.dp, contentDescription = label) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = when {
+                danger -> KasaTheme.colors.strengthWeak
+                accent -> MaterialTheme.colorScheme.primary
+                else -> KasaTheme.colors.ink2
+            },
+            modifier = Modifier.size(21.dp)
+        )
+    }
 }

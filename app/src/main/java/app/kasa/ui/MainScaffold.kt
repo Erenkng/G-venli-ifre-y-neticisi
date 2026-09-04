@@ -219,7 +219,13 @@ fun MainScaffold(
 
     // Geri tuşu: en üstteki katmanı kapat, hiçbiri yoksa kasa sekmesine dön.
     BackHandler(enabled = qrTarget != null) { qrTarget = null }
-    BackHandler(enabled = qrTarget == null && trashOpen) { trashOpen = false }
+    BackHandler(enabled = qrTarget == null && trashOpen) {
+        // Seçim kümesi kasayla çöp kutusu arasında ortak. Geçişte
+        // temizlenmezse çöp kutusunda "3 seçildi" yazarken silinecek olan
+        // kasadaki üç kayıt oluyordu; kalıcı silmede bunun bedeli ağır.
+        vaultViewModel.clearSelection()
+        trashOpen = false
+    }
     BackHandler(enabled = qrTarget == null && editing != null) { vaultViewModel.cancelEdit() }
     BackHandler(enabled = qrTarget == null && editing == null && selectedItem != null) {
         vaultViewModel.dismissDetail()
@@ -389,7 +395,10 @@ fun MainScaffold(
                             vaultViewModel = vaultViewModel,
                             onHeaderCollapse = { headerCollapse.floatValue = it },
                             onSectionTitle = { settingsSection = it },
-                            onOpenTrash = { trashOpen = true }
+                            onOpenTrash = {
+                                vaultViewModel.clearSelection()
+                                trashOpen = true
+                            }
                         )
                     }
                 }
@@ -468,8 +477,10 @@ fun MainScaffold(
             // Seçim kasa sekmesine ait. Başka sekmedeyken seçim **duruyor**
             // (kullanıcı klasörlerine bakıp dönebilsin diye) ama çubuk
             // görünmüyor: ayarlar ekranının üstünde duran bir "12 seçildi"
-            // çubuğu, orada işe yaramayan bir eylem takımı demek.
-            count = if (tab == TAB_VAULT) selection.size else 0,
+            // çubuğu, orada işe yaramayan bir eylem takımı demek. Çöp kutusu
+            // da aynı sebeple dışarıda: kendi seçim çubuğu var ve tam ekran
+            // açılırken iki çubuk birbirinin üstünden geçiyordu.
+            count = if (tab == TAB_VAULT && !trashOpen) selection.size else 0,
             allSelected = allVisibleSelected,
             onSelectAll = vaultViewModel::toggleSelectAllVisible,
             onFavorite = { vaultViewModel.favoriteSelected(true) },
@@ -650,7 +661,13 @@ fun MainScaffold(
                 animationSpec = KasaMotion.exit()
             ) + fadeOut(KasaMotion.exit())
         ) {
-            TrashScreen(viewModel = vaultViewModel, onClose = { trashOpen = false })
+            TrashScreen(
+                viewModel = vaultViewModel,
+                onClose = {
+                    vaultViewModel.clearSelection()
+                    trashOpen = false
+                }
+            )
         }
 
         if (typePickerOpen) {

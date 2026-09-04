@@ -485,6 +485,21 @@ class VaultRepository(
         }
     }
 
+    /**
+     * Birden çok kaydı geri dönüşsüz siler.
+     *
+     * Ekler kasadan **sonra** siliniyor: dosyaları önce silip sonra yazımın
+     * başarısız olması, kasada duran ama eki olmayan kayıtlar bırakırdı. Tersi
+     * durumda en fazla sahipsiz dosya kalıyor ve o zararsız.
+     */
+    suspend fun purge(ids: Set<String>): Boolean {
+        if (ids.isEmpty()) return false
+        val doomed = _data.value.items.filter { it.id in ids }
+        val ok = mutate { current -> current.copy(items = current.items.filterNot { it.id in ids }) }
+        if (ok) doomed.flatMap { it.attachments }.forEach { store.deleteAttachment(it.id) }
+        return ok
+    }
+
     /** Toplu geri alma: [moveToTrash] ile aynı gerekçe. */
     suspend fun restoreFromTrash(ids: Set<String>): Boolean {
         if (ids.isEmpty()) return false

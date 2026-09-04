@@ -268,6 +268,45 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /** Seçili kayıtları çöp kutusundan geri alır. */
+    fun restoreSelected() {
+        val ids = _selection.value
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            if (repository.restoreFromTrash(ids)) {
+                container.haptics.play(Haptics.Kind.UNDO)
+                _selection.value = emptySet()
+                messages.send(UiMessage(R.string.bulk_restored, listOf(ids.size)))
+            }
+        }
+    }
+
+    /**
+     * Seçili kayıtları geri dönüşsüz siler.
+     *
+     * Geri alma **yok**: silinen şey artık hiçbir yerde durmuyor ve bir
+     * "geri al" şeridi, kullanıcıya olmayan bir güvence verirdi. Onay
+     * penceresi bu yüzden çağrı yerinde, işlemden önce.
+     */
+    fun purgeSelected() {
+        val ids = _selection.value
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            if (repository.purge(ids)) {
+                container.haptics.play(Haptics.Kind.DESTRUCTIVE)
+                _selection.value = emptySet()
+                messages.send(UiMessage(R.string.bulk_purged, listOf(ids.size)))
+            }
+        }
+    }
+
+    /** Verilen kayıtların hepsini seçer; hepsi zaten seçiliyse seçimi kaldırır. */
+    fun toggleSelectAll(ids: List<String>) {
+        val all = ids.toSet()
+        _selection.value = if (all.isNotEmpty() && _selection.value.containsAll(all)) emptySet() else all
+        container.haptics.play(Haptics.Kind.TOGGLE)
+    }
+
     fun favoriteSelected(favorite: Boolean) {
         val ids = _selection.value
         if (ids.isEmpty()) return

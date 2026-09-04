@@ -125,6 +125,11 @@
     <string name="bulk_moved">%1$d kayıt taşındı</string>
     <string name="bulk_folder">Klasöre taşı</string>
     <string name="bulk_no_folder">Klasörsüz</string>
+    <string name="bulk_restored">%1$d kayıt geri alındı</string>
+    <string name="bulk_purged">%1$d kayıt kalıcı olarak silindi</string>
+    <string name="bulk_purge_title">Seçilenler kalıcı olarak silinsin mi?</string>
+    <string name="bulk_purge_body">%1$d kayıt ve ekleri geri dönüşsüz silinecek. Bu işlem geri alınamaz.</string>
+    <string name="bulk_restore">Geri al</string>
     <string name="vault_clear_filters">Süzgeçleri temizle</string>
     <string name="leak_alert_title">%1$d parolan sızıntılarda görüldü</string>
     <string name="leak_alert_sub">Bu parolalar başkasının elinde. Değiştirmek için dokun.</string>
