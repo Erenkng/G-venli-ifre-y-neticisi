@@ -3,7 +3,7 @@ package app.kasa.ui.screens
 import app.kasa.ui.components.staggeredReveal
 import app.kasa.ui.components.REVEAL_WINDOW_MILLIS
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.delay
 import app.kasa.ui.components.HeaderCollapse
 import app.kasa.ui.components.headerHandoff
