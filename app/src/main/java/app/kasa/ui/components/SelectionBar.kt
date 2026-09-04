@@ -7,11 +7,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -73,11 +70,13 @@ fun SelectionBar(
         enter = slideInVertically(KasaMotion.medium()) { it } + fadeIn(KasaMotion.enter()),
         exit = slideOutVertically(KasaMotion.exit()) { it } + fadeOut(KasaMotion.exit())
     ) {
+        // Sistem çubuğu boşluğu burada **eklenmiyor**: çubuğu yerleştiren
+        // taraf onu gezinme çubuğunun tamamı kadar yukarı kaldırıyor ve o
+        // mesafe sistem boşluğunu zaten içeriyor. İkisini birden uygulamak
+        // çubuğu bir sistem çubuğu yüksekliği kadar fazla kaldırıyordu.
         GlassPlate(
             shape = RoundedCornerShape(KasaRadius.full),
-            modifier = Modifier
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(horizontal = 14.dp)
+            modifier = Modifier.padding(horizontal = 14.dp)
         ) {
             Row(
                 modifier = Modifier.padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
@@ -134,7 +133,10 @@ private fun BarAction(
     accent: Boolean = false,
     danger: Boolean = false
 ) {
-    KasaIconButton(onClick = onClick, size = 42.dp, contentDescription = label) {
+    // 48dp Android'in en küçük dokunma hedefi. Çubuktaki beş düğme yan yana
+    // duruyor ve küçük olanlar birbirine yakın: yanlış düğmeye basmanın
+    // sonucu burada 'kayıt silindi' olabiliyor.
+    KasaIconButton(onClick = onClick, size = 48.dp, contentDescription = label) {
         Icon(
             imageVector = icon,
             contentDescription = null,

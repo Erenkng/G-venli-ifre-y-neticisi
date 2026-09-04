@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -360,12 +359,6 @@ private fun SkeletonBlock(
                 )
             )
     )
-}
-
-/** Boş bir sütun yüksekliği: iskelet ile gerçek satırın hizası bozulmasın. */
-@Composable
-fun SkeletonSpacer(height: Dp) {
-    Spacer(Modifier.height(height).width(0.dp))
 }
 
 /** Dönüş süresi. Daha hızlısı acele, daha yavaşı takılmış görünüyor. */
