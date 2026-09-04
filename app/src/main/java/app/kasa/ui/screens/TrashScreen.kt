@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -26,11 +25,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,6 +40,8 @@ import app.kasa.data.model.VaultItem
 import app.kasa.data.repo.VaultRepository
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
+import app.kasa.ui.components.SelectionAction
+import app.kasa.ui.components.SelectionBar
 import app.kasa.ui.components.KasaBackground
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaIconButton
@@ -60,14 +61,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import app.kasa.ui.theme.KasaRadius
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.DoneAll
-import app.kasa.ui.components.GlassPlate
 
 /**
  * Çöp kutusu — kendi ekranı.
@@ -185,22 +178,32 @@ fun TrashScreen(
                                 )
                             )
                         }
-                }
+                    }
 
-                // Seçim çubuğu listenin üstünde: kasa listesindekiyle aynı
-                // yerleşim ama farklı eylemler. Burada toplu iş yalnızca iki
-                // şey — geri almak ve kalıcı silmek.
-                TrashSelectionBar(
-                    count = selection.size,
-                    allSelected = items.isNotEmpty() && selection.containsAll(items.map { it.id }),
-                    onSelectAll = { viewModel.toggleSelectAll(items.map { it.id }) },
-                    onRestore = viewModel::restoreSelected,
-                    onPurge = { confirmPurge = true },
-                    onClose = viewModel::clearSelection,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 20.dp)
-                )
+                    // Seçim çubuğu listenin üstünde: kasa listesindekiyle aynı
+                    // yerleşim ama farklı eylemler. Burada toplu iş yalnızca iki
+                    // şey — geri almak ve kalıcı silmek.
+                    SelectionBar(
+                        count = selection.size,
+                        allSelected = items.isNotEmpty() && selection.containsAll(items.map { it.id }),
+                        onSelectAll = { viewModel.toggleSelectAll(items.map { it.id }) },
+                        onClose = viewModel::clearSelection,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 20.dp)
+                    ) {
+                        SelectionAction(
+                            icon = Icons.Rounded.Restore,
+                            label = stringResource(R.string.bulk_restore),
+                            onClick = viewModel::restoreSelected
+                        )
+                        SelectionAction(
+                            icon = Icons.Rounded.DeleteForever,
+                            label = stringResource(R.string.delete_forever),
+                            danger = true,
+                            onClick = { confirmPurge = true }
+                        )
+                    }
                 }
             }
         }
@@ -351,83 +354,4 @@ private fun TrashSelectionMark(selected: Boolean) {
  * eylem takımı tek bir yerde birbirine bağlanırdı ve birine eklenen her şey
  * ötekinde "burada görünmesin" koşulu doğururdu.
  */
-@Composable
-private fun TrashSelectionBar(
-    count: Int,
-    allSelected: Boolean,
-    onSelectAll: () -> Unit,
-    onRestore: () -> Unit,
-    onPurge: () -> Unit,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AnimatedVisibility(
-        visible = count > 0,
-        modifier = modifier,
-        enter = slideInVertically(KasaMotion.medium()) { it } + fadeIn(KasaMotion.enter()),
-        exit = slideOutVertically(KasaMotion.exit()) { it } + fadeOut(KasaMotion.exit())
-    ) {
-        GlassPlate(
-            shape = RoundedCornerShape(KasaRadius.full),
-            modifier = Modifier.padding(horizontal = 14.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.bulk_selected, count),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = KasaTheme.colors.ink
-                )
-                Row(modifier = Modifier.padding(start = 10.dp)) {
-                    TrashBarAction(
-                        icon = Icons.Rounded.DoneAll,
-                        label = stringResource(R.string.bulk_select_all),
-                        accent = allSelected,
-                        onClick = onSelectAll
-                    )
-                    TrashBarAction(
-                        icon = Icons.Rounded.Restore,
-                        label = stringResource(R.string.bulk_restore),
-                        onClick = onRestore
-                    )
-                    TrashBarAction(
-                        icon = Icons.Rounded.DeleteForever,
-                        label = stringResource(R.string.delete_forever),
-                        danger = true,
-                        onClick = onPurge
-                    )
-                    TrashBarAction(
-                        icon = Icons.Rounded.Close,
-                        label = stringResource(R.string.bulk_clear),
-                        onClick = onClose
-                    )
-                }
-            }
-        }
-    }
-}
 
-@Composable
-private fun TrashBarAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    accent: Boolean = false,
-    danger: Boolean = false
-) {
-    KasaIconButton(onClick = onClick, size = 48.dp, contentDescription = label) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = when {
-                danger -> KasaTheme.colors.strengthWeak
-                accent -> MaterialTheme.colorScheme.primary
-                else -> KasaTheme.colors.ink2
-            },
-            modifier = Modifier.size(21.dp)
-        )
-    }
-}

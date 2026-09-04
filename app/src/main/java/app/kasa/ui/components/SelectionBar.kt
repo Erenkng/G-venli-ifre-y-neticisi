@@ -12,10 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DoneAll
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,11 +55,9 @@ fun SelectionBar(
     count: Int,
     allSelected: Boolean,
     onSelectAll: () -> Unit,
-    onFavorite: () -> Unit,
-    onMoveToFolder: () -> Unit,
-    onTrash: () -> Unit,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    actions: @Composable () -> Unit
 ) {
     AnimatedVisibility(
         visible = count > 0,
@@ -92,29 +87,18 @@ fun SelectionBar(
                     modifier = Modifier.padding(start = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    BarAction(
+                    // Uçlar sabit: seçimi genişleten iş solda, seçimi
+                    // bitiren sağda. Aradaki eylemler bulunulan yere göre
+                    // değişiyor ama bu iki uç her yerde aynı yerde duruyor,
+                    // yani parmak onları aramıyor.
+                    SelectionAction(
                         icon = Icons.Rounded.DoneAll,
                         label = stringResource(R.string.bulk_select_all),
                         accent = allSelected,
                         onClick = onSelectAll
                     )
-                    BarAction(
-                        icon = Icons.Rounded.Star,
-                        label = stringResource(R.string.add_to_favorites),
-                        onClick = onFavorite
-                    )
-                    BarAction(
-                        icon = Icons.Rounded.Folder,
-                        label = stringResource(R.string.bulk_folder),
-                        onClick = onMoveToFolder
-                    )
-                    BarAction(
-                        icon = Icons.Rounded.Delete,
-                        label = stringResource(R.string.delete),
-                        danger = true,
-                        onClick = onTrash
-                    )
-                    BarAction(
+                    actions()
+                    SelectionAction(
                         icon = Icons.Rounded.Close,
                         label = stringResource(R.string.bulk_clear),
                         onClick = onClose
@@ -125,8 +109,17 @@ fun SelectionBar(
     }
 }
 
+/**
+ * Seçim çubuğundaki tek bir eylem.
+ *
+ * Çubuğun kendisi genel; hangi eylemleri taşıyacağını çağıran taraf
+ * söylüyor. Kasa listesinde sık kullanılana ekleme, klasöre taşıma ve çöpe
+ * atma var; çöp kutusunda geri alma ve kalıcı silme. İkisi için iki ayrı
+ * çubuk yazmak, ikisinin zamanla ayrışması demekti — nitekim ayrışmıştı da:
+ * kopyada düğmeler arasındaki boşluk yoktu.
+ */
 @Composable
-private fun BarAction(
+fun SelectionAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,

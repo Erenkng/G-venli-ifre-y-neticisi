@@ -26,6 +26,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CreditCard
@@ -79,6 +82,7 @@ import app.kasa.ui.components.KasaNavBar
 import app.kasa.ui.components.KasaSnackbarHost
 import app.kasa.ui.components.KasaTopBar
 import app.kasa.ui.components.NavDestination
+import app.kasa.ui.components.SelectionAction
 import app.kasa.ui.components.SelectionBar
 import app.kasa.ui.components.predictiveBack
 import app.kasa.ui.components.rememberBackGesture
@@ -487,14 +491,28 @@ fun MainScaffold(
             count = if (tab == TAB_VAULT && !trashOpen) selection.size else 0,
             allSelected = allVisibleSelected,
             onSelectAll = vaultViewModel::toggleSelectAllVisible,
-            onFavorite = { vaultViewModel.favoriteSelected(true) },
-            onMoveToFolder = { folderPickerOpen = true },
-            onTrash = { vaultViewModel.trashSelected() },
             onClose = { vaultViewModel.clearSelection() },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = SELECTION_BAR_LIFT)
-        )
+        ) {
+            SelectionAction(
+                icon = Icons.Rounded.Star,
+                label = stringResource(R.string.add_to_favorites),
+                onClick = { vaultViewModel.favoriteSelected(true) }
+            )
+            SelectionAction(
+                icon = Icons.Rounded.Folder,
+                label = stringResource(R.string.bulk_folder),
+                onClick = { folderPickerOpen = true }
+            )
+            SelectionAction(
+                icon = Icons.Rounded.Delete,
+                label = stringResource(R.string.delete),
+                danger = true,
+                onClick = { vaultViewModel.trashSelected() }
+            )
+        }
 
         if (folderPickerOpen) {
             FolderPickerSheet(
