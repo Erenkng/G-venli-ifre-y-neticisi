@@ -41,9 +41,9 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import app.kasa.KasaApplication
 import app.kasa.R
-import app.kasa.core.util.Totp
+import app.kasa.core.util.PasswordGenerator
+import app.kasa.core.crypto.SecretText
 import app.kasa.data.SettingsStore
-import app.kasa.data.model.Category
 import app.kasa.data.model.VaultItem
 import app.kasa.data.repo.VaultRepository
 import app.kasa.ui.BiometricGate
@@ -78,20 +78,24 @@ class AutofillUnlockActivity : FragmentActivity() {
 
         val container = KasaApplication.container(this)
         val repository = container.vaultRepository
-        val browsing = intent.getBooleanExtra(EXTRA_BROWSE, false)
+        val mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_UNLOCK
 
         if (repository.isUnlocked) {
-            // Eşleşmeyen bir uygulamaya kimlik bilgisi vermek ayrı bir karar:
-            // kasa açık olsa bile burada bir kez daha kim olduğu soruluyor.
-            if (browsing) {
+            // Eşleşmeyen bir uygulamaya kimlik bilgisi vermek ya da yeni bir
+            // kayıt açmak ayrı bir karar: kasa açık olsa bile burada bir kez
+            // daha kim olduğu soruluyor.
+            if (mode == MODE_UNLOCK) {
+                finishWithResponse(mode)
+            } else {
                 BiometricGate(this).authenticatePresence(
-                    title = getString(R.string.af_browse_entry),
+                    title = getString(
+                        if (mode == MODE_GENERATE) R.string.af_generate_entry
+                        else R.string.af_browse_entry
+                    ),
                     subtitle = getString(R.string.af_unlock_prompt),
-                    onSuccess = { finishWithResponse() },
+                    onSuccess = { finishWithResponse(mode) },
                     onCancel = { setResult(Activity.RESULT_CANCELED); finish() }
                 )
-            } else {
-                finishWithResponse()
             }
             return
         }
@@ -108,15 +112,15 @@ class AutofillUnlockActivity : FragmentActivity() {
                 UnlockDialog(
                     repository = repository,
                     biometricEnabled = settings.biometricUnlock,
-                    onUnlocked = { finishWithResponse() },
+                    onUnlocked = { finishWithResponse(mode) },
                     onCancel = { setResult(Activity.RESULT_CANCELED); finish() }
                 )
             }
         }
     }
 
-    /** Kasa açıldı: eşleşen kayıtlardan gerçek veri kümelerini kur ve dön. */
-    private fun finishWithResponse() {
+    /** Kasa açıldı: istenen işi yap ve doldurulacak yanıtı geri ver. */
+    private fun finishWithResponse(mode: String) {
         val structure = intent.getParcelableExtra<android.app.assist.AssistStructure>(
             AutofillManager.EXTRA_ASSIST_STRUCTURE
         )
@@ -129,17 +133,26 @@ class AutofillUnlockActivity : FragmentActivity() {
         val parsed = StructureParser(structure).parse()
         val repository = KasaApplication.container(this).vaultRepository
         val caller = CallerIdentity.of(this, parsed.packageName, parsed.webDomain, parsed.isBrowser)
-        val candidates = repository.autofillCandidates()
 
-        val matched = AutofillMatcher.offline(candidates, caller).map { it.item }
+        if (mode == MODE_GENERATE) {
+            generateAndFinish(structure, parsed, caller, repository)
+            return
+        }
+
+        val candidates = repository.autofillCandidates()
+        val matched = AutofillMatcher.offline(candidates, caller, parsed.kind).map { it.item }
 
         // Eşleşme yoksa kullanıcı kendi seçsin diye son kullanılan kayıtlar
         // listeleniyor. Bu liste bir **öneri** değil, bir seçim ekranı: buraya
         // gelinmiş olması zaten hiçbir güvenilir bağın kurulamadığı anlamına
         // geliyor ve kullanıcı hangi uygulamanın istediğini görerek seçiyor.
+        //
+        // Liste formun türüne göre süzülüyor: ödeme formunda kartlar, giriş
+        // formunda girişler. Karışık bir liste, kullanıcıya oraya
+        // yazılamayacak kayıtları seçtirmeye çalışırdı.
         val offered = matched.ifEmpty {
             candidates
-                .filter { !it.requireAuth && it.category == Category.LOGIN }
+                .filter { AutofillMatcher.fillable(it, parsed.kind) }
                 .sortedByDescending { it.lastUsedAt }
                 .take(8)
         }
@@ -175,43 +188,117 @@ class AutofillUnlockActivity : FragmentActivity() {
     }
 
     /**
+     * Üye olma formu: yeni parola üret, kasaya yaz, alanları doldur.
+     *
+     * ### Neden önce kasaya yazılıyor
+     *
+     * Kaydetme akışının çalışacağına güvenmek burada yeterli değil. Uygulama
+     * kaydetmeyi tetiklemezse — ki bölünmüş formlarda bu sık oluyor —
+     * kullanıcı, bir daha hiçbir yerde bulamayacağı bir parolayla üye olmuş
+     * oluyor. Kaybedilen şey bir kayıt değil, hesabın kendisi. Kullanıcı üye
+     * olmaktan vazgeçerse kasada kullanılmayan bir kayıt kalıyor; iki
+     * sonucun bedeli arasında karşılaştırma bile yok.
+     *
+     * Kullanıcı adı formun kendisinden okunuyor: kullanıcı onu zaten yazmış
+     * oluyor ve kayıt o adla açılınca kasada aranabilir hâle geliyor.
+     */
+    private fun generateAndFinish(
+        structure: android.app.assist.AssistStructure,
+        parsed: StructureParser.Result,
+        caller: CallerIdentity,
+        repository: VaultRepository
+    ) {
+        if (parsed.passwordIds.isEmpty()) {
+            setResult(Activity.RESULT_CANCELED)
+            finish()
+            return
+        }
+
+        val generated = PasswordGenerator.generate(PasswordGenerator.Options())
+        val username = parsed.usernameId?.let { readValue(structure, it) }.orEmpty()
+        val name = parsed.webDomain
+            ?: parsed.packageName?.substringAfterLast('.')?.replaceFirstChar { it.uppercase() }
+            ?: getString(R.string.app_name)
+
+        val presentation = RemoteViews(packageName, R.layout.autofill_dataset).apply {
+            setTextViewText(R.id.autofill_title, getString(R.string.af_generate_entry))
+            setTextViewText(R.id.autofill_subtitle, name)
+        }
+
+        val builder = Dataset.Builder()
+        parsed.passwordIds.forEach { id ->
+            builder.setValue(id, AutofillValue.forText(generated.value), presentation)
+        }
+        val usernameId = parsed.usernameId
+        if (usernameId != null && username.isNotBlank()) {
+            builder.setValue(usernameId, AutofillValue.forText(username), presentation)
+        }
+
+        val response = FillResponse.Builder().addDataset(builder.build()).build()
+
+        lifecycleScope.launch {
+            repository.saveFromAutofill(
+                name = name,
+                username = username,
+                password = SecretText.of(generated.value),
+                url = parsed.webDomain.orEmpty(),
+                linkToken = caller.linkToken()
+            )
+            val result = Intent().putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, response)
+            setResult(Activity.RESULT_OK, result)
+            finish()
+        }
+    }
+
+    /**
      * Tek kayıttan veri kümesi.
      *
-     * Kod alanı varsa ve kayıtta TOTP anahtarı bulunuyorsa kod da yazılıyor;
-     * servisin doldurma yoluyla aynı davranış, çünkü kullanıcı için ikisi
-     * arasında bir fark yok.
+     * Hangi alana ne yazılacağına [AutofillFiller] karar veriyor — servisin
+     * doldurma yoluyla birebir aynı mantık, çünkü kullanıcı için "önerilen
+     * kayıt" ile "seçtiğim kayıt" arasında bir fark yok.
      */
     private fun buildDataset(parsed: StructureParser.Result, item: VaultItem): Dataset? {
-        val code = if (parsed.otpId != null && item.totpSecret.isNotBlank()) {
-            Totp.code(item.totpSecret, item.totpDigits, item.totpPeriod, item.totpAlgorithm)
-        } else null
-
-        if (parsed.otpOnly && code == null) return null
+        val fields = AutofillFiller.values(parsed, item)
+        if (fields.isEmpty()) return null
 
         val presentation = RemoteViews(packageName, R.layout.autofill_dataset).apply {
             setTextViewText(R.id.autofill_title, item.name)
-            setTextViewText(
-                R.id.autofill_subtitle,
-                if (parsed.otpOnly) getString(R.string.af_otp_subtitle)
-                else item.username.ifBlank { item.host().orEmpty() }
-            )
+            setTextViewText(R.id.autofill_subtitle, AutofillFiller.subtitle(this@AutofillUnlockActivity, parsed, item))
         }
 
-        var wrote = false
         val builder = Dataset.Builder()
-        fun put(id: android.view.autofill.AutofillId?, value: String?) {
-            if (id == null || value == null) return
-            builder.setValue(id, AutofillValue.forText(value), presentation)
-            wrote = true
+        fields.forEach { field ->
+            builder.setValue(field.id, AutofillValue.forText(field.value), presentation)
         }
+        return builder.build()
+    }
 
-        if (!parsed.otpOnly) {
-            put(parsed.usernameId, item.username.takeIf { it.isNotBlank() })
-            put(parsed.passwordId, item.password.reveal().takeIf { it.isNotBlank() })
+    /** Formda kullanıcının yazdığı değer. */
+    private fun readValue(
+        structure: android.app.assist.AssistStructure,
+        id: android.view.autofill.AutofillId
+    ): String? {
+        for (i in 0 until structure.windowNodeCount) {
+            val found = readValue(structure.getWindowNodeAt(i).rootViewNode, id)
+            if (found != null) return found
         }
-        put(parsed.otpId, code)
+        return null
+    }
 
-        return if (wrote) builder.build() else null
+    private fun readValue(
+        node: android.app.assist.AssistStructure.ViewNode,
+        id: android.view.autofill.AutofillId
+    ): String? {
+        if (node.autofillId == id) {
+            val value = node.autofillValue
+            if (value != null && value.isText) return value.textValue.toString()
+            node.text?.let { return it.toString() }
+        }
+        for (i in 0 until node.childCount) {
+            val found = readValue(node.getChildAt(i), id)
+            if (found != null) return found
+        }
+        return null
     }
 
     @Composable
@@ -322,10 +409,28 @@ class AutofillUnlockActivity : FragmentActivity() {
     }
 
     companion object {
+        /** Bu ekranın ne yapacağı. Değerleri [MODE_UNLOCK] ve arkadaşları. */
+        const val EXTRA_MODE = "app.kasa.autofill.MODE"
+
+        /** Kasa kilitli; açıldıktan sonra eşleşen kayıtlar doldurulacak. */
+        const val MODE_UNLOCK = "unlock"
+
         /**
-         * "Kasa'dan seç" akışı. Eşleşme bulunamadığında otomatik doldurma
-         * servisi bu bayrakla geliyor ve burada ek doğrulama isteniyor.
+         * "Kasa'dan seç" akışı. Eşleşme bulunamadığında servis bu kiple
+         * geliyor ve burada ek doğrulama isteniyor: eşleşmeyen bir uygulamaya
+         * kimlik bilgisi vermek, eşleşen birine vermekten farklı bir karar.
          */
-        const val EXTRA_BROWSE = "app.kasa.autofill.BROWSE"
+        const val MODE_BROWSE = "browse"
+
+        /**
+         * Üye olma formunda yeni parola üret.
+         *
+         * Üretilen parola aynı anda kasaya da yazılıyor. Yalnızca doldurup
+         * kaydetmemek, kullanıcıyı bir daha hiçbir yerde bulamayacağı bir
+         * parolayla üye yapmak olurdu — kaydetme akışının çalışacağına
+         * güvenmek burada yeterli değil, çünkü çalışmadığında kaybedilen şey
+         * hesabın kendisi.
+         */
+        const val MODE_GENERATE = "generate"
     }
 }

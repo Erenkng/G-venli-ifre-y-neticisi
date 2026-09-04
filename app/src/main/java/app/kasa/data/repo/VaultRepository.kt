@@ -1366,6 +1366,71 @@ class VaultRepository(
         return if (ok) AutofillSaveOutcome.CREATED else AutofillSaveOutcome.FAILED
     }
 
+    /**
+     * Otomatik doldurmadan gelen kart.
+     *
+     * ### Aynı kart mı, yenisi mi
+     *
+     * Ayrım **numaranın son dört hanesi** üzerinden yapılıyor. Tam numarayı
+     * karşılaştırmak daha kesin görünüyor ama kullanıcı ödeme formuna numarayı
+     * çoğu zaman boşluklu ya da eksik yazıyor ve o karşılaştırma sürekli
+     * "yeni kart" diyerek kasayı kopyalarla dolduruyordu. Son dört hane hem
+     * kartın kendi üstünde hem her ekstrede yazan tanıtıcı; iki farklı kartın
+     * son dördünün de aynı olma olasılığı, kopya kart üretmenin bedeli
+     * yanında küçük.
+     *
+     * Güvenlik kodu **hiçbir zaman güncellenmiyor**, yalnızca yeni kartta
+     * yazılıyor. Bir formdan okunan CVV, kartın kendisi değişmediği hâlde
+     * kasadakini ezerse ve okunan değer yanlışsa (kullanıcı yanlış yazıp
+     * düzeltmiş olabilir) kasadaki doğru değer kaybolurdu.
+     */
+    suspend fun saveCardFromAutofill(
+        name: String,
+        number: String,
+        holder: String,
+        expiry: String,
+        cvv: String,
+        linkToken: String?
+    ): AutofillSaveOutcome {
+        val digits = number.filter { it.isDigit() }
+        if (digits.length < 12) return AutofillSaveOutcome.FAILED
+
+        val tail = digits.takeLast(4)
+        val target = _data.value.liveItems.firstOrNull { item ->
+            item.category == Category.CARD &&
+                item.cardNumber.filter { it.isDigit() }.takeLast(4) == tail
+        }
+
+        if (target != null) {
+            val updated = target.copy(
+                cardNumber = digits,
+                cardHolder = holder.ifBlank { target.cardHolder },
+                cardExpiry = expiry.ifBlank { target.cardExpiry },
+                linkedApps = if (linkToken != null && target.linkedApps.none { it.equals(linkToken, true) }) {
+                    target.linkedApps + linkToken
+                } else target.linkedApps
+            )
+            if (updated == target) {
+                linkToken?.let { linkApp(target.id, it) }
+                return AutofillSaveOutcome.UNCHANGED
+            }
+            return if (upsert(updated)) AutofillSaveOutcome.UPDATED else AutofillSaveOutcome.FAILED
+        }
+
+        val ok = upsert(
+            VaultItem(
+                name = name,
+                category = Category.CARD,
+                cardNumber = digits,
+                cardHolder = holder,
+                cardExpiry = expiry,
+                cardCvv = cvv,
+                linkedApps = listOfNotNull(linkToken)
+            )
+        )
+        return if (ok) AutofillSaveOutcome.CREATED else AutofillSaveOutcome.FAILED
+    }
+
     companion object {
         /** Kopyanın adına eklenen sonek. */
         const val COPY_SUFFIX = " (kopya)"

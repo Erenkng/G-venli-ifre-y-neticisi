@@ -46,8 +46,12 @@ object AutofillMatcher {
      * Ağ gerektirmeyen eşleşmeler. Doldurma yolunun sıcak kısmı burası:
      * tarayıcıda ve bağı kurulmuş uygulamalarda hiçbir istek atılmıyor.
      */
-    fun offline(items: List<VaultItem>, caller: CallerIdentity): List<Match> {
-        val usable = items.filter { it.fillable }
+    fun offline(
+        items: List<VaultItem>,
+        caller: CallerIdentity,
+        kind: StructureParser.Kind
+    ): List<Match> {
+        val usable = items.filter { fillable(it, kind) }
         val token = caller.linkToken()
         val domain = caller.webDomain
 
@@ -81,12 +85,13 @@ object AutofillMatcher {
     suspend fun delegated(
         items: List<VaultItem>,
         caller: CallerIdentity,
-        links: DigitalAssetLinks
+        links: DigitalAssetLinks,
+        kind: StructureParser.Kind
     ): List<Match> {
         if (caller.isBrowser) return emptyList()
         if (caller.certSha256 == null) return emptyList()
 
-        val usable = items.filter { it.fillable }
+        val usable = items.filter { fillable(it, kind) }
         // Aynı alan adı birden çok kayıtta olabilir; her biri için ayrı sorgu
         // atmamak adına önce alan adları benzersizleştiriliyor.
         val hosts = usable.mapNotNull { it.host() }.distinct()
@@ -139,15 +144,32 @@ object AutofillMatcher {
         return true
     }
 
-    /** Otomatik doldurmada kullanılabilecek kayıt mı? */
-    private val VaultItem.fillable: Boolean
-        get() = !inTrash &&
-            (category == Category.LOGIN || category == Category.OTP) &&
-            // Kayıt bazlı ek kilit otomatik doldurmada uygulanamıyor: o akışta
-            // yalnızca kasanın kilidi soruluyor. İşaretli kaydı yine de sunmak,
-            // kullanıcının koruma altına aldığını sandığı parolayı en geniş
-            // kapıdan vermek olurdu.
-            !requireAuth
+    /**
+     * Bu forma sunulabilecek kayıt mı?
+     *
+     * Tür, formun ne istediğine bağlı: ödeme formuna kart, giriş formuna giriş
+     * ve tek kullanımlık kod kayıtları. Bir kartı giriş formuna sunmak
+     * kullanıcıya seçemeyeceği bir liste göstermek olurdu.
+     *
+     * Kart kaydının kendi alan adı yok, yani [Tier.DOMAIN] ve [Tier.DELEGATED]
+     * onun için hiç çalışmıyor. Kart eşleşmesi tek yoldan kuruluyor: kullanıcı
+     * o uygulamada kartı bir kez elle seçiyor ve bağ kuruluyor. Bir ödeme
+     * yapılırken bu, kolaylıktan daha çok istenen şey.
+     */
+    fun fillable(item: VaultItem, kind: StructureParser.Kind): Boolean = with(item) {
+        if (inTrash) return false
+        // Kayıt bazlı ek kilit otomatik doldurmada uygulanamıyor: o akışta
+        // yalnızca kasanın kilidi soruluyor. İşaretli kaydı yine de sunmak,
+        // kullanıcının koruma altına aldığını sandığı parolayı en geniş
+        // kapıdan vermek olurdu.
+        if (requireAuth) return false
+        return when (kind) {
+            StructureParser.Kind.CARD -> category == Category.CARD && cardNumber.isNotBlank()
+            StructureParser.Kind.OTP ->
+                (category == Category.LOGIN || category == Category.OTP) && totpSecret.isNotBlank()
+            StructureParser.Kind.LOGIN -> category == Category.LOGIN || category == Category.OTP
+        }
+    }
 
     /**
      * İki etiketli olduğu hâlde kayıtlanabilir olmayan sonekler.
