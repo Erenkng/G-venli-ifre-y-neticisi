@@ -4,12 +4,17 @@ olduğu ve hangi kategorilerin kullanıldığı dâhil her şey o dosyanın içi
 
 Android 16 (API 36) ve üstü, 64 bit cihaz.
 
-> **Hangi dosyayı indirmeli:** depoda imzalama anahtarı tanımlı olmadığı sürece
-> `app-release-unsigned.apk` **kurulamaz** — imzasız bir APK'yı Android kabul
-> etmiyor. Kurulabilen dosya `app-debug.apk`; uygulama kimliği `app.kasa.debug`
-> olduğu için ayrı bir uygulama olarak kuruluyor ve küçültme uygulanmamış.
-> Kurulabilir gerçek sürüm için, bu notların en altındaki dört gizli anahtarı
-> bir kez tanımlamak yeterli.
+> **Hangi dosyayı indirmeli:** `app-release.apk`. Bu sürümden itibaren APK
+> imzalı, yani doğrudan kurulabiliyor ve bundan sonraki sürümler kaldırmadan
+> üstüne güncelleniyor.
+>
+> İmza depoda açıkça duran bir anahtarla atılıyor. Bunun anlamı: APK kuruluyor
+> ve güncelleniyor, ama imza **"bunu kim derledi" sorusunun cevabı değil** —
+> anahtar herkese açık olduğu için aynı imzayı başkası da atabilir. Güvence,
+> APK'yı bu sayfadan indirmiş olmandan geliyor. Anahtarı kendine ait bir
+> gizli anahtarla değiştirmek istersen yol README'de yazılı; ama önce kasanı
+> dışa aktar, çünkü imza değişince Android kurulu sürümün üstüne yazmayı
+> reddediyor ve uygulamayı kaldırmak kasayı da siliyor.
 
 ---
 
@@ -18,6 +23,18 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 Bu sürümün ekseni gezinme: geri gitmek artık bir tuşa basmak değil, parmakla
 yürütülen bir hareket. Yanında bir tur kusur avı var ve çıkanların çoğu
 görünmeyen türden — kare bütçesi yiyen, sessizce veri kaybettiren şeyler.
+
+### APK artık kurulabiliyor
+
+Bugüne kadar `app-release-unsigned.apk` imzasızdı ve Android imzasız bir APK'yı
+kabul etmiyor; kurulabilen tek dosya hata ayıklama derlemesiydi ve o da her CI
+çalışmasında farklı bir anahtarla imzalandığı için kurulu sürümün üstüne
+güncellenemiyordu — her sürümde uygulamayı kaldırmak, yani kasayı silmek
+gerekiyordu.
+
+Artık depoda sabit bir imzalama anahtarı var. APK kuruluyor ve bundan sonraki
+sürümler kaldırmadan üstüne biniyor. Anahtar açıkta olduğu için imza kimlik
+taşımıyor; ayrıntısı yukarıdaki kutuda.
 
 ### Geri hareketi parmakla birlikte yürüyor
 

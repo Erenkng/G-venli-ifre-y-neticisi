@@ -65,8 +65,13 @@ jobs:
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      # Anahtar deposu gizli anahtarlardan geliyor. Tanımlı değilse bu adım
-      # sessizce atlanıyor ve APK imzasız çıkıyor; sürüm notunda söyleniyor.
+      # İki anahtar kaynağı var ve sıra önemli.
+      #
+      # Gizli anahtar (secret) tanımlıysa o kullanılıyor: anahtar deponun
+      # dışında kaldığı için imza "bunu kim derledi" sorusunun cevabı oluyor.
+      # Tanımlı değilse depodaki açık anahtara düşülüyor — imza kimliği
+      # taşımıyor ama APK kuruluyor ve kurulu sürümün üstüne güncelleniyor.
+      # İkisi de yoksa APK imzasız çıkıyor ve kurulamıyor.
       - name: İmzalama anahtarını çöz
         id: keystore
         env:
@@ -76,6 +81,12 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/kasa.jks"
             echo "path=$RUNNER_TEMP/kasa.jks" >> "$GITHUB_OUTPUT"
             echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Gizli imzalama anahtarı kullanılıyor."
+          elif [ -f signing/kasa-release.jks ]; then
+            # path boş bırakılıyor: derleme betiği o zaman depodaki anahtara
+            # kendisi düşüyor.
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Gizli anahtar yok; depodaki açık anahtar kullanılıyor."
           else
             echo "İmzalama anahtarı tanımlı değil; APK imzasız üretilecek."
             echo "signed=false" >> "$GITHUB_OUTPUT"

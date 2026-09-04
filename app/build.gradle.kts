@@ -37,14 +37,35 @@ android {
         localeFilters += listOf("tr", "en")
     }
 
-    // Sürüm imzalama yapılandırması ortam değişkenlerinden geliyor.
+    // Sürüm imzalama iki kaynaktan gelebiliyor ve sıra önemli.
     //
-    // Anahtar deposu depoya konmuyor: imzalama anahtarı uygulamanın kimliği
-    // demek ve onu ele geçiren biri, kullanıcıların güncelleme sanıp kuracağı
-    // sahte bir sürüm yayımlayabilir. CI bu değerleri gizli anahtarlardan
-    // (secrets) alıyor; tanımlı değilse imzasız derleniyor ve derleme yine de
-    // başarılı oluyor — böylece anahtarı olmayan biri de projeyi derleyebilir.
+    // **Birincisi: ortam değişkenleri.** CI bunları gizli anahtarlardan
+    // (secrets) okuyor. Anahtar deponun dışında kaldığı için imza gerçek
+    // anlamını koruyor: APK'yı kimin derlediğinin cevabı oluyor.
+    //
+    // **İkincisi: depodaki açık anahtar.** Gizli anahtar tanımlı değilse
+    // `signing/kasa-release.jks` kullanılıyor. Bu anahtarın parolası da bu
+    // dosyada yazılı, yani herkese açık — ve bu bilinçli bir takas:
+    //
+    // - **Kazanılan:** APK kuruluyor. İmzasız bir APK'yı Android kabul
+    //   etmiyor; dahası her derlemede farklı bir anahtar kullanmak, kurulu
+    //   sürümün üstüne güncelleme yapılmasını da engelliyordu — kullanıcı
+    //   her sürümde uygulamayı kaldırmak, yani kasasını silmek zorunda
+    //   kalıyordu. Sabit bir anahtar bu ikisini birden çözüyor.
+    // - **Kaybedilen:** imza artık "bunu kim derledi" sorusunun cevabı
+    //   değil. Anahtar açıkta olduğu için, kullanıcının güncelleme sanıp
+    //   kuracağı sahte bir APK da aynı imzayı taşıyabilir. Koruma yalnızca
+    //   APK'nın nereden indirildiğinden geliyor.
+    //
+    // Gizli anahtar sonradan tanımlanırsa imza değişiyor ve Android kurulu
+    // sürümün üstüne yazmayı reddediyor. Geçişten önce kasayı dışa aktarmak
+    // gerekiyor; sürüm notlarında da yazıyor.
     val keystorePath: String? = System.getenv("KASA_KEYSTORE_PATH")
+    val repoKeystore = rootProject.file("signing/kasa-release.jks")
+    // Gizli tutulacak bir şey değil: anahtarın kendisi zaten depoda. Burada
+    // açıkça yazması, ne olduğunu okuyana söylüyor — "bulunmuş bir parola"
+    // değil, bilerek açık bırakılmış bir anahtar.
+    val repoKeystorePassword = "kasapublic"
 
     signingConfigs {
         if (!keystorePath.isNullOrBlank()) {
@@ -53,6 +74,13 @@ android {
                 storePassword = System.getenv("KASA_KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KASA_KEY_ALIAS")
                 keyPassword = System.getenv("KASA_KEY_PASSWORD")
+            }
+        } else if (repoKeystore.exists()) {
+            create("release") {
+                storeFile = repoKeystore
+                storePassword = repoKeystorePassword
+                keyAlias = "kasa"
+                keyPassword = repoKeystorePassword
             }
         }
     }
@@ -68,8 +96,9 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Sürüm derlemesinde hata ayıklama tamamen kapalı.
             isDebuggable = false
-            // Anahtar yoksa null kalıyor; APK imzasız çıkıyor ve kurulamıyor
-            // ama derleme kırılmıyor.
+            // Depodaki açık anahtar silinir ve gizli anahtar da tanımlı
+            // değilse null kalıyor: APK imzasız çıkıyor, kurulamıyor ama
+            // derleme kırılmıyor.
             signingConfig = signingConfigs.findByName("release")
         }
     }

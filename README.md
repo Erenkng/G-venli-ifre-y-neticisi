@@ -162,19 +162,24 @@ kusurları ortaya çıkarıyor: yansımayla erişilen serileştiriciler, passkey
 sağlayıcısı, kaynak küçültmesinin kullanılmıyor sandığı çizimler. Bunların ancak
 kullanıcıya gidecek APK üretilirken anlaşılması kabul edilebilir değildi.
 
-**İmzalama.** Anahtar deposu depoda değil: imzalama anahtarı uygulamanın kimliği
-demek ve onu ele geçiren biri, kullanıcıların güncelleme sanıp kuracağı sahte bir
-sürüm yayımlayabilir. Değerler ortam değişkenlerinden okunuyor
-(`KASA_KEYSTORE_PATH`, `KASA_KEYSTORE_PASSWORD`, `KASA_KEY_ALIAS`,
-`KASA_KEY_PASSWORD`); CI bunları depo gizli anahtarlarından alıyor. Tanımlı
-değilse derleme yine başarılı olur ama APK **imzasız** çıkar ve **kurulamaz** —
-imzasız bir APK'yı Android kabul etmiyor. O durumda sürüme kurulabilen tek dosya
-`app-debug.apk` oluyor; uygulama kimliği `app.kasa.debug` olduğu için ayrı bir
-uygulama olarak kuruluyor, gerçek sürümün üzerine güncelleme olarak gitmiyor ve
-R8 küçültmesi uygulanmamış (bu yüzden onlarca megabayt).
+**İmzalama.** İki anahtar kaynağı var ve sıra önemli.
 
-Kurulabilir sürüm üretmek için bir kez anahtar oluşturup dört değeri depoya
-tanımlamak yeterli:
+**Öncelik gizli anahtarda.** Ortam değişkenleri (`KASA_KEYSTORE_PATH`,
+`KASA_KEYSTORE_PASSWORD`, `KASA_KEY_ALIAS`, `KASA_KEY_PASSWORD`) tanımlıysa
+onlar kullanılıyor; CI bunları depo gizli anahtarlarından alıyor. Anahtar
+deponun dışında kaldığı için imza gerçek anlamını taşıyor: APK'yı kimin
+derlediğinin cevabı oluyor.
+
+**Tanımlı değilse depodaki açık anahtara düşülüyor** —
+`signing/kasa-release.jks`, parolası `app/build.gradle.kts` içinde yazılı.
+Bilinçli bir takas:
+
+| | |
+|---|---|
+| **Kazanılan** | APK kuruluyor ve kurulu sürümün üstüne güncelleniyor. İmzasız bir APK'yı Android kabul etmiyor; her derlemede farklı bir anahtar kullanmak ise güncellemeyi engelliyor ve kullanıcıyı her sürümde uygulamayı kaldırmaya — yani kasasını silmeye — zorluyordu. Sabit bir anahtar ikisini birden çözüyor. |
+| **Kaybedilen** | İmza artık kimlik taşımıyor. Anahtar herkese açık olduğu için, kullanıcının güncelleme sanıp kuracağı sahte bir APK da aynı imzayı taşıyabilir. Koruma yalnızca APK'nın nereden indirildiğinden geliyor. |
+
+Bu takası kabul etmiyorsan kendi anahtarını üretip dört değeri depoya tanımla:
 
 ```sh
 keytool -genkeypair -v -keystore kasa.jks -alias kasa \
@@ -192,11 +197,17 @@ Depo → **Settings → Secrets and variables → Actions**:
 | `KASA_KEY_ALIAS` | `kasa` |
 | `KASA_KEY_PASSWORD` | anahtar parolası |
 
-`kasa.jks` dosyasını saklamak gerekiyor: aynı anahtarla imzalanmayan bir APK,
-kurulu uygulamanın üzerine güncelleme olarak yüklenemiyor. Anahtar depoya
-**konmuyor** — onu ele geçiren biri, kullanıcıların güncelleme sanıp kuracağı
-sahte bir sürüm yayımlayabilir.
-Adımlar: [`.github/RELEASE_UNSIGNED.md`](.github/RELEASE_UNSIGNED.md).
+> [!WARNING]
+> **Anahtar değiştirmeden önce kasayı dışa aktar.** İmza değişince Android
+> kurulu sürümün üstüne yazmayı reddediyor; tek yol uygulamayı kaldırmak ve
+> kaldırmak kasa dosyasını da siliyor. `kasa.jks` dosyasını da sakla —
+> kaybedilirse aynı sorun her sürümde yeniden yaşanıyor.
+
+İkisi de yoksa derleme yine başarılı olur ama APK **imzasız** çıkar ve
+**kurulamaz**. O durumda sürüme kurulabilen tek dosya `app-debug.apk` oluyor;
+uygulama kimliği `app.kasa.debug` olduğu için ayrı bir uygulama olarak
+kuruluyor, gerçek sürümün üzerine gitmiyor ve R8 küçültmesi uygulanmamış
+(bu yüzden onlarca megabayt).
 
 </details>
 
