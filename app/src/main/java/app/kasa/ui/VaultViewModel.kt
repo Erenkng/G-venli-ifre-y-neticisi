@@ -21,8 +21,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -55,12 +55,6 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     val data = repository.data
 
-    /** Etkin görünüme, süzgece ve arama metnine göre görünen kayıtlar. */
-    val visibleItems: StateFlow<List<VaultItem>> =
-        combine(repository.data, _category, _query, _view) { _, category, query, view ->
-            repository.filter(category, query, view)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
     /**
      * İlk liste hesabı tamamlandı mı.
      *
@@ -75,12 +69,16 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     private val _listReady = MutableStateFlow(false)
     val listReady: StateFlow<Boolean> = _listReady.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            repository.data.first()
-            _listReady.value = true
+    /** Etkin görünüme, süzgece ve arama metnine göre görünen kayıtlar. */
+    val visibleItems: StateFlow<List<VaultItem>> =
+        combine(repository.data, _category, _query, _view) { _, category, query, view ->
+            repository.filter(category, query, view)
         }
-    }
+            // Bayrak ilk **gerçek** sonuçla kalkıyor. Depoyu beklemek yanlıştı:
+            // depo bir StateFlow ve elindeki değeri anında veriyor, oysa
+            // beklenen şey süzmenin kendisi.
+            .onEach { _listReady.value = true }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val recents: StateFlow<List<VaultItem>> =
         repository.data.map { repository.recents() }
