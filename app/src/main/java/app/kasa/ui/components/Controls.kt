@@ -1,5 +1,7 @@
 package app.kasa.ui.components
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateDpAsState
@@ -589,6 +591,21 @@ fun KasaChip(
 }
 
 /** Yuvarlak simge düğmesi; basılınca köşeleri kareye döner. */
+/**
+ * Simge düğmesine erişilebilir bir **ad** verir.
+ *
+ * Bu düğmelerde yazı yok ve içlerindeki `Icon` bilerek `contentDescription =
+ * null` taşıyor — ad düğmenin kendisine ait, simgeye değil. Ad yalnızca
+ * `onClickLabel` olarak veriliyordu; o etiket eylemi anlatıyor ("çift dokun:
+ * Kapat") ama düğmenin bir adı olmuyor, ekran okuyucu onu yalnızca "düğme"
+ * diye okuyor. Yan yana beş simge düğmesi varsa beşi de "düğme".
+ *
+ * Ad artık düğümün kendisinde. `onClickLabel` bırakılmıyor: ikisi birden
+ * verilince aynı sözcük iki kez okunuyor.
+ */
+private fun Modifier.buttonLabel(label: String?): Modifier =
+    if (label == null) this else semantics { contentDescription = label }
+
 @Composable
 fun KasaIconButton(
     onClick: () -> Unit,
@@ -614,10 +631,10 @@ fun KasaIconButton(
                 if (accent) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.surfaceContainerLowest
             )
+            .buttonLabel(contentDescription)
             .clickableNoRipple(
                 interactionSource = interaction,
                 role = Role.Button,
-                onClickLabel = contentDescription,
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center,
@@ -644,10 +661,10 @@ fun RowScope.ToolbarAction(
             .scale(scale)
             .clip(RoundedCornerShape(KasaRadius.full))
             .background(if (pressed) Color.Black.copy(alpha = 0.07f) else Color.Transparent)
+            .buttonLabel(contentDescription)
             .clickableNoRipple(
                 interactionSource = interaction,
                 role = Role.Button,
-                onClickLabel = contentDescription,
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center,

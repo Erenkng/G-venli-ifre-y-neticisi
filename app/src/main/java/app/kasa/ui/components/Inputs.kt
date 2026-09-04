@@ -1,5 +1,7 @@
 package app.kasa.ui.components
 
+import androidx.compose.ui.res.stringResource
+import app.kasa.R
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -404,7 +406,14 @@ fun RevealButton(revealed: Boolean, onClick: () -> Unit, modifier: Modifier = Mo
             onClick()
         },
         modifier = modifier,
-        size = 36.dp
+        size = 36.dp,
+        // Etiket duruma göre değişiyor: ekran okuyucu için "göz" simgesi
+        // hiçbir şey söylemiyor, düğmenin **ne yapacağı** söylüyor. Değeri
+        // görmeden yönetilen bir parola yöneticisinde bu tuş, ekranı
+        // görmeyen kullanıcının tek anahtarı.
+        contentDescription = stringResource(
+            if (revealed) R.string.reveal_hide else R.string.reveal_show
+        )
     ) {
         Icon(
             imageVector = if (revealed) Icons.Rounded.VisibilityOff
@@ -433,7 +442,7 @@ fun SearchTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        KasaIconButton(onClick = onBack) {
+        KasaIconButton(onClick = onBack, contentDescription = stringResource(R.string.back)) {
             Icon(
                 Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = null,

@@ -13,6 +13,8 @@
     <string name="copy">Kopyala</string>
     <string name="back">Geri</string>
     <string name="close">Kapat</string>
+    <string name="reveal_show">Değeri göster</string>
+    <string name="reveal_hide">Değeri gizle</string>
     <string name="continue_">Devam</string>
     <string name="retry">Yeniden dene</string>
     <string name="show">Göster</string>
