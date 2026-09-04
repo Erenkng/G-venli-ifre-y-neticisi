@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,6 +31,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -275,7 +279,26 @@ fun VaultScreen(
                             emptyVault -> R.string.vault_empty_sub
                             else -> R.string.vault_no_match_sub
                         }
-                    )
+                    ),
+                    icon = when {
+                        inTrash -> Icons.Rounded.DeleteOutline
+                        emptyVault -> Icons.Rounded.Lock
+                        else -> Icons.Rounded.SearchOff
+                    },
+                    // Süzgeç yüzünden boş kalan listede çıkış yolu süzgeci
+                    // temizlemek; boş kasada ise ilk kaydı eklemek. İkisi
+                    // aynı ekranda ama aynı şey değil.
+                    actionLabel = when {
+                        inTrash || emptyVault -> null
+                        else -> stringResource(R.string.vault_clear_filters)
+                    },
+                    onAction = when {
+                        inTrash || emptyVault -> null
+                        else -> ({
+                            viewModel.setCategory(null)
+                            viewModel.setView(VaultFilter.All)
+                        })
+                    }
                 )
             }
         } else {

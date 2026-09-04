@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +32,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -308,16 +310,52 @@ fun RecentCard(
 fun EmptyState(
     title: String,
     subtitle: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Boşluğu dolduran işaret.
+     *
+     * Boş bir ekranda iki satır gri yazı, kullanıcıya bir şeyin **eksik**
+     * olduğunu söylüyor; işaret ise o boşluğun beklenen bir durum olduğunu
+     * söylüyor. Kasanın kendi kadranı kullanılıyor ve çok soluk çiziliyor:
+     * dikkat çekmesi değil, boşluğa bir zemin vermesi gerekiyor.
+     */
+    icon: ImageVector? = null,
+    /**
+     * Buradan çıkışın yolu.
+     *
+     * Boş bir kasada "yeni kayıt ekle" düğmesi ekranın sağ alt köşesinde
+     * duruyor ve ilk kez açan kullanıcının oraya bakması için bir sebep yok.
+     * Boş durumun kendisi o yolu göstermeli.
+     */
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
 ) {
     Column(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 64.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 30.dp, vertical = 56.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        if (icon != null) {
+            Box(
+                modifier = Modifier
+                    .size(84.dp)
+                    .clip(RoundedCornerShape(KasaRadius.full))
+                    .background(KasaTheme.colors.ink3.copy(alpha = 0.07f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = KasaTheme.colors.ink3.copy(alpha = 0.55f),
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+        }
         Text(
             title,
             style = MaterialTheme.typography.titleLarge,
-            color = KasaTheme.colors.ink2
+            color = KasaTheme.colors.ink2,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
         Spacer(Modifier.height(6.dp))
         Text(
@@ -326,5 +364,13 @@ fun EmptyState(
             color = KasaTheme.colors.ink3,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+        if (actionLabel != null && onAction != null) {
+            Spacer(Modifier.height(22.dp))
+            KasaButton(
+                text = actionLabel,
+                onClick = onAction,
+                tone = ButtonTone.TONAL
+            )
+        }
     }
 }
