@@ -3,6 +3,7 @@ package app.kasa.ui.screens
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import app.kasa.ui.components.HeaderCollapse
+import app.kasa.ui.components.headerHandoff
 import app.kasa.ui.components.glassSurface
 import app.kasa.ui.components.ScoreRing
 import androidx.compose.animation.core.animateFloatAsState
@@ -117,6 +118,9 @@ fun SecurityScreen(
     ) {
         item(key = "hero") {
             HeroHeader(
+                // Büyük başlık cam çubuğa devrederken küçülüp yukarı
+                // çekiliyor: ikisi tek bir geçişin iki yarısı.
+                modifier = Modifier.headerHandoff(listState),
                 title = stringResource(R.string.sec_title),
                 subtitle = if (state.lastScanAt > 0)
                     stringResource(R.string.sec_last_scan, relativeTime(state.lastScanAt))

@@ -1,6 +1,7 @@
 package app.kasa.ui.screens
 
 import app.kasa.ui.components.HeaderCollapse
+import app.kasa.ui.components.headerHandoff
 import app.kasa.ui.components.SkeletonRows
 import app.kasa.ui.components.edgeDepth
 import androidx.compose.animation.core.animateFloatAsState
@@ -142,6 +143,9 @@ fun VaultScreen(
     ) {
         item(key = "hero") {
             HeroHeader(
+                // Büyük başlık cam çubuğa devrederken küçülüp yukarı
+                // çekiliyor: ikisi tek bir geçişin iki yarısı.
+                modifier = Modifier.headerHandoff(listState),
                 title = stringResource(if (inTrash) R.string.trash_title else R.string.vault_title),
                 subtitle = if (inTrash) {
                     stringResource(R.string.trash_note, VaultRepository.TRASH_RETENTION_DAYS)

@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import app.kasa.ui.components.HeaderCollapse
+import app.kasa.ui.components.headerHandoff
 import app.kasa.data.GeneratorMode
 import app.kasa.ui.components.KasaChip
 import app.kasa.ui.components.clickableNoRipple
@@ -138,6 +139,9 @@ fun GeneratorScreen(
     ) {
         item(key = "hero") {
             HeroHeader(
+                // Büyük başlık cam çubuğa devrederken küçülüp yukarı
+                // çekiliyor: ikisi tek bir geçişin iki yarısı.
+                modifier = Modifier.headerHandoff(listState),
                 title = stringResource(R.string.gen_title),
                 subtitle = stringResource(R.string.gen_sub)
             )

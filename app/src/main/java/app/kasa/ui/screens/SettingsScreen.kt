@@ -1,6 +1,7 @@
 package app.kasa.ui.screens
 
 import app.kasa.ui.components.HeaderCollapse
+import app.kasa.ui.components.headerHandoff
 import app.kasa.data.GradientTheme
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
@@ -333,6 +334,9 @@ fun SettingsScreen(
         if (current == null) {
         item(key = "hero") {
             HeroHeader(
+                // Büyük başlık cam çubuğa devrederken küçülüp yukarı
+                // çekiliyor: ikisi tek bir geçişin iki yarısı.
+                modifier = Modifier.headerHandoff(listState),
                 title = stringResource(R.string.set_title),
                 subtitle = stringResource(
                     R.string.set_sub,

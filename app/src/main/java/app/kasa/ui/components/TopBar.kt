@@ -23,7 +23,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -207,6 +209,60 @@ fun HeaderCollapse(state: LazyListState, onProgress: (Float) -> Unit) {
             .collect { onProgress(it) }
     }
 }
+
+/**
+ * Büyük başlığın cam çubuğa devrederkenki hareketi.
+ *
+ * ### Neden gerekli
+ *
+ * Başlık listenin ilk öğesi olduğu için kaydırınca **yukarı kayıp
+ * kayboluyordu**, üstteki cam çubuk ise ondan bağımsız olarak beliriyordu.
+ * İki hareket aynı anda oluyor ama birbirini görmüyordu; göz iki ayrı şeyin
+ * olduğunu okuyordu, oysa olan tek bir şey — başlık yer değiştiriyor.
+ *
+ * Devir hareketi bunu bağlıyor: büyük başlık kaybolurken hafifçe küçülüp
+ * yukarı çekiliyor, yani çubuğa **gidiyor**. Aynı mesafede sönüyorlar,
+ * dolayısıyla hiçbir anda ikisi birden tam görünür olmuyor.
+ *
+ * ### Neden kaydırmadan hızlı sönüyor
+ *
+ * Başlık kendi yüksekliği kadar yol alana kadar görünür kalsaydı, cam çubuk
+ * çoktan gelmiş olacaktı. Sönme mesafesi çubuğun geliş mesafesiyle aynı;
+ * ikisi tek bir geçişin iki yarısı.
+ *
+ * ### Neden çizim aşamasında
+ *
+ * Kaydırma her karede değişiyor. Oranı beste sırasında okumak, kullanıcı
+ * listeyi kaydırdığı sürece başlığı taşıyan öğenin her karede yeniden
+ * birleşmesi demek. `graphicsLayer` bloğu yalnızca çizimde çalışıyor.
+ */
+fun Modifier.headerHandoff(state: LazyListState): Modifier = composed {
+    val runway = with(LocalDensity.current) { COLLAPSE_RUNWAY.toPx() }
+
+    graphicsLayer {
+        // Yalnızca ilk öğe ekrandayken anlamlı; ötesinde başlık zaten yok.
+        val offset = if (state.firstVisibleItemIndex > 0) runway
+        else state.firstVisibleItemScrollOffset.toFloat()
+        val fraction = (offset / runway).coerceIn(0f, 1f)
+
+        alpha = 1f - fraction
+        // Küçülme çok az: başlık uzaklaşıyor, yok olmuyor. Belirgin bir
+        // ölçek, sayfanın tamamının uzaklaştığı hissini veriyordu.
+        val shrink = 1f - fraction * HANDOFF_SHRINK
+        scaleX = shrink
+        scaleY = shrink
+        // Ölçek merkezi üstte: başlık kendi tabanına doğru değil, çubuğun
+        // olduğu yöne doğru toplanıyor.
+        transformOrigin = TransformOrigin(0f, 0f)
+        translationY = -fraction * HANDOFF_LIFT.toPx()
+    }
+}
+
+/** Devir sırasında başlığın küçülme oranı. */
+private const val HANDOFF_SHRINK = 0.10f
+
+/** Devir sırasında başlığın yukarı çekilme mesafesi. */
+private val HANDOFF_LIFT = 12.dp
 
 /** Çubuğun içerik yüksekliği; sistem çubuğu bunun üstüne ekleniyor. */
 private val BAR_HEIGHT = 44.dp
