@@ -4,6 +4,13 @@ olduğu ve hangi kategorilerin kullanıldığı dâhil her şey o dosyanın içi
 
 Android 16 (API 36) ve üstü, 64 bit cihaz.
 
+> **Hangi dosyayı indirmeli:** depoda imzalama anahtarı tanımlı olmadığı sürece
+> `app-release-unsigned.apk` **kurulamaz** — imzasız bir APK'yı Android kabul
+> etmiyor. Kurulabilen dosya `app-debug.apk`; uygulama kimliği `app.kasa.debug`
+> olduğu için ayrı bir uygulama olarak kuruluyor ve küçültme uygulanmamış.
+> Kurulabilir gerçek sürüm için [aşağıdaki dört gizli anahtarı](#️-bu-sürümdeki-apk-imzasız)
+> bir kez tanımlamak yeterli.
+
 ---
 
 ## 1.7'de yenilikler

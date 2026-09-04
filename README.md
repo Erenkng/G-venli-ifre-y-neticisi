@@ -167,7 +167,35 @@ demek ve onu ele geçiren biri, kullanıcıların güncelleme sanıp kuracağı 
 sürüm yayımlayabilir. Değerler ortam değişkenlerinden okunuyor
 (`KASA_KEYSTORE_PATH`, `KASA_KEYSTORE_PASSWORD`, `KASA_KEY_ALIAS`,
 `KASA_KEY_PASSWORD`); CI bunları depo gizli anahtarlarından alıyor. Tanımlı
-değilse derleme yine başarılı olur ama APK **imzasız** çıkar ve kurulamaz.
+değilse derleme yine başarılı olur ama APK **imzasız** çıkar ve **kurulamaz** —
+imzasız bir APK'yı Android kabul etmiyor. O durumda sürüme kurulabilen tek dosya
+`app-debug.apk` oluyor; uygulama kimliği `app.kasa.debug` olduğu için ayrı bir
+uygulama olarak kuruluyor, gerçek sürümün üzerine güncelleme olarak gitmiyor ve
+R8 küçültmesi uygulanmamış (bu yüzden onlarca megabayt).
+
+Kurulabilir sürüm üretmek için bir kez anahtar oluşturup dört değeri depoya
+tanımlamak yeterli:
+
+```sh
+keytool -genkeypair -v -keystore kasa.jks -alias kasa \
+  -keyalg RSA -keysize 4096 -validity 10000
+
+base64 -w0 kasa.jks     # çıktı KASA_KEYSTORE_BASE64 olarak eklenecek
+```
+
+Depo → **Settings → Secrets and variables → Actions**:
+
+| Gizli anahtar | Değer |
+|---|---|
+| `KASA_KEYSTORE_BASE64` | yukarıdaki base64 çıktısı |
+| `KASA_KEYSTORE_PASSWORD` | anahtar deposu parolası |
+| `KASA_KEY_ALIAS` | `kasa` |
+| `KASA_KEY_PASSWORD` | anahtar parolası |
+
+`kasa.jks` dosyasını saklamak gerekiyor: aynı anahtarla imzalanmayan bir APK,
+kurulu uygulamanın üzerine güncelleme olarak yüklenemiyor. Anahtar depoya
+**konmuyor** — onu ele geçiren biri, kullanıcıların güncelleme sanıp kuracağı
+sahte bir sürüm yayımlayabilir.
 Adımlar: [`.github/RELEASE_UNSIGNED.md`](.github/RELEASE_UNSIGNED.md).
 
 </details>
