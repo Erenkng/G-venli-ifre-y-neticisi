@@ -50,6 +50,7 @@ import app.kasa.core.util.PasswordStrength
 import app.kasa.ui.AuthViewModel
 import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.components.ButtonTone
+import app.kasa.ui.components.readablePane
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.KasaReveal
@@ -117,8 +118,21 @@ fun OnboardingScreen(
             if (!done) {
                 IntroPager(onFinish = { introDone = true })
             } else {
-                Column(Modifier.fillMaxSize()) {
-                    SetupRail(state.stage)
+                // Kurulum adımları geniş pencerede ortalanıyor. Tanıtım
+                // sayfaları ortalanmıyor: oradaki çizimler ekranın
+                // tamamını kullanmak üzere kurulmuş.
+                Column(Modifier.fillMaxSize().readablePane()) {
+                    // Üstteki adım rayı kaldırıldı.
+                    //
+                    // Tanıtım sayfalarının altında zaten bir gösterge vardı ve
+                    // parola adımına geçerken **ekranın öteki ucunda** ikinci
+                    // bir gösterge beliriyordu. İkisi de üç şey sayıyor ama
+                    // farklı şeyler sayıyorlar ve farklı yerlerde duruyorlar;
+                    // kullanıcının gördüğü şey ilerleme değil, birden ortaya
+                    // çıkan yeni bir nesne oluyordu.
+                    //
+                    // Kaç adım kaldığını söylemenin bedeli bu değil: her adımın
+                    // kendi başlığı zaten nerede olunduğunu söylüyor.
 
                     // Adımlar arası geçiş.
                     //
@@ -155,73 +169,6 @@ fun OnboardingScreen(
     }
 }
 
-/**
- * Kurulumun üç adımını gösteren ray.
- *
- * ### Neden gerekli
- *
- * Kurulum üç ekran sürüyor ve hiçbiri kaçıncı adımda olunduğunu söylemiyordu.
- * Bir parola yöneticisinin ilk kurulumu, kullanıcının uygulamaya en az
- * güvendiği an: ne kadar sürdüğünü bilmemek "bu daha ne kadar devam edecek"
- * sorusunu doğuruyor ve o soru yarıda bırakmaya en yakın yer.
- *
- * ### Neden dolan bir ray, nokta değil
- *
- * Noktalar kaç adım kaldığını söylüyor ama bulunulan adımın **ne kadarının**
- * bittiğini söylemiyor. Ray geçmiş adımları dolu, bulunulanı yarı dolu
- * bırakıyor: üç bilgi (kaç adım, kaçıncısı, ne kadar ilerlendi) tek bir
- * biçimde.
- */
-@Composable
-private fun SetupRail(stage: AuthViewModel.Stage) {
-    val steps = listOf(
-        AuthViewModel.Stage.SETUP,
-        AuthViewModel.Stage.RECOVERY_SHOWN,
-        AuthViewModel.Stage.BIOMETRIC_OFFER
-    )
-    // DONE listede yok: `indexOf` orada -1 döndürüyor ve ray, kurulum
-    // biterken bir kare için ilk adıma geri dönüyordu. Bitmiş kurulum dolu
-    // bir ray demek.
-    val current = when (stage) {
-        AuthViewModel.Stage.DONE -> steps.size
-        else -> steps.indexOf(stage).coerceAtLeast(0)
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        steps.forEachIndexed { index, _ ->
-            // Geçmiş adım dolu, bulunulan yarı dolu, gelecek boş. Yarı dolu
-            // olan, adımın içinde bir yerde olunduğunu söylüyor; tam dolu
-            // olsaydı bitmiş görünürdü.
-            val target = when {
-                index < current -> 1f
-                index == current -> 0.5f
-                else -> 0f
-            }
-            val fill by animateFloatAsState(target, KasaMotion.large(), label = "rail$index")
-
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(RAIL_HEIGHT)
-                    .clip(RoundedCornerShape(KasaRadius.full))
-                    .background(KasaTheme.colors.ink3.copy(alpha = 0.20f))
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(fill)
-                        .clip(RoundedCornerShape(KasaRadius.full))
-                        .background(MaterialTheme.colorScheme.primary)
-                )
-            }
-        }
-    }
-}
 
 private val RAIL_HEIGHT = 4.dp
 
@@ -439,6 +386,10 @@ private fun BiometricStep(viewModel: AuthViewModel) {
     Column(
         Modifier
             .fillMaxSize()
+            // Öteki iki adım kaydırılabiliyordu, bu değildi: kısa bir
+            // pencerede (tablette yatay tutulduğunda ya da bölünmüş ekranda)
+            // düğmeler ekranın altında kalıyor ve adım tamamlanamıyordu.
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
         horizontalAlignment = Alignment.CenterHorizontally,
