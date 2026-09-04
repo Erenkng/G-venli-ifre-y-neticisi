@@ -139,7 +139,10 @@ fun TrashScreen(
                         color = KasaTheme.colors.ink2
                     )
                 }
-                if (items.isNotEmpty()) {
+                // Seçim kipindeyken başlıktaki eylemler gizli: ikisi de o an
+                // eylem çubuğunda duruyor ve aynı işi iki yerde göstermek,
+                // kullanıcıya iki ayrı şey olduklarını düşündürüyor.
+                if (items.isNotEmpty() && !selecting) {
                     // Seçim kipine görünür bir giriş. Uzun basmak da açıyor
                     // ama uzun basmayı kimse denemiyor: kasa listesinde o yolu
                     // satır menüsündeki "Seç" gösteriyor, burada ise menü yok.
@@ -155,8 +158,7 @@ fun TrashScreen(
                         Icon(
                             Icons.Rounded.DoneAll,
                             contentDescription = null,
-                            tint = if (selecting) MaterialTheme.colorScheme.primary
-                            else KasaTheme.colors.ink2,
+                            tint = KasaTheme.colors.ink2,
                             modifier = Modifier.size(20.dp)
                         )
                     }
