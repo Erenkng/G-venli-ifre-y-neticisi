@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -267,7 +268,11 @@ fun SkeletonRows(
 ) {
     val reduced = LocalReducedMotion.current
     val transition = rememberInfiniteTransition(label = "skeleton")
-    val phase by transition.animateFloat(
+    // Delege ile okunmuyor: `by` her karede bu bileşeni yeniden bestelerdi ve
+    // iskeletin tamamı — altı satır, on sekiz blok — kare başına yeniden
+    // kurulurdu. Değer aşağıya işlev olarak iniyor ve yalnızca çizim
+    // aşamasında açılıyor.
+    val phase = transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -282,18 +287,21 @@ fun SkeletonRows(
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         repeat(count) { index ->
-            SkeletonRow(
-                position = groupPositionOf(index, count),
-                // Her satır parıltıyı biraz geciktirerek alıyor: hepsi aynı
-                // anda parlasaydı liste tek bir blok gibi yanıp sönerdi.
-                phase = if (reduced) -1f else (phase - index * SKELETON_STAGGER)
-            )
+            // Her satır parıltıyı biraz geciktirerek alıyor: hepsi aynı anda
+            // parlasaydı liste tek bir blok gibi yanıp sönerdi.
+            val rowPhase: () -> Float =
+                if (reduced) NO_SHIMMER
+                else { { phase.value - index * SKELETON_STAGGER } }
+            SkeletonRow(position = groupPositionOf(index, count), phase = rowPhase)
         }
     }
 }
 
+/** Hareket kapalıyken parıltı hiç çizilmiyor. */
+private val NO_SHIMMER: () -> Float = { -1f }
+
 @Composable
-private fun SkeletonRow(position: GroupPosition, phase: Float) {
+private fun SkeletonRow(position: GroupPosition, phase: () -> Float) {
     val colors = KasaTheme.colors
     val shape = when (position) {
         GroupPosition.ONLY -> RoundedCornerShape(KasaRadius.l)
@@ -339,7 +347,7 @@ private fun SkeletonRow(position: GroupPosition, phase: Float) {
 @Composable
 private fun SkeletonBlock(
     modifier: Modifier,
-    phase: Float,
+    phase: () -> Float,
     shape: RoundedCornerShape = RoundedCornerShape(KasaRadius.s)
 ) {
     val colors = KasaTheme.colors
@@ -349,19 +357,22 @@ private fun SkeletonBlock(
     Box(
         modifier
             .clip(shape)
+            // Zemin duruk, yalnızca parıltı hareketli. Faz burada açılıyor:
+            // çizim aşaması yeniden besteleme tetiklemiyor.
             .background(base)
-            .then(
-                if (phase < 0f) Modifier
-                else Modifier.background(
+            .drawBehind {
+                val travel = phase()
+                if (travel < 0f) return@drawBehind
+                drawRect(
                     Brush.linearGradient(
                         0f to Color.Transparent,
                         0.5f to highlight,
                         1f to Color.Transparent,
-                        start = Offset(phase * SKELETON_TRAVEL - SKELETON_BAND, 0f),
-                        end = Offset(phase * SKELETON_TRAVEL, 0f)
+                        start = Offset(travel * SKELETON_TRAVEL - SKELETON_BAND, 0f),
+                        end = Offset(travel * SKELETON_TRAVEL, 0f)
                     )
                 )
-            )
+            }
     )
 }
 

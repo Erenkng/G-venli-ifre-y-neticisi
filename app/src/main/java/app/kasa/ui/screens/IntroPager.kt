@@ -271,13 +271,16 @@ private fun IntroArtwork(scene: IntroScene, modifier: Modifier) {
         ),
         label = "introPhase"
     )
-    val t = if (reduced) 0f else phase
-
     val accent = MaterialTheme.colorScheme.primary
     val ink = KasaTheme.colors.ink
     val soft = KasaTheme.colors.ink3
 
     Canvas(modifier) {
+        // Faz çizim aşamasında okunuyor. Bestede okunsaydı tanıtım ekranı
+        // açık durduğu sürece — yani kullanıcının okuduğu bütün süre boyunca
+        // — kare başına yeniden bestelenirdi; hem de kaydırma tam o sırada
+        // oluyor.
+        val t = if (reduced) 0f else phase
         when (scene) {
             IntroScene.VAULT -> drawVaultScene(t, accent, ink, soft)
             IntroScene.TYPES -> drawTypesScene(t, accent, ink, soft)

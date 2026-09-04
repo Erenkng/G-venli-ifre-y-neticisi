@@ -59,9 +59,12 @@ fun WavyProgress(
         label = "phase"
     )
     val seed = remember { (0..600).random() / 100f }
-    val livePhase = if (animated && !reduced) phase + seed else seed
 
     Canvas(modifier = modifier.height(height)) {
+        // Faz burada açılıyor, bestede değil. Beste içinde okunsaydı bu
+        // bileşen ekranda durduğu **sürece** kare başına yeniden bestelenirdi
+        // — sonsuz bir animasyon için bunun bir sonu da yok.
+        val livePhase = if (animated && !reduced) phase + seed else seed
         drawWavy(
             progress = progress.coerceIn(0f, 1f),
             phase = livePhase,
@@ -229,7 +232,6 @@ fun MorphDial(
         ),
         label = "rotation"
     )
-    val angle = if (spin && !reduced) rotation * (1.2f - 0.85f * strength) else 0.4f
 
     // Şeklin kendisi net, uçları dağılıyor.
     //
@@ -251,6 +253,9 @@ fun MorphDial(
     val scratchVertices = remember(points) { FloatArray(points * 4) }
 
     Canvas(modifier = modifier) {
+        // Dönüş açısı çizim aşamasında okunuyor: bestede okunsaydı kadran
+        // ekranda durduğu sürece kare başına bir yeniden besteleme olurdu.
+        val angle = if (spin && !reduced) rotation * (1.2f - 0.85f * strength) else 0.4f
         val center = Offset(size.width / 2f, size.height / 2f)
         val radius = min(size.width, size.height) / 2f * 0.88f
 
@@ -311,9 +316,11 @@ fun ScanShape(
         ),
         label = "scanT"
     )
-    val time = if (reduced) 0.6f else t
-
     Canvas(modifier = modifier) {
+        // Çizim aşamasında okunuyor: sonsuz bir animasyonun değerini bestede
+        // okumak, bu şekil ekranda durduğu sürece kare başına bir yeniden
+        // besteleme demek.
+        val time = if (reduced) 0.6f else t
         val radius = min(size.width, size.height) / 2f * 0.86f
         val spike = if (scanning) 0.22f + 0.10f * sin(time * 3f) else 0.05f
         val path = buildMorphPath(
