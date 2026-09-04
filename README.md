@@ -197,6 +197,18 @@ Depo → **Settings → Secrets and variables → Actions**:
 | `KASA_KEY_ALIAS` | `kasa` |
 | `KASA_KEY_PASSWORD` | anahtar parolası |
 
+Depodaki anahtarın sertifika parmak izi:
+
+```
+SHA256  DE:92:BF:13:D5:28:48:B9:A7:8F:5D:C1:83:47:97:3D
+        57:3E:A7:95:81:10:14:E8:68:E3:B0:15:06:3B:C0:03
+```
+
+Bir APK'nın bununla imzalandığını `apksigner verify --print-certs app-release.apk`
+ile görebilirsin. Bu, APK'yı kimin derlediğini **kanıtlamıyor** — anahtar açık,
+aynı imzayı başkası da atabilir. Söylediği tek şey, o APK'nın kurulu sürümün
+üstüne güncelleme olarak gidip gitmeyeceği.
+
 > [!WARNING]
 > **Anahtar değiştirmeden önce kasayı dışa aktar.** İmza değişince Android
 > kurulu sürümün üstüne yazmayı reddediyor; tek yol uygulamayı kaldırmak ve
