@@ -121,6 +121,21 @@ fun KasaLoader(
         }
         val start = if (reduced) -90f else spin - sweep / 2f
 
+        // Hâle önce: yayın **altına** geliyor.
+        //
+        // Sonra çizilseydi hâlenin en içteki katmanı — tam parlaklıkta ve düz
+        // renk — degradeli yayın üstünü boyar ve degradeyi silerdi. Hâlenin
+        // işi yayı çevrelemek, yerine geçmek değil.
+        drawGlowArc(
+            color = color,
+            startAngle = start,
+            sweepAngle = sweep,
+            topLeft = topLeft,
+            arcSize = box,
+            width = stroke,
+            intensity = 0.55f
+        )
+
         // Yayın kendisi degradeyle çiziliyor: baş tarafı sönük, uç tarafı
         // parlak. Düz renkli bir yay hangi yöne gittiğini söylemiyor.
         val brush = Brush.sweepGradient(
@@ -137,17 +152,6 @@ fun KasaLoader(
             topLeft = topLeft,
             size = box,
             style = Stroke(width = stroke, cap = StrokeCap.Round)
-        )
-        // Yayın altına hâle: degradeyle çizilen yay tek geçişte kalıyor,
-        // hâle ayrı bir geçiş olarak düz renkle geliyor.
-        drawGlowArc(
-            color = color,
-            startAngle = start,
-            sweepAngle = sweep,
-            topLeft = topLeft,
-            arcSize = box,
-            width = stroke,
-            intensity = 0.55f
         )
 
         // Ucundaki ışık: yayın ilerleyen tarafı. Hareketin yönünü tek başına
