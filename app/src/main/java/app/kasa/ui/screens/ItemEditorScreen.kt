@@ -59,6 +59,7 @@ import app.kasa.data.model.Folder
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.ButtonTone
+import app.kasa.ui.components.kasaBackdrop
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaButtonGroup
 import app.kasa.ui.components.KasaChip
@@ -107,7 +108,10 @@ fun ItemEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            // Uygulamanın kendi zemini. Eskiden düz `surface` boyanıyordu ve
+            // düzenleyici uygulamanın tek gradyansız ekranıydı; dahası cam
+            // metin girişlerinin arkasında gösterecek bir şey kalmıyordu.
+            .kasaBackdrop()
             .windowInsetsPadding(WindowInsets.statusBars)
             .imePadding()
     ) {
