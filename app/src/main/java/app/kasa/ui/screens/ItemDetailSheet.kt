@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -105,6 +106,7 @@ fun ItemDetailSheet(
     var itemUnlocked by remember(item.id) { mutableStateOf(!item.requireAuth) }
     val gate = LocalBiometricGate.current
     var confirmDelete by remember(item.id) { mutableStateOf(false) }
+    var historyOpen by remember(item.id) { mutableStateOf(false) }
     var pendingExport by remember(item.id) { mutableStateOf<Attachment?>(null) }
     val context = LocalContext.current
 
@@ -349,14 +351,33 @@ fun ItemDetailSheet(
                 }
             }
 
+            // Geçmiş yalnızca sayı olarak duruyordu ve eski parolaya ulaşmanın
+            // yolu yoktu; saklamanın tek sebebi geri dönebilmek olduğuna göre
+            // ulaşılamayan bir geçmiş hiçbir işe yaramıyordu. Gerekçesi
+            // PasswordHistorySheet üzerinde yazılı.
             if (item.history.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                FieldBlock(label = stringResource(R.string.detail_history)) {
-                    Text(
-                        stringResource(R.string.detail_history_count, item.history.size),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = KasaTheme.colors.ink3
-                    )
+                FieldBlock(
+                    label = stringResource(R.string.detail_history),
+                    onClick = { historyOpen = true }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.detail_history_count, item.history.size),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = KasaTheme.colors.ink2,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = KasaTheme.colors.ink3,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -466,6 +487,18 @@ fun ItemDetailSheet(
                 )
             }
         }
+    }
+
+    if (historyOpen) {
+        PasswordHistorySheet(
+            item = item,
+            onCopy = { viewModel.copySecret(it, settings.clipboardClearSeconds) },
+            onRestore = { entry ->
+                viewModel.restorePassword(item, entry)
+                historyOpen = false
+            },
+            onDismiss = { historyOpen = false }
+        )
     }
 
     if (confirmDelete) {

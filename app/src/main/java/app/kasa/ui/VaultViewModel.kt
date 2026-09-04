@@ -145,6 +145,32 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         _editing.value = null
     }
 
+    /**
+     * Bir kaydı geçmişteki parolasına döndürür.
+     *
+     * ### Neden depoya yeni bir parola olarak gidiyor
+     *
+     * Geri yükleme, geçmişten bir satırı **silmek** değil; o değeri yeniden
+     * geçerli yapmak. Kayıt normal yoldan güncellendiği için depo o an
+     * kayıtlı olan parolayı geçmişin başına atıyor — yani işlem tersine
+     * çevrilebilir kalıyor ve yanlış satırı seçen kullanıcı tek dokunuşla
+     * geri dönebiliyor.
+     *
+     * Geçmişten kopya alınıyor: gizli metnin sahipliği kasada kalmalı, yoksa
+     * geçmiş satırının temizlenmesi geçerli parolayı da siler.
+     */
+    fun restorePassword(item: VaultItem, entry: app.kasa.data.model.PasswordHistoryEntry) {
+        viewModelScope.launch {
+            val restored = item.copy(
+                password = app.kasa.core.crypto.SecretText.adopt(entry.password.copyChars())
+            )
+            if (repository.upsert(restored)) {
+                container.haptics.play(Haptics.Kind.UNDO)
+                messages.send(UiMessage(R.string.history_restored))
+            }
+        }
+    }
+
     fun save(item: VaultItem) {
         viewModelScope.launch {
             val isNew = repository.byId(item.id) == null

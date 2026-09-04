@@ -111,6 +111,10 @@
     <string name="detail_created">%1$s eklendi</string>
     <string name="detail_history">Parola geçmişi</string>
     <string name="detail_history_count">%1$d eski parola</string>
+    <string name="history_sub">Bu kayıtta daha önce kullanılan parolalar. Bir sitede değişiklik kaydedilmediğinde doğru parola yalnızca burada duruyor.</string>
+    <string name="history_restore">Bu parolaya geri dön</string>
+    <string name="history_restored">Parola geri yüklendi</string>
+    <string name="history_open">Geçmişi aç</string>
     <string name="detail_leak_warning">Bu parola bilinen bir sızıntıda geçiyor. Bugün değiştir.</string>
     <string name="detail_mid_warning">Fena değil ama kısa. Uzunluğu 16 karakterin üstüne çıkar.</string>
     <string name="detail_ok_note">İyi görünüyor. 12 ayda bir yenilemen yeterli.</string>

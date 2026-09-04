@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.kasa.core.util.Haptics
 import app.kasa.core.util.rememberHapticPlayer
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
@@ -172,13 +173,41 @@ fun SearchBarButton(
 fun FieldBlock(
     label: String,
     modifier: Modifier = Modifier,
+    /**
+     * Blok bir yere götürüyorsa verilen eylem.
+     *
+     * Verildiğinde blok basılabilir oluyor ve basış geri bildirimi (küçülme,
+     * kenar ışığı) satırlarınkiyle aynı — dokunulabilir görünen ama
+     * dokununca hiçbir şey olmayan bir yüzey, kullanıcıya "bu uygulamanın
+     * bazı yerleri çalışmıyor" diyor.
+     */
+    onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && onClick != null) 0.98f else 1f,
+        animationSpec = KasaMotion.small(),
+        label = "fieldBlockScale"
+    )
+
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .scale(scale)
             .clip(RoundedCornerShape(KasaRadius.m))
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .then(
+                if (onClick == null) Modifier
+                else Modifier
+                    .pressRim(corner = KasaRadius.m, color = MaterialTheme.colorScheme.primary)
+                    .clickableNoRipple(
+                        interactionSource = interaction,
+                        role = Role.Button,
+                        onClick = onClick
+                    )
+            )
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Text(
