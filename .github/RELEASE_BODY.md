@@ -6,7 +6,119 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
-## 1.6'da yenilikler
+## 1.7'de yenilikler
+
+### Parlayan kenarlar gerçekten parlıyor
+
+Kenar efektleri tek genişlikte bir çizgiyle çiziliyordu ve bu, bir kenarı
+**parlayan** değil **çizilmiş** gösteriyor. Parlayan bir şey kendi sınırının
+dışına ışık taşırıyor; göz "bu parlıyor" kararını çizginin kendisinden değil
+o dağılımdan veriyor.
+
+Aynı yol artık üç kez çiziliyor: en dıştaki geniş ve sönük, en içteki dar ve
+tam parlak. Üst üste binen katmanlar merkeze doğru hızla artan bir yoğunluk
+veriyor — bir bulanıklık katmanı kurmadan hâlenin yaptığı iş bu. Genişlik
+katsayıları doğrusal değil, çünkü hâle yakında hızlı uzakta yavaş sönüyor.
+
+Basış hâlesi parmakla birlikte büyüyor. Parıltı şeridinin uçlarında hâle
+sönüyor, yoksa şerit belirip kaybolmak yerine yanıp sönüyordu. Güç puanı
+halkası, TOTP sayacı ve yükleme göstergesi de aynı hâleyi kullanıyor.
+
+### Bir şeyin sürdüğünü söyleyen gösterge
+
+Uygulamadaki tek gösterge **belirli** bir ilerleme istiyordu: dolacak bir yer,
+dolduran bir sayı. Ama işlerin çoğu öyle değil — bir kasanın açılması, bir
+dışa aktarmanın yazılması. Oralarda çubuk ya sıfırda duruyordu (donmuş
+görünüyor) ya da uydurulmuş bir sayıyla doluyordu.
+
+Yeni gösterge nefes alan bir yay. Sabit uzunlukta dönen bir yayın tekrarını
+göz hemen yakalıyor ve hareket "dönüyor" değil "bekliyor" diyor; uzunluk
+dönüşten farklı hızda değişince desen çok daha geç tekrarlıyor. Ucundaki ışık
+yönü söylüyor.
+
+- **Kilit ekranı.** Anahtar türetme uygulamanın en uzun beklemesi (~800 ms) ve
+  buradaki tek işaret düğmenin yazısıydı — ekran donmuş görünüyordu.
+- **Ayarlar.** Anahtar döndürme bütün kasayı yeniden şifreliyor, ana parola
+  değişimi anahtarı yeniden türetiyor, içe aktarma her kaydı ayrı şifreliyor.
+  Üçünün de ekranda hiçbir karşılığı yoktu ve aynı düğmeye ikinci kez
+  basılabiliyordu. Cam örtü dokunuşları yutuyor ve ne beklendiğini yazıyor.
+- **Kasa listesi.** İlk süzme hesabı bitene kadar boş liste duruyordu, yani
+  "yükleniyor" ile "hiç kayıt yok" aynı görünüyordu. İkincisi bir parola
+  yöneticisinde ürkütücü bir cümle. İskelet gelecek olanın biçimini gösteriyor.
+
+### Cam başlık çubuğu
+
+Her ekranın başlığı listenin ilk öğesiydi ve kaydırınca gidiyordu; uzun bir
+listenin ortasında hangi ekranda olunduğunu söyleyen tek şey ekranın en
+altındaki gezinme simgesi kalıyordu — gözün bulunduğu yerin tam tersinde.
+
+Büyük başlık yukarı çıkarken yerini üstte duran cam bir çubuk alıyor.
+Altındaki içerik bulanıklaşıyor, alt kenar sert bir çizgiyle değil sönerek
+bitiyor. Ayarlarda açık olan kategorinin adını gösteriyor ve bir kategorinin
+ya da süzülmüş bir görünümün içindeyken geri oku taşıyor: o çıkış listenin
+başındaki çubuktaydı ve o da kaydırınca gidiyordu.
+
+### Kurulum ekranı
+
+- Adımlar arası geçiş animasyonlu değildi: kasanın yaratıldığı an — kurulumun
+  tek geri alınamaz adımı — hiçbir şey olmamış gibi geçiyordu. Artık yeni adım
+  alttan yükseliyor, eski yukarı çekiliyor. Yön tek, çünkü kurulum tek yönlü
+  bir yol.
+- Üstte üç adımlı bir ray: geçmiş adım dolu, bulunulan yarı dolu.
+- Her adımın bölümleri sırayla ve bulanıklıktan çözülerek beliriyor.
+- Kurtarma anahtarı en son ve en güçlü bulanıklıkla geliyor. O ekranın tek
+  gerçek işi o koda bakılmasını sağlamak.
+
+### Parola geçmişi artık açılabiliyor
+
+Kasa parola değişikliklerinde eskisini zaten saklıyordu ama arayüzde yalnızca
+**sayısı** görünüyordu: "3 eski parola". Saklamanın tek sebebi geri
+dönebilmek olduğuna göre, ulaşılamayan bir geçmiş hiçbir işe yaramıyordu.
+
+Asıl senaryo şu: bir sitede parolanı değiştiriyorsun, kasaya yenisini
+yazıyorsun, sonra sitenin değişikliği kaydetmediği ortaya çıkıyor. O anda
+doğru parola yalnızca burada duruyor.
+
+Her satır kapalı başlıyor ve ayrı açılıyor — hepsi birden açık dursaydı omuz
+üstünden tek bakış bütün geçmişi verirdi. Geri yükleme geçmişi silmiyor: o an
+kayıtlı olan parola geçmişin başına gidiyor, yani yanlış satırı seçen
+kullanıcı tek dokunuşla geri dönebiliyor.
+
+### Çoklu seçim ve toplu işlem
+
+Otuz kaydı bir klasöre taşımanın tek yolu, otuz kez kaydı açıp klasörünü
+değiştirmekti. Kasa büyüdükçe bu iş yapılmaz hâle geliyor ve kullanıcı düzeni
+bırakıyor — yani klasörler var ama kimse kullanmıyor.
+
+Seçim kipi basılı tutma sayfasındaki **Seç** ile başlıyor. Kipteyken dokunuş
+kaydı açmıyor, seçiyor; satırın rozeti seçim işaretiyle yer değiştiriyor.
+Toplu olarak çöpe atma, sık kullanılana ekleme ve klasöre taşıma var.
+
+Depoda toplu işlem tek yazım: eskiden otuz kayıt otuz kez kasanın tamamının
+şifrelenip diske yazılması demekti — hem yavaş hem de her biri ayrı bir
+kesinti noktası. Şimdi ya hepsi ya hiçbiri.
+
+Eylem çubuğu gezinme çubuğunun **üstüne biniyor**, yerine geçmiyor: kullanıcı
+seçim yaparken sekme değiştirmek isteyebiliyor.
+
+### Boş durumlar
+
+İki satır gri yazıydı ve kullanıcıya bir şeyin **eksik** olduğunu
+söylüyordu; işaret o boşluğun beklenen bir durum olduğunu söylüyor. Süzgeç
+yüzünden boşalan listede artık çıkış yolu da var.
+
+### Depo görselleri
+
+Ekran çizimlerinde uydurulmuş kayıt adları ve sahte parolalar vardı; bunlar
+gerçek bir ekran görüntüsü gibi okunup yanlış bir izlenim bırakıyordu — hem
+"uygulama böyle görünüyor" hem de "kasada bu kayıtlar var" anlamında. Görseller
+yazısız taslağa çevrildi: yalnızca yerleşim, ölçü ve renk ailesi.
+
+Gezinme çubuğuna yine dokunulmadı.
+
+---
+
+## 1.6'da gelenler
 
 ### Her titreşim, gerçekte olan olayın titreşimi
 
