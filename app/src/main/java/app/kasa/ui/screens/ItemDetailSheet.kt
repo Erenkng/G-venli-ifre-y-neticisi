@@ -1,8 +1,5 @@
 package app.kasa.ui.screens
 
-import app.kasa.ui.components.GroupPosition
-import app.kasa.ui.components.KasaTile
-import app.kasa.ui.components.groupPositionOf
 import androidx.compose.material.icons.rounded.LinkOff
 import app.kasa.ui.components.SheetBlurBehind
 import app.kasa.ui.components.sheetGlassColor
@@ -426,10 +423,9 @@ fun ItemDetailSheet(
                 Spacer(Modifier.height(16.dp))
                 SectionLabel(stringResource(R.string.link_title), count = item.linkedApps.size)
                 Spacer(Modifier.height(6.dp))
-                item.linkedApps.forEachIndexed { index, token ->
+                item.linkedApps.forEach { token ->
                     LinkedAppRow(
                         token = token,
-                        position = groupPositionOf(index, item.linkedApps.size),
                         onRemove = { viewModel.unlinkApp(item.id, token) }
                     )
                     Spacer(Modifier.height(3.dp))
@@ -953,7 +949,7 @@ private fun CategoryHero(item: VaultItem) {
  * uygulamaya ait" bilgisini veriyor.
  */
 @Composable
-private fun LinkedAppRow(token: String, position: GroupPosition, onRemove: () -> Unit) {
+private fun LinkedAppRow(token: String, onRemove: () -> Unit) {
     val context = LocalContext.current
     val packageName = token.substringBefore('|')
     val label = remember(packageName) {
@@ -963,41 +959,47 @@ private fun LinkedAppRow(token: String, position: GroupPosition, onRemove: () ->
         }.getOrDefault(packageName)
     }
 
-    KasaTile(position = position) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
+    // Satırın kendisi tıklanabilir değil, tek eylemi sağdaki düğmede: bağı
+    // kaldırmak geri alınamaz bir iş ve satıra dokunmak onu tetikleseydi, bir
+    // kaydırma hatası bağı silerdi. Bu yüzden KasaTile kullanılmıyor — o kap
+    // tıklanabilir olmayı varsayıyor.
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(KasaRadius.m))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = KasaTheme.colors.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (label != packageName) {
                 Text(
-                    label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = KasaTheme.colors.ink,
+                    packageName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KasaTheme.colors.ink3,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (label != packageName) {
-                    Text(
-                        packageName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KasaTheme.colors.ink3,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
-            KasaIconButton(
-                onClick = onRemove,
-                size = 36.dp,
-                contentDescription = stringResource(R.string.link_remove)
-            ) {
-                Icon(
-                    Icons.Rounded.LinkOff,
-                    contentDescription = null,
-                    tint = KasaTheme.colors.ink2,
-                    modifier = Modifier.size(17.dp)
-                )
-            }
+        }
+        KasaIconButton(
+            onClick = onRemove,
+            size = 36.dp,
+            contentDescription = stringResource(R.string.link_remove)
+        ) {
+            Icon(
+                Icons.Rounded.LinkOff,
+                contentDescription = null,
+                tint = KasaTheme.colors.ink2,
+                modifier = Modifier.size(17.dp)
+            )
         }
     }
 }
