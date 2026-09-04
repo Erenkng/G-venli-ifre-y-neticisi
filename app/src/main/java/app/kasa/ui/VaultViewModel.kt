@@ -162,7 +162,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
             val restored = item.copy(
                 password = app.kasa.core.crypto.SecretText.adopt(entry.password.copyChars())
             )
-            if (repository.upsert(restored)) {
+            if (wrote(repository.upsert(restored))) {
                 container.haptics.play(Haptics.Kind.UNDO)
                 messages.send(UiMessage(R.string.history_restored))
             }
@@ -172,7 +172,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun save(item: VaultItem) {
         viewModelScope.launch {
             val isNew = repository.byId(item.id) == null
-            if (repository.upsert(item)) {
+            if (wrote(repository.upsert(item))) {
                 container.haptics.play(if (isNew) Haptics.Kind.CREATE else Haptics.Kind.SUCCESS)
                 messages.send(
                     UiMessage(
@@ -253,7 +253,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         val ids = _selection.value
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            if (repository.moveToTrash(ids)) {
+            if (wrote(repository.moveToTrash(ids))) {
                 container.haptics.play(Haptics.Kind.DISCARD)
                 _selection.value = emptySet()
                 messages.send(
@@ -261,11 +261,38 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
                         textRes = R.string.bulk_trashed,
                         args = listOf(ids.size),
                         actionRes = R.string.detail_undo,
-                        action = { viewModelScope.launch { repository.restoreFromTrash(ids) } }
+                        action = { viewModelScope.launch { wrote(repository.restoreFromTrash(ids)) } }
                     )
                 )
             }
         }
+    }
+
+
+    /**
+     * Kasaya yazan bir işlemin sonucunu geçirir ve **başarısızlığı söyler**.
+     *
+     * ### Neden gerekli
+     *
+     * Depo yazımı başarısız olduğunda (disk dolu, anahtar deposu erişilemez,
+     * dosya kilitli) çağrı yerleri yalnızca başarı dalını çalıştırıyordu:
+     * titreşim yok, bildirim yok, ekranda hiçbir değişiklik yok. Kullanıcının
+     * gördüğü şey "hiçbir şey olmadı" — ama bir parola yöneticisinde bunun
+     * "kaydedildi" ile karıştırılması, parolanın hiçbir yerde durmaması
+     * demek. Sessiz başarısızlığın en pahalı olduğu yer burası.
+     *
+     * ### Neden tek bir metin
+     *
+     * Kullanıcının yapabileceği şey hepsinde aynı: yeniden denemek ve yer
+     * açmak. Hangi işlemin başarısız olduğunu yazmak ekranda zaten görünüyor,
+     * çünkü beklenen değişiklik olmamış durumda.
+     */
+    private suspend fun wrote(ok: Boolean): Boolean {
+        if (!ok) {
+            container.haptics.play(Haptics.Kind.WARNING)
+            messages.send(UiMessage(R.string.vault_write_failed))
+        }
+        return ok
     }
 
     /** Seçili kayıtları çöp kutusundan geri alır. */
@@ -273,7 +300,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         val ids = _selection.value
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            if (repository.restoreFromTrash(ids)) {
+            if (wrote(repository.restoreFromTrash(ids))) {
                 container.haptics.play(Haptics.Kind.UNDO)
                 _selection.value = emptySet()
                 messages.send(UiMessage(R.string.bulk_restored, listOf(ids.size)))
@@ -292,7 +319,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         val ids = _selection.value
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            if (repository.purge(ids)) {
+            if (wrote(repository.purge(ids))) {
                 container.haptics.play(Haptics.Kind.DESTRUCTIVE)
                 _selection.value = emptySet()
                 messages.send(UiMessage(R.string.bulk_purged, listOf(ids.size)))
@@ -311,7 +338,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         val ids = _selection.value
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            if (repository.setFavorite(ids, favorite)) {
+            if (wrote(repository.setFavorite(ids, favorite))) {
                 container.haptics.play(Haptics.Kind.TOGGLE)
                 _selection.value = emptySet()
                 messages.send(
@@ -328,7 +355,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         val ids = _selection.value
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            if (repository.moveToFolder(ids, folderId)) {
+            if (wrote(repository.moveToFolder(ids, folderId))) {
                 container.haptics.play(Haptics.Kind.SUCCESS)
                 _selection.value = emptySet()
                 messages.send(UiMessage(R.string.bulk_moved, listOf(ids.size)))
@@ -341,7 +368,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     /** Kaydı çöp kutusuna taşır; geri alma hem şeritte hem çöp kutusunda. */
     fun moveToTrash(item: VaultItem) {
         viewModelScope.launch {
-            if (repository.moveToTrash(item.id)) {
+            if (wrote(repository.moveToTrash(item.id))) {
                 container.haptics.play(Haptics.Kind.DISCARD)
                 _selectedId.value = null
                 messages.send(
@@ -349,7 +376,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
                         textRes = R.string.trash_moved,
                         args = listOf(item.name),
                         actionRes = R.string.detail_undo,
-                        action = { viewModelScope.launch { repository.restoreFromTrash(item.id) } }
+                        action = { viewModelScope.launch { wrote(repository.restoreFromTrash(item.id)) } }
                     )
                 )
             }
@@ -358,7 +385,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     fun restoreFromTrash(item: VaultItem) {
         viewModelScope.launch {
-            if (repository.restoreFromTrash(item.id)) {
+            if (wrote(repository.restoreFromTrash(item.id))) {
                 container.haptics.play(Haptics.Kind.UNDO)
                 messages.send(UiMessage(R.string.trash_restored, listOf(item.name)))
             }
@@ -367,7 +394,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     fun purge(item: VaultItem) {
         viewModelScope.launch {
-            if (repository.purge(item.id)) {
+            if (wrote(repository.purge(item.id))) {
                 container.haptics.play(Haptics.Kind.DESTRUCTIVE)
                 _selectedId.value = null
                 messages.send(UiMessage(R.string.trash_purged, listOf(item.name)))
@@ -377,7 +404,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     fun emptyTrash() {
         viewModelScope.launch {
-            if (repository.emptyTrash()) {
+            if (wrote(repository.emptyTrash())) {
                 container.haptics.play(Haptics.Kind.DESTRUCTIVE)
                 messages.send(UiMessage(R.string.trash_emptied))
             }
@@ -388,20 +415,21 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     fun createFolder(name: String, thenAssignTo: String? = null) {
         viewModelScope.launch {
-            val id = repository.createFolder(name) ?: return@launch
+            val id = repository.createFolder(name)
+            if (!wrote(id != null) || id == null) return@launch
             container.haptics.play(Haptics.Kind.CREATE)
-            if (thenAssignTo != null) repository.moveToFolder(thenAssignTo, id)
+            if (thenAssignTo != null) wrote(repository.moveToFolder(thenAssignTo, id))
             messages.send(UiMessage(R.string.folder_created, listOf(name.trim())))
         }
     }
 
     fun renameFolder(id: String, name: String) {
-        viewModelScope.launch { repository.renameFolder(id, name) }
+        viewModelScope.launch { wrote(repository.renameFolder(id, name)) }
     }
 
     fun deleteFolder(id: String) {
         viewModelScope.launch {
-            if (repository.deleteFolder(id)) {
+            if (wrote(repository.deleteFolder(id))) {
                 container.haptics.play(Haptics.Kind.DISCARD)
                 if ((_view.value as? VaultFilter.InFolder)?.folderId == id) _view.value = VaultFilter.All
             }
@@ -444,7 +472,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     fun removeAttachment(itemId: String, attachmentId: String) {
         viewModelScope.launch {
-            if (repository.removeAttachment(itemId, attachmentId)) {
+            if (wrote(repository.removeAttachment(itemId, attachmentId))) {
                 container.haptics.play(Haptics.Kind.DETACH)
                 messages.send(UiMessage(R.string.att_removed))
             }
@@ -502,7 +530,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun duplicate(item: VaultItem) {
         viewModelScope.launch {
             val copy = repository.duplicate(item.id)
-            if (copy != null) {
+            if (wrote(copy != null) && copy != null) {
                 container.haptics.play(Haptics.Kind.CREATE)
                 _editing.value = copy
             }
@@ -519,13 +547,16 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     fun toggleFavorite(id: String) {
         viewModelScope.launch {
-            repository.toggleFavorite(id)
-            container.haptics.play(Haptics.Kind.TOGGLE)
+            // Titreşim yazımın **sonucuna** bağlı: koşulsuz çalsaydı, yazım
+            // başarısızken parmağa "oldu" der, ekran ise değişmezdi.
+            if (wrote(repository.toggleFavorite(id))) {
+                container.haptics.play(Haptics.Kind.TOGGLE)
+            }
         }
     }
 
     fun moveToFolder(itemId: String, folderId: String?) {
-        viewModelScope.launch { repository.moveToFolder(itemId, folderId) }
+        viewModelScope.launch { wrote(repository.moveToFolder(itemId, folderId)) }
     }
 
     /**

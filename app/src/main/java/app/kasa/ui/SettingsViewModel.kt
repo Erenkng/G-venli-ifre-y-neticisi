@@ -189,6 +189,13 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                     authClass == KeystoreKeys.AuthClass.DEVICE_CREDENTIAL
                 )
                 container.haptics.play(Haptics.Kind.SEAL)
+            } else {
+                // Sessiz kalınırsa kullanıcı parmağını okuttuktan sonra
+                // anahtarın kapalı kaldığını yalnızca ekrana geri bakıp fark
+                // ediyor — ve çoğu zaman fark etmiyor, kilidin açılacağını
+                // sanıyor.
+                container.haptics.play(Haptics.Kind.WARNING)
+                messages.send(UiMessage(R.string.biometric_enroll_failed))
             }
         }
     }
