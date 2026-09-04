@@ -9,7 +9,7 @@
 [![Android](https://img.shields.io/badge/Android-16%2B%20%C2%B7%20API%2036-0B5347?style=for-the-badge&logo=android&logoColor=A6F0DE&labelColor=04241F)](#kurulum)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-0B5347?style=for-the-badge&logo=kotlin&logoColor=A6F0DE&labelColor=04241F)](#mimari)
 [![Compose](https://img.shields.io/badge/Compose-2025.04-0B5347?style=for-the-badge&logo=jetpackcompose&logoColor=A6F0DE&labelColor=04241F)](#tasarım-dili)
-[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-1.8-0B5347?style=for-the-badge&labelColor=04241F)](#sürüm-yayımlama)
+[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-1.9-0B5347?style=for-the-badge&labelColor=04241F)](#sürüm-yayımlama)
 
 [![CI](https://github.com/Erenkng/G-venli-ifre-y-neticisi/actions/workflows/android.yml/badge.svg?branch=claude%2Fandroid-app-design-features-awluov)](https://github.com/Erenkng/G-venli-ifre-y-neticisi/actions/workflows/android.yml)
 
@@ -591,6 +591,53 @@ artık yalnızca bulanıklık gerçekten çizilecekse yapılıyor.
 </details>
 
 <details>
+<summary><b>Geri hareketi</b> — gezinme parmakla yürüyor</summary>
+
+<br>
+
+Manifestte `enableOnBackInvokedCallback` açık olması **yetmiyor**: o bayrak
+sistemin etkinlikler arası animasyonunu veriyor, uygulamanın kendi katmanları
+yine bırakıldığı anda zıplıyor. Aynı parmak hareketi böylece ekranın neresinde
+yapıldığına göre iki farklı şey hissettiriyor.
+
+Katmanlar iki ayrı işleme ayrılıyor, çünkü iki ayrı şey oluyorlar:
+
+| | Pencere kapanışı | İtmeli gezinme |
+|---|---|---|
+| Nerede | düzenleyici, çöp kutusu | ayarlarda bir kategori |
+| Ölçek | 0,89'a kadar, çekilen kenarın **karşısından** | yok |
+| Kayma | çekilen kenarın tersine | gidilen yolun tersine, genişliğin ~%20'si |
+| Köşe | 0 → 30dp | yok |
+| Solma | yok | hafif |
+
+Ekranı kaplayan bir yüzeyin köşesi zaten ekranın köşesi; yuvarlanmaya başladığı
+an artık ekranı kaplamadığını söylüyor. İtmeli gezinmede ise "geri", ileri
+gidilen yolun tersi demek ve o yol her zaman aynı yönde — bu yüzden orada
+parmağın hangi kenardan geldiğine bakılmıyor.
+
+Ham ilerleme yavaşlayan bir eğriden geçiyor: doğrusal olsaydı ilk milimetreler
+fark edilmez, kullanıcı hareketin tanınmadığını sanırdı. Onaylandığında
+ilerleme sıfırlanmıyor — çıkış animasyonu bırakıldığı yerden devralıyor;
+sıfırlansaydı yüzey önce tam boyuna sıçrar, sonra giderdi.
+
+İki yer dışarıda: aramanın kapanışı zaten çubuğa geri toplanan bir daire (iki
+mekân eğretilemesi yarışırdı) ve kamera önizlemesi — `PreviewView` varsayılan
+kipinde `SurfaceView` kullanıyor ve `graphicsLayer` ölçeği ile kırpma onunla
+birleşmiyor.
+
+En ince ayrıntı sıralamada: Compose'da en son kaydedilen etkin geri işleyicisi
+kazanıyor. Çöp kutusunun kendi kapatma işleyicisi daha sonra bestelendiği için
+yukarıdaki hareketi tamamen bastırıyordu — ekran parmakla hiç kıpırdamıyordu.
+Kapatma tek yere alındı; ekranda yalnızca seçimi bırakan işleyici kaldı ve
+sıra doğru çalışıyor. Aynı kural düzenleyicide tersine kullanılıyor:
+kaydedilmemiş değişiklik varken oradaki işleyici bilerek kazanıyor ve hareket
+yerine onay penceresi çıkıyor.
+
+</details>
+
+---
+
+<details>
 <summary><b>Kare bütçesi</b> — 60 ve 120 Hz için yapılanlar</summary>
 
 <br>
@@ -602,6 +649,7 @@ artık yalnızca bulanıklık gerçekten çizilecekse yapılıyor.
 | Kare başına ayırma | `buildMorphPath` her çağrıda yeni bir `Path` ve kutulanmış `Offset` dizisi ayırıyordu; kadran kare başına dört kez çiziliyor. Yol ve köşe tamponu bir kez kurulup yeniden kullanılıyor. "En zayıf önce" sıralaması güç ölçümünü karşılaştırıcının içinde yapıyordu (500 kayıtta ~4500 ölçüm); ölçüm artık kayıt başına bir kez. |
 | Gereksiz katman kaydı | Bulanıklık için ekran her karede tam boyutlu bir katmana kaydediliyordu; artık yalnızca gerektiğinde. |
 | Liste besteleri | Kaydırılan listelere `contentType` eklendi: Compose satır bestesini yeniden kurmak yerine yeniden kullanıyor. |
+| Beste aşamasında okunan animasyon | Beş bileşen sonsuz bir animasyonun değerini beste sırasında okuyordu: iskelet parıltısı, dalgalı gösterge, morph kadranı, tarama şekli ve tanıtım çizimi. Değer her karede değiştiği için bunlar ekranda durduğu **sürece** yeniden besteleniyordu — sonsuz bir animasyonda bunun sonu yok. Değerler artık yalnızca çizim aşamasında açılıyor. |
 
 > [!NOTE]
 > Bu değişikliklerin hepsi Compose'un belgelenmiş davranışına dayanıyor ama
@@ -622,12 +670,17 @@ Buradaki kararların çoğu bu uygulamaya özel değil. `.claude/skills/android-
 altında, Android 17 / Material 3 Expressive tasarım dilini anlatan bir beceri
 duruyor: bulanıklığın neden gölgenin yerini aldığı, cam bir yüzeyi cam yapan
 dört özellik, Compose tarafında sessizce kırılan üç şey, mesafeye göre ayrılmış
-hareket sözlüğü ve titreşimin desen tablosu yerine duygu uzayında tanımlanması.
+hareket sözlüğü, parmağa bağlı gezinme ve titreşimin desen tablosu yerine duygu
+uzayında tanımlanması.
 
 İçeriğin çoğu yazarken bulunan kusurlardan geliyor — kendi kaydettiği içeriğin
 içinde durup kendi bulanıklığını yeniden bulanıklaştıran yüzey, aynı şeridi
 kaplayan iki cam katmanın ürettiği leke, beste sırasında okunan animasyon
-değerinin yarattığı takılma.
+değerinin yarattığı takılma, manifest bayrağı açıkken bile kıpırdamayan
+uygulama içi katmanlar.
+
+Beceri bir kez de haklı çıktı: içinde yazılı olan "animasyon değerini beste
+aşamasında okuma" kuralının bu depoda beş yerde çiğnendiği sonradan bulundu.
 
 Her projede kullanmak için kullanıcı dizinine kopyalanıyor:
 

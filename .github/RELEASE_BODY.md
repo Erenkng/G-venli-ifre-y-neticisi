@@ -13,10 +13,137 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
-## 1.8'de yenilikler
+## 1.9'da yenilikler
 
-Bu sürüm 1.7'nin üstüne bir tur cila ve o turda bulunan kusurların
-düzeltmeleri. 1.7'de gelen her şey aşağıda duruyor.
+Bu sürümün ekseni gezinme: geri gitmek artık bir tuşa basmak değil, parmakla
+yürütülen bir hareket. Yanında bir tur kusur avı var ve çıkanların çoğu
+görünmeyen türden — kare bütçesi yiyen, sessizce veri kaybettiren şeyler.
+
+### Geri hareketi parmakla birlikte yürüyor
+
+Tam ekran katmanlar — düzenleyici, çöp kutusu, ayarlardaki kategoriler — geri
+tuşuyla kapanıyordu ama kapanma **basıldıktan sonra** başlıyordu. Kullanıcı
+kenardan içeri çekerken ekranda hiçbir şey olmuyor, sonra bir anda katman
+gidiyordu. O aralıkta iki şey bilinmiyor: hareketin tanınıp tanınmadığı ve
+bırakılırsa ne olacağı.
+
+Sistem bunu kendi pencereleri arasında zaten yapıyor. Uygulamanın kendi
+katmanları aynı hareketi taklit etmediğinde, aynı parmak hareketi ekranın
+neresinde yapıldığına göre iki farklı şey hissettiriyor.
+
+İki ayrı işleme var, çünkü iki ayrı şey oluyorlar:
+
+- **Pencere kapanışı** (düzenleyici, çöp kutusu): yüzey küçülüyor, çekilen
+  kenarın tersine kayıyor ve köşeleri yuvarlanıyor. Ekranı kaplayan bir
+  yüzeyin köşesi zaten ekranın köşesi; yuvarlanmaya başladığı an artık ekranı
+  kaplamadığını söylüyor. Ölçek merkezi çekilen kenarın karşısında, yani
+  altındaki şey parmağın geldiği taraftan görünmeye başlıyor — geri gidilen
+  yer orası.
+- **İtmeli gezinme** (ayarlarda bir kategori): küçülme ve köşe yok, yalnızca
+  gidilen yolun tersine kayma ve hafif solma. Kategori ekranı ayrı bir pencere
+  değil, aynı listenin bir sonraki durağı. Yön parmağın hangi kenardan
+  geldiğine de bakmıyor: itmeli gezinmede geri, ileri gidilen yolun tersi
+  demek.
+
+Bırakınca çıkış animasyonu ilerlemenin bırakıldığı yerden devralıyor; başa
+sarılsaydı yüzey önce tam boyuna sıçrar, sonra giderdi. Vazgeçilirse yerine
+yaylanarak dönüyor. Hareket kapalıyken geri tuşu yine çalışıyor, yalnızca
+yüzey kıpırdamıyor.
+
+Arama ile kamera dışarıda: aramanın kapanışı zaten çubuğa geri toplanan bir
+daire ve iki mekân eğretilemesi birbiriyle yarışırdı; kamerada ise önizleme
+yüzeyi ölçeklenip kırpılamıyor.
+
+### Düzenleyici artık sormadan atmıyor
+
+Geri tuşu ve çarpı düğmesi formu doğrudan kapatıyordu. Otuz karakterlik bir
+parola üretip yazdıktan sonra yanlışlıkla geri gitmek, yazılan her şeyi geri
+dönüşsüz siliyordu — ne uyarı vardı ne geri alma. Parmağa bağlı geri hareketi
+bu yolu bir kaza olarak daha da kolaylaştırıyordu.
+
+Metin duruma göre değişiyor: yeni bir kayıtta yazılanlar hiçbir yere
+yazılmadı, var olan bir kayıtta eski hâli yerinde duruyor. İkisi aynı şey
+değil ve aynı cümleyle anlatılamaz.
+
+### Kasaya yazamama artık sessiz değil
+
+Depo yazımı başarısız olduğunda (disk dolu, anahtar deposu erişilemez, dosya
+kilitli) uygulama yalnızca başarı dalını çalıştırıyordu: titreşim yok,
+bildirim yok, ekranda hiçbir değişiklik yok. Kullanıcının gördüğü şey "hiçbir
+şey olmadı" — ama bir parola yöneticisinde bunun "kaydedildi" ile
+karıştırılması, parolanın hiçbir yerde durmaması demek.
+
+On yedi yazım noktası tek bir yerden geçiyor. İki yerde davranış da düzeldi:
+**sık kullanılan** anahtarı titreşimi koşulsuz çalıyordu — yazım başarısızken
+parmağa "oldu" diyor, ekran ise değişmiyordu; **biyometrik açma**
+kurulamadığında hiçbir şey söylenmiyordu ve kullanıcı parmağını okutup
+anahtarın kapalı kaldığını çoğu zaman fark etmiyordu.
+
+### Sonsuz animasyonlar kare bütçesini yemiyor
+
+Beş bileşen sonsuz bir animasyonun değerini beste aşamasında okuyordu: iskelet
+parıltısı, dalgalı gösterge, morph kadranı, tarama şekli ve tanıtım ekranının
+çizimi. Değer her karede değiştiği için bu bileşenler ekranda durduğu
+**sürece** saniyede 120 kez yeniden besteleniyordu — ve sonsuz bir animasyonda
+bunun bir sonu yok.
+
+En pahalısı tanıtım ekranıydı: kullanıcının okuduğu bütün süre boyunca sürüyor
+ve kaydırma tam o sırada oluyor.
+
+### Liste iskeletten sırayla doluyor
+
+İskelet listenin biçimini gösteriyor, sonra içerik geliyordu — ama içerik tek
+karede belirince ikisi arasında hiçbir bağ kalmıyordu. Sırayla gelince olan
+şey tek bir olay: biçim doluyor. Yalnızca ilk doluşta; kaydırırken görüş
+alanına giren her satır belirseydi liste sürekli kıpırdayan bir şey olurdu.
+
+### Çöp kutusunda toplu işlem
+
+Kasa listesindeki seçim kipi çöp kutusuna da geldi: toplu geri alma ve toplu
+kalıcı silme. Kalıcı silmede geri alma **yok** — silinen şey artık hiçbir
+yerde durmuyor ve bir "geri al" şeridi kullanıcıya olmayan bir güvence
+verirdi; onun yerine onay penceresi çıkıyor.
+
+Seçim kümesi kasayla ortak olduğu için geçişlerde temizleniyor. Temizlenmezse
+çöp kutusunda "3 seçildi" yazarken silinecek olanlar kasadaki kayıtlar
+oluyordu; kalıcı silmede bunun geri dönüşü yok.
+
+### Aynı şeyin iki kopyası kalmadı
+
+- **Alt sayfaların cam yüzeyi** altı dosyada altı kez tanımlıydı ve çoktan
+  ayrışmıştı: dördü bir belirteci, ikisi başkasını kullanıyordu, yani sayfalar
+  hangi dosyada yazıldıklarına göre iki ayrı tonda duruyordu.
+- **Çöp kutusunun seçim çubuğu** kasa listesindekinin kopyasıydı ve daha ilk
+  sürümünde ayrışmıştı: kopyada düğmeler arasındaki boşluk yoktu. Çubuk artık
+  tek, eylemleri çağıran taraf veriyor.
+- **Düzenleyici** düz bir renkle boyanıyor ve uygulamanın tek gradyansız
+  ekranı oluyordu. Dahası bu bir kusuru örtüyordu: 1.8'de metin girişleri cam
+  yüzeye geçmişti ama düzenleyicide camın arkasında gösterecek bir şey yoktu.
+
+### Ufak olanlar
+
+- Kasanın seçim çubuğu çöp kutusu açıkken gizleniyor; tam ekran açılış
+  animasyonu sırasında iki çubuk üst üste biniyordu.
+- Çöp kutusundaki toplu seçimin görünür bir girişi var. Uzun basmak zaten
+  açıyordu ama kasa listesinde o yolu satır menüsündeki "Seç" gösteriyor,
+  çöp kutusunda ise menü yok.
+- Çöp kutusunun geri oku sağdan sola yazılan dillerde ters yöne bakıyordu.
+
+### Tasarım dili becerisi
+
+Depodaki `android-expressive-ui` becerisine parmağa bağlı gezinme bölümü
+eklendi: manifest bayrağının neden yetmediği, iki işlemenin farkı ve hangi
+durumlarda hiç uygulanmaması gerektiği. Beceride zaten yazılı olan "animasyon
+değerini beste aşamasında okuma" kuralının bu depoda beş yerde çiğnendiği de
+bu sürümde bulundu — beceri haklıydı, kod ondan sapmıştı.
+
+Gezinme çubuğuna yine dokunulmadı.
+
+---
+
+## 1.8'de gelenler
+
+1.7'nin üstüne bir tur cila ve o turda bulunan kusurların düzeltmeleri.
 
 ### Cam artık alanların da dili
 
