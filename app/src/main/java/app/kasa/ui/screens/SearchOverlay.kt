@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -107,7 +109,8 @@ fun SearchOverlay(
                 item {
                     EmptyState(
                         title = stringResource(R.string.vault_no_match_title),
-                        subtitle = stringResource(R.string.vault_no_match_sub)
+                        subtitle = stringResource(R.string.vault_no_match_sub),
+                        icon = Icons.Rounded.SearchOff
                     )
                 }
             } else {

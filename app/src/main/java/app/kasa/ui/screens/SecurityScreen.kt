@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -282,7 +283,10 @@ fun SecurityScreen(
             item(key = "clean") {
                 EmptyState(
                     title = stringResource(R.string.sec_no_findings_title),
-                    subtitle = stringResource(R.string.sec_no_findings_sub)
+                    subtitle = stringResource(R.string.sec_no_findings_sub),
+                    // Temiz bir kasa bir eksiklik değil, varılan yer: işaret
+                    // ötekilerin aksine güç renginde.
+                    icon = Icons.Rounded.VerifiedUser
                 )
             }
         } else {

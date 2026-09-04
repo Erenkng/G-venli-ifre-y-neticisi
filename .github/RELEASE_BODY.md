@@ -8,12 +8,83 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 > `app-release-unsigned.apk` **kurulamaz** — imzasız bir APK'yı Android kabul
 > etmiyor. Kurulabilen dosya `app-debug.apk`; uygulama kimliği `app.kasa.debug`
 > olduğu için ayrı bir uygulama olarak kuruluyor ve küçültme uygulanmamış.
-> Kurulabilir gerçek sürüm için [aşağıdaki dört gizli anahtarı](#️-bu-sürümdeki-apk-imzasız)
+> Kurulabilir gerçek sürüm için, bu notların en altındaki dört gizli anahtarı
 > bir kez tanımlamak yeterli.
 
 ---
 
-## 1.7'de yenilikler
+## 1.8'de yenilikler
+
+Bu sürüm 1.7'nin üstüne bir tur cila ve o turda bulunan kusurların
+düzeltmeleri. 1.7'de gelen her şey aşağıda duruyor.
+
+### Cam artık alanların da dili
+
+Uygulamanın geri kalanı zeminini geçiriyordu; alan blokları ve metin girişleri
+opak kaldığı sürece kayıt ayrıntısı ile düzenleyici ötekilerden farklı bir dile
+konuşuyordu.
+
+Örtücülük liste satırlarınınkinden yüksek: satır bir adı taşıyor, alan bloğu
+okunacak bir değeri — çoğu zaman tek tek harfleri sayılan bir parolayı. Orada
+zeminin geçmesine bırakılan her yüzde okunabilirlikten düşüyor. Hata çerçevesi
+camın kenar ışığının üstüne biniyor; ikisi aynı kenarı paylaşıyor ve hata
+durumunda okunması gereken şey ışık değil uyarı.
+
+### Büyük başlık cam çubuğa devrediyor
+
+Başlık listenin ilk öğesi olduğu için kaydırınca yukarı kayıp kayboluyordu,
+üstteki cam çubuk ise ondan bağımsız beliriyordu. İki hareket aynı anda
+oluyordu ama birbirini görmüyordu; göz iki ayrı şey olduğunu okuyordu, oysa
+olan tek bir şey — başlık yer değiştiriyor.
+
+Artık büyük başlık sönerken hafifçe küçülüp yukarı çekiliyor, yani çubuğa
+**gidiyor**. Sönme mesafesi çubuğun geliş mesafesiyle aynı; hiçbir anda ikisi
+birden tam görünür olmuyor. Ölçek merkezi üstte: başlık kendi tabanına değil
+çubuğun olduğu yöne toplanıyor.
+
+### Sızmış parola uyarısı kasa ekranında
+
+Sızıntılar zaten tespit ediliyordu ama kullanıcı güvenlik sekmesine gitmedikçe
+görmüyordu — ve oraya gitmek için bir sebebi olmuyordu, çünkü bir şey olduğunu
+bilmiyordu. Uyarı artık kullanıcının zaten olduğu yerde, listenin başında.
+
+Yalnızca sızıntı için. Zayıf ve tekrar eden parolalar da bulgu ama onlar "bir
+gün düzelt" işi; sızıntı, parolanın **şu anda** başkasının elinde olduğu
+anlamına geliyor. Her bulguyu listenin başına koymak, hiçbirinin okunmamasıyla
+sonuçlanırdı.
+
+Zemin sakin, yalnızca işaret ve sayı güç renginde: tam kırmızı bir kart her
+açılışta duran bir alarm oluyor ve üçüncü açılışta artık okunmuyor. Kapatma
+düğmesi yok — kapatılabilir bir uyarı, kapatıldığı anda sorunu da gizliyor;
+kart bulgu çözüldüğünde kendiliğinden gidiyor.
+
+### 1.7'de bulunan kusurlar
+
+- **Seçim çubuğu sistem çubuğu boşluğunu iki kez sayıyordu** ve bir sistem
+  çubuğu yüksekliği kadar fazla kalkmış duruyordu.
+- **Çubuğun düğmeleri 42dp'ydi**; Android'in en küçük dokunma hedefi 48dp. Beş
+  düğme yan yana ve yanlış olana basmanın sonucu "kayıt silindi" olabiliyor.
+- **Çubuk her sekmede görünüyordu.** Ayarlar ekranının üstünde duran bir "12
+  seçildi" çubuğu, orada işe yaramayan bir eylem takımı demek. Seçimin kendisi
+  duruyor — kullanıcı klasörlerine bakıp dönebilsin diye — ama çubuk yalnızca
+  kasa sekmesinde.
+- **Çöp kutusunda seçim kipi kapatıldı.** Çubuğun eylemleri silinmiş kayıtlar
+  için ya anlamsız ya da etkisizdi.
+- **Sızıntı uyarısı kendi kabını kuruyordu** ve basınca hiçbir tepki
+  vermiyordu; artık liste satırının kabını kullanıyor.
+- **Liste iskeleti pratikte hiç görünmüyordu:** bayrak deponun ilk yayınını
+  bekliyordu ama depo elindeki değeri anında veriyor. Beklenen şey deponun
+  kendisi değil, süzmenin ilk sonucu.
+
+### Kurulum sorununun cevabı indirmeden önce
+
+Sürüm notlarının başına hangi dosyanın kurulabildiği yazıldı ve README'ye
+imzalama anahtarının nasıl üretilip tanımlanacağı eklendi. Uyarı en alttaydı,
+yani ancak indirip denedikten sonra okunuyordu.
+
+---
+
+## 1.7'de gelenler
 
 ### Parlayan kenarlar gerçekten parlıyor
 

@@ -9,7 +9,7 @@
 [![Android](https://img.shields.io/badge/Android-16%2B%20%C2%B7%20API%2036-0B5347?style=for-the-badge&logo=android&logoColor=A6F0DE&labelColor=04241F)](#kurulum)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1.20-0B5347?style=for-the-badge&logo=kotlin&logoColor=A6F0DE&labelColor=04241F)](#mimari)
 [![Compose](https://img.shields.io/badge/Compose-2025.04-0B5347?style=for-the-badge&logo=jetpackcompose&logoColor=A6F0DE&labelColor=04241F)](#tasarım-dili)
-[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-1.7-0B5347?style=for-the-badge&labelColor=04241F)](#sürüm-yayımlama)
+[![Sürüm](https://img.shields.io/badge/s%C3%BCr%C3%BCm-1.8-0B5347?style=for-the-badge&labelColor=04241F)](#sürüm-yayımlama)
 
 [![CI](https://github.com/Erenkng/G-venli-ifre-y-neticisi/actions/workflows/android.yml/badge.svg?branch=claude%2Fandroid-app-design-features-awluov)](https://github.com/Erenkng/G-venli-ifre-y-neticisi/actions/workflows/android.yml)
 

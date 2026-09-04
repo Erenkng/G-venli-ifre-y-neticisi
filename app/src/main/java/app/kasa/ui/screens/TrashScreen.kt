@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -119,7 +120,8 @@ fun TrashScreen(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     EmptyState(
                         title = stringResource(R.string.trash_empty_title),
-                        subtitle = stringResource(R.string.trash_empty_sub)
+                        subtitle = stringResource(R.string.trash_empty_sub),
+                        icon = Icons.Rounded.DeleteOutline
                     )
                 }
             } else {
