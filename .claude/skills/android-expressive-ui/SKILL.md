@@ -1,6 +1,6 @@
 ---
 name: android-expressive-ui
-description: Build Android UI in the Android 17 / Material 3 Expressive design language — layered blur and translucency for depth, shape morphing, spring motion tokens, and haptics that match the motion. Use when writing or reviewing Jetpack Compose UI, when asked for a "modern Android look", frosted glass, blurred bars or sheets, expressive motion, or when pairing haptic feedback to UI events.
+description: Build Android UI in the Android 17 / Material 3 Expressive design language — layered blur and translucency for depth, shape morphing, spring motion tokens, gesture-linked navigation (predictive back), and haptics that match the motion. Use when writing or reviewing Jetpack Compose UI, when asked for a "modern Android look", frosted glass, blurred bars or sheets, expressive motion, predictive back or back-gesture animation, or when pairing haptic feedback to UI events.
 ---
 
 # Android 17 / Material 3 Expressive UI
@@ -219,7 +219,80 @@ entire vocabulary to `snap()` behind one `CompositionLocal`. Do not make each co
 
 ---
 
-## 5. Colour, containment, hierarchy
+## 5. Gesture-linked navigation: predictive back
+
+Setting `android:enableOnBackInvokedCallback="true"` in the manifest is necessary but **not
+sufficient**, and shipping only that is the most common mistake. The flag buys you the
+system's cross-*activity* animation. Every layer your own app draws — a full-screen editor,
+an overlay, a pushed detail screen — still snaps out with nothing happening while the finger
+is on the screen. The same swipe then feels like two different gestures depending on where in
+your app the user does it.
+
+`BackHandler` cannot express this: it fires once, on commit. Use `PredictiveBackHandler`, which
+hands you a `Flow<BackEventCompat>` carrying `progress` (0→1) and `swipeEdge`.
+
+```kotlin
+PredictiveBackHandler(enabled) { events ->
+    try {
+        holding = true
+        pull.snapTo(0f)
+        events.collect { e -> fromLeft = e.swipeEdge == BackEventCompat.EDGE_LEFT
+                              pull.snapTo(e.progress) }
+        onBack()                       // committed
+    } catch (_: CancellationException) {
+        // cancelled — the flow throws, the coroutine is not dead
+    } finally { holding = false }
+}
+```
+
+**Swap it in at the same registration position as the `BackHandler` it replaces.** Compose
+resolves back handlers last-registered-enabled-wins; moving the call moves the priority, and
+a mis-ordered handler closes the wrong layer.
+
+### Two treatments, and they are not interchangeable
+
+| | Window dismissal | Push navigation |
+|---|---|---|
+| **What it is** | A layer that sits *over* everything: editor, viewer, full-screen overlay | The next stop in one list: a settings category, a drill-down |
+| **Scale** | down to ~0.89, pivot at the edge **opposite** the swipe | none |
+| **Translate** | away from the swiped edge | reverse of the forward push direction, ~20% width |
+| **Corners** | 0 → ~30dp | none |
+| **Fade** | none | slight, ~0.3 |
+
+Reading the window case: a surface that covers the screen *is* the screen, so its corners are
+the screen's corners; the moment they start rounding it is telling you it is no longer the
+screen. Scaling toward the far edge uncovers the side the finger came from — which is where
+the thing you are going back to lives.
+
+The push case must ignore `swipeEdge` entirely. Back in a push stack means "the reverse of the
+way I came", and the way you came is always the same direction, whichever edge the user grabs.
+
+### Details that decide whether it feels right
+
+- **Ease the raw progress.** `p * (2 - p)`. Linear progress gives no visible answer in the
+  first millimetres and the user concludes the gesture was not recognised.
+- **Do not reset progress on commit.** The layer's own exit animation takes over from wherever
+  the finger left it; snapping back to 1.0 first makes the surface jump to full size and then
+  leave. Reset on the *next* open instead.
+- **Settle a cancel from outside the gesture coroutine** — an effect keyed on "gesture released
+  and the layer is still open". Doing it inside the `catch` makes the spring-back depend on the
+  state of a coroutine that was just cancelled.
+- **Read `progress` in the draw phase**, per the rule in §2 — the finger moves every frame.
+- **Reduced motion**: still commit the gesture, just do not move the surface. Someone who turned
+  animation off did not ask for a permanently rescaling screen.
+
+### Where to leave it out
+
+- A surface with a **stronger bespoke dismissal** — a search overlay that collapses back into
+  the chip it grew from. Two spatial metaphors competing read worse than one.
+- **`SurfaceView` content** (camera preview, video): `graphicsLayer` scale plus `clip` does not
+  compose with it, and you get a torn or black frame.
+- **Material's own `ModalBottomSheet`**, which already handles it internally. Wrapping it does
+  nothing anyway, since it renders in its own window.
+
+---
+
+## 6. Colour, containment, hierarchy
 
 - Use **surface container roles** (`surfaceContainerLowest` … `surfaceContainerHighest`) for
   layering, not opacity on one surface colour. Opacity stacks unpredictably over dynamic colour.
@@ -232,7 +305,7 @@ entire vocabulary to `snap()` behind one `CompositionLocal`. Do not make each co
 
 ---
 
-## 6. Haptics belong to the motion system
+## 7. Haptics belong to the motion system
 
 A visual transition without a matched haptic feels like a video; a haptic without a matching
 visual feels like a malfunction. Design them together.
@@ -318,7 +391,7 @@ Rules that come from the hardware, not taste:
 
 ---
 
-## 7. Checklist before calling Compose UI "done"
+## 8. Checklist before calling Compose UI "done"
 
 - [ ] Blur bands use two radii, masked — no single-radius alpha fade.
 - [ ] Backdrop recorded once per screen; no second full-screen record.
@@ -329,6 +402,9 @@ Rules that come from the hardware, not taste:
 - [ ] Radius 0 drops the layer entirely.
 - [ ] No animating float read during composition — deferred to draw/`graphicsLayer`.
 - [ ] Animated corner radii clamped `>= 0.dp`.
+- [ ] Every in-app layer with a back handler moves **with** the gesture, not after it — and the
+      treatment matches what the layer is (window vs. push).
+- [ ] Back progress is not reset on commit; the exit continues from where the finger left it.
 - [ ] One motion vocabulary, split by distance; reduced motion collapses it to `snap()`.
 - [ ] Semantic colours excluded from dynamic colour.
 - [ ] Every meaningful transition has a matching haptic, routed with correct `VibrationAttributes`.
