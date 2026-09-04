@@ -132,6 +132,11 @@
     <string name="bulk_purge_body">%1$d kayıt ve ekleri geri dönüşsüz silinecek. Bu işlem geri alınamaz.</string>
     <string name="bulk_restore">Geri al</string>
     <string name="vault_write_failed">Kasaya yazılamadı, değişiklik uygulanmadı. Cihazda yer olduğundan emin olup yeniden deneyin.</string>
+    <string name="editor_discard_title">Kaydedilmemiş değişiklikler</string>
+    <string name="editor_discard_body">Bu kayıtta yaptığın değişiklikler kaydedilmedi. Çıkarsan geri gelmiyorlar.</string>
+    <string name="editor_discard_new">Bu kayıt henüz kasaya yazılmadı. Çıkarsan yazdıkların hiçbir yerde kalmıyor.</string>
+    <string name="editor_discard_confirm">Çık, kaydetme</string>
+    <string name="editor_discard_keep">Düzenlemeye dön</string>
     <string name="vault_clear_filters">Süzgeçleri temizle</string>
     <string name="leak_alert_title">%1$d parolan sızıntılarda görüldü</string>
     <string name="leak_alert_sub">Bu parolalar başkasının elinde. Değiştirmek için dokun.</string>

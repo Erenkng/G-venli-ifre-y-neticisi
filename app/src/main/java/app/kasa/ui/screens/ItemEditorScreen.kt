@@ -1,5 +1,6 @@
 package app.kasa.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -101,6 +102,25 @@ fun ItemEditorScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri -> if (uri != null) viewModel.attachFile(item.id, uri) }
 
+    // Formun tamamı tek bir `item` durumunda duruyor, yani "değişti mi"
+    // sorusu tek bir karşılaştırma. SecretText içerik eşitliği tanımladığı
+    // için parola alanı da doğru cevaplıyor.
+    val dirty = item != initial
+    var confirmDiscard by remember(initial.id) { mutableStateOf(false) }
+
+    // Kapatma isteğinin tek kapısı. Geri tuşu, geri hareketi ve çarpı
+    // düğmesi buradan geçiyor; üçünün ayrı ayrı sorması, birinin sormayı
+    // unutması demekti.
+    val requestClose: () -> Unit = {
+        if (dirty) confirmDiscard = true else onClose()
+    }
+
+    // Yalnızca kaydedilmemiş değişiklik varken kayıtlı. Boşken devre dışı
+    // kalması önemli: etkin bir düz işleyici, MainScaffold'daki parmağa bağlı
+    // geri hareketini tamamen bastırırdı — bu ekran daha sonra bestelendiği
+    // için sırada o kazanıyor.
+    BackHandler(enabled = dirty) { confirmDiscard = true }
+
     val isNew = !viewModel.isExisting(initial.id)
     val nameError = nameTouched && item.name.isBlank()
     val strength = if (item.password.isBlank()) null else PasswordStrength.evaluate(item.password.reveal())
@@ -121,7 +141,7 @@ fun ItemEditorScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            KasaIconButton(onClick = onClose, contentDescription = stringResource(R.string.close)) {
+            KasaIconButton(onClick = requestClose, contentDescription = stringResource(R.string.close)) {
                 Icon(
                     Icons.Rounded.Close,
                     contentDescription = null,
@@ -321,6 +341,23 @@ fun ItemEditorScreen(
                 item = item.copy(customFields = item.customFields + CustomField(key, "", secret))
             }
         }
+    }
+
+    if (confirmDiscard) {
+        ConfirmDialog(
+            title = stringResource(R.string.editor_discard_title),
+            body = stringResource(
+                if (isNew) R.string.editor_discard_new else R.string.editor_discard_body
+            ),
+            confirmText = stringResource(R.string.editor_discard_confirm),
+            dismissText = stringResource(R.string.editor_discard_keep),
+            destructive = true,
+            onConfirm = {
+                confirmDiscard = false
+                onClose()
+            },
+            onDismiss = { confirmDiscard = false }
+        )
     }
 }
 

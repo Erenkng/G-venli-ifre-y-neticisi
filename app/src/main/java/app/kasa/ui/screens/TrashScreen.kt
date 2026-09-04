@@ -19,7 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DoneAll
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material3.Icon
@@ -99,8 +99,15 @@ fun TrashScreen(
 
     // Geri tuşu önce seçimi bırakıyor: otuz kaydı seçtikten sonra ekranın
     // tamamen kapanması, yapılan işi sessizce çöpe atmak olurdu.
+    // Yalnızca seçimi bırakan işleyici burada. Kapatma MainScaffold'da ve
+    // orada parmağa bağlı: Compose'da en son kaydedilen etkin geri işleyicisi
+    // kazanıyor ve bu ekran daha sonra bestelendiği için buradaki düz bir
+    // işleyici, yukarıdaki hareketi tamamen devre dışı bırakırdı — çöp kutusu
+    // parmakla hiç kıpırdamaz, bırakınca birden giderdi.
+    //
+    // Sıra da doğru çalışıyor: seçim varken bu işleyici etkin ve kazanıyor,
+    // seçim yokken kapanıyor ve sıra yukarıdaki harekete geliyor.
     BackHandler(enabled = selecting) { viewModel.clearSelection() }
-    BackHandler(enabled = !selecting) { onClose() }
 
     KasaBackground(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -113,7 +120,7 @@ fun TrashScreen(
             ) {
                 KasaIconButton(onClick = onClose, contentDescription = stringResource(R.string.close)) {
                     Icon(
-                        Icons.Rounded.ArrowBack,
+                        Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = null,
                         tint = KasaTheme.colors.ink2,
                         modifier = Modifier.size(20.dp)
