@@ -1,5 +1,10 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.staggeredReveal
+import app.kasa.ui.components.REVEAL_WINDOW_MILLIS
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberSaveable
+import kotlinx.coroutines.delay
 import app.kasa.ui.components.HeaderCollapse
 import app.kasa.ui.components.headerHandoff
 import app.kasa.ui.components.SkeletonRows
@@ -125,6 +130,22 @@ fun VaultScreen(
     val sorted = remember(items, settings.sortOrder) { sortItems(items, settings.sortOrder) }
     val compact = settings.listDensity == SettingsStore.ListDensity.COMPACT
     val listReady by viewModel.listReady.collectAsStateWithLifecycle()
+
+    // İskeletin yerini alan içerik sırayla beliriyor; iskelet kaybolup liste
+    // birden gelirse ikisi ayrı iki olay gibi okunuyor, sırayla gelince olan
+    // şey tek bir olay: biçim doluyor.
+    //
+    // Pencere kapandıktan sonra kaydırırken görüş alanına giren satırlar
+    // yerinde duruyor — hepsi belirseydi liste sürekli kıpırdayan bir şey
+    // olurdu. Ekran döndürüldüğünde de tekrarlanmıyor: liste zaten
+    // görülmüştü.
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(sorted.isNotEmpty()) {
+        if (sorted.isNotEmpty() && !revealed) {
+            delay(REVEAL_WINDOW_MILLIS)
+            revealed = true
+        }
+    }
     val selection by viewModel.selection.collectAsStateWithLifecycle()
     // Çöp kutusunda seçim kipi kapalı: çubuğun eylemleri (sık kullanılana
     // ekle, klasöre taşı, çöpe at) silinmiş kayıtlar için ya anlamsız ya da
@@ -369,6 +390,7 @@ fun VaultScreen(
                         else actionTarget = entry
                     },
                     modifier = Modifier
+                        .staggeredReveal(step = index, play = !revealed)
                         .animateItem(
                             fadeInSpec = KasaMotion.effect(),
                             placementSpec = KasaMotion.medium(),

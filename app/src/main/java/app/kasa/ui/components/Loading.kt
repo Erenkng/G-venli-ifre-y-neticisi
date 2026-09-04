@@ -1,5 +1,8 @@
 package app.kasa.ui.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -35,6 +38,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 import app.kasa.ui.theme.LocalReducedMotion
@@ -396,3 +400,61 @@ private const val SKELETON_BAND = 420f
 
 /** Satırlar arasındaki parıltı gecikmesi, döngünün oranı olarak. */
 private const val SKELETON_STAGGER = 0.06f
+
+/**
+ * İskeletin yerini alan içeriğin sıralı belirişi.
+ *
+ * ### Neden
+ *
+ * İskelet listenin **biçimini** gösteriyor, sonra içerik geliyor. İçerik tek
+ * karede belirdiğinde bu iki durum arasında hiçbir bağ olmuyor: iskelet
+ * kayboluyor, liste beliriyor, ikisi ayrı iki olay gibi okunuyor. Sırayla
+ * gelince olan şey tek bir olay — biçim doluyor.
+ *
+ * Aynı sebep menülerde de geçerli ve orada zaten uygulanıyordu; liste,
+ * uygulamanın sıralı belirişi olmayan tek yeriydi.
+ *
+ * ### Neden yalnızca bir kez
+ *
+ * Kaydırırken görüş alanına giren her satır belirseydi liste sürekli
+ * kıpırdayan bir şey olurdu ve okunması güçleşirdi. [play] yalnızca listenin
+ * ilk dolduğu pencerede açık kalıyor; sonrasında satırlar yerinde duruyor.
+ *
+ * ### Neden basamak sayısı sınırlı
+ *
+ * Gecikme sıraya bağlı olsaydı yirminci satır yarım saniye beklerdi. Ekranda
+ * zaten sekiz satır var; ötesini beklemek, kullanıcının hiç görmediği bir
+ * şeyi geciktirmek olurdu.
+ *
+ * @param step satırın sırası.
+ * @param play listenin ilk doluş penceresinde true.
+ */
+@Composable
+fun Modifier.staggeredReveal(step: Int, play: Boolean): Modifier {
+    val reduced = LocalReducedMotion.current
+    val spec = KasaMotion.stagger<Float>(step.coerceAtMost(REVEAL_MAX_STEP))
+    val reveal = remember { Animatable(if (play) 0f else 1f) }
+
+    // Pencere kapandığında yarım kalmış bir beliriş tamamlanıyor. Aksi
+    // hâlde animasyonu iptal edilen satır yarı saydam ve kaymış hâlde
+    // donup kalırdı.
+    LaunchedEffect(play) { if (play) reveal.animateTo(1f, spec) else reveal.snapTo(1f) }
+
+    if (!play && reveal.value >= 1f) return this
+    if (reduced) return this
+
+    return graphicsLayer {
+        val shown = reveal.value
+        alpha = shown
+        translationY = (1f - shown) * REVEAL_RISE.toPx()
+    }
+}
+
+/** Satırların altından yükselme mesafesi. */
+private val REVEAL_RISE = 12.dp
+
+/** Gecikmenin durduğu sıra. Ekrandaki satır sayısının biraz üstü. */
+private const val REVEAL_MAX_STEP = 9
+
+/** Listenin ilk doluş penceresi: son basamak artı giriş süresi kadar. */
+const val REVEAL_WINDOW_MILLIS = 620L

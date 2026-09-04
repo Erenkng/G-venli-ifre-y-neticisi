@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Restore
@@ -132,6 +133,26 @@ fun TrashScreen(
                     )
                 }
                 if (items.isNotEmpty()) {
+                    // Seçim kipine görünür bir giriş. Uzun basmak da açıyor
+                    // ama uzun basmayı kimse denemiyor: kasa listesinde o yolu
+                    // satır menüsündeki "Seç" gösteriyor, burada ise menü yok.
+                    //
+                    // Düğme hepsini seçiyor, çünkü seçim kipi sıfır seçimle
+                    // var olamıyor — ve çöp kutusunda toplu işin çıkış noktası
+                    // zaten "hepsi": ya hepsini geri al ya hepsini sil.
+                    // Kullanıcı fazlasını buradan çıkarıyor.
+                    KasaIconButton(
+                        onClick = { viewModel.toggleSelectAll(items.map { it.id }) },
+                        contentDescription = stringResource(R.string.bulk_select_all)
+                    ) {
+                        Icon(
+                            Icons.Rounded.DoneAll,
+                            contentDescription = null,
+                            tint = if (selecting) MaterialTheme.colorScheme.primary
+                            else KasaTheme.colors.ink2,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     KasaButton(
                         text = stringResource(R.string.trash_empty_action),
                         tone = ButtonTone.TEXT,
