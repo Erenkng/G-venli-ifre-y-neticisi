@@ -196,8 +196,17 @@ fun FieldBlock(
         modifier = modifier
             .fillMaxWidth()
             .scale(scale)
-            .clip(RoundedCornerShape(KasaRadius.m))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            // Cam yüzey: uygulamanın geri kalanı zeminini geçiriyor ve
+            // alan blokları opak kaldığı sürece kayıt ayrıntısı ötekilerden
+            // farklı bir dile konuşuyordu. Örtücülük yüksek — bu bloklar
+            // okunacak değer taşıyor ve kontrast zeminin o anki rengine
+            // bırakılmıyor.
+            .glassSurface(
+                shape = RoundedCornerShape(KasaRadius.m),
+                tint = MaterialTheme.colorScheme.surfaceContainerLow,
+                opacity = FIELD_OPACITY,
+                edge = 0.55f
+            )
             .then(
                 if (onClick == null) Modifier
                 else Modifier
@@ -259,8 +268,15 @@ fun KasaTextField(
         Column(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(KasaRadius.m))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .glassSurface(
+                    shape = RoundedCornerShape(KasaRadius.m),
+                    tint = MaterialTheme.colorScheme.surfaceContainerLow,
+                    opacity = FIELD_OPACITY,
+                    edge = 0.55f
+                )
+                // Hata çerçevesi camın kenar ışığının **üstüne** biniyor:
+                // ikisi aynı kenarı paylaşıyor ve hata durumunda okunması
+                // gereken şey ışık değil uyarı.
                 .border(
                     width = if (isError) 1.5.dp else 0.dp,
                     color = if (isError) MaterialTheme.colorScheme.error else Color.Transparent,
@@ -449,3 +465,12 @@ fun SearchTopBar(
         }
     }
 }
+
+/**
+ * Alan bloklarının örtücülüğü.
+ *
+ * Liste satırlarınınkinden yüksek: satır bir adı taşıyor, alan bloğu
+ * okunacak bir değeri — çoğu zaman tek tek harfleri sayılan bir parolayı.
+ * Orada zeminin geçmesine bırakılan her yüzde, okunabilirlikten düşüyor.
+ */
+private const val FIELD_OPACITY = 0.94f
