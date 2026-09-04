@@ -45,6 +45,7 @@ import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.KasaPinField
+import app.kasa.ui.components.KasaLoader
 import app.kasa.ui.components.KasaReveal
 import app.kasa.ui.components.KasaTextField
 import app.kasa.ui.components.MorphDial
@@ -213,6 +214,9 @@ fun UnlockScreen(
                 text = stringResource(if (state.busy) R.string.lock_unlocking else R.string.lock_unlock),
                 onClick = { viewModel.unlockWithRecovery(recoveryInput) },
                 enabled = !state.busy && !blocked && recoveryInput.length >= 20,
+                leading = if (state.busy) {
+                    { KasaLoader(size = 18.dp, color = MaterialTheme.colorScheme.onPrimary) }
+                } else null,
                 modifier = Modifier.fillMaxWidth()
             )
         } else {
@@ -238,6 +242,12 @@ fun UnlockScreen(
                     viewModel.unlockWithPassword(chars)
                 },
                 enabled = !state.busy && !blocked && password.isNotEmpty(),
+                // Anahtar türetme uygulamanın en uzun beklemesi (Argon2, ~800
+                // ms) ve buradaki tek işaret düğmenin yazısıydı: ekran donmuş
+                // görünüyordu. Halka, bir şeyin sürdüğünü söyleyen tek şey.
+                leading = if (state.busy) {
+                    { KasaLoader(size = 18.dp, color = MaterialTheme.colorScheme.onPrimary) }
+                } else null,
                 modifier = Modifier.fillMaxWidth()
             )
         }

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -59,6 +60,27 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         combine(repository.data, _category, _query, _view) { _, category, query, view ->
             repository.filter(category, query, view)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * İlk liste hesabı tamamlandı mı.
+     *
+     * `visibleItems` bir `stateIn` ve başlangıç değeri boş liste. Kasa
+     * açıldıktan sonra ilk süzme sonucu gelene kadar ekranda o boş liste
+     * duruyor — yani "yükleniyor" ile "hiç kayıt yok" aynı görünüyor. İkisi
+     * bir parola yöneticisinde birbirinden çok uzak iki cümle.
+     *
+     * Bayrak ilk gerçek yayından sonra kalkıyor ve bir daha inmiyor: sonraki
+     * süzmeler önceki sonucu koruduğu için ekran hiç boşalmıyor.
+     */
+    private val _listReady = MutableStateFlow(false)
+    val listReady: StateFlow<Boolean> = _listReady.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            repository.data.first()
+            _listReady.value = true
+        }
+    }
 
     val recents: StateFlow<List<VaultItem>> =
         repository.data.map { repository.recents() }

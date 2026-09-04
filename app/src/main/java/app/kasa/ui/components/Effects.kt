@@ -2,6 +2,7 @@ package app.kasa.ui.components
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.CornerRadius
 import android.hardware.Sensor
@@ -42,6 +43,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import app.kasa.ui.theme.LocalExperimentalEffects
 import app.kasa.ui.theme.LocalReducedMotion
 import kotlin.math.abs
+import kotlin.math.PI
+import kotlin.math.sin
 import kotlin.math.hypot
 
 /**
@@ -180,7 +183,7 @@ fun Modifier.tiltRim(
         // Parlak ucun yeri eğimle dönüyor; karşı uç sönük kalıyor.
         val start = Offset(size.width * (0.5f - x * 0.5f), size.height * (0.5f - y * 0.5f))
         val end = Offset(size.width * (0.5f + x * 0.5f), size.height * (0.5f + y * 0.5f))
-        drawRoundRect(
+        drawGlowStroke(
             brush = Brush.linearGradient(
                 colors = listOf(
                     Color.White.copy(alpha = strength),
@@ -190,13 +193,91 @@ fun Modifier.tiltRim(
                 start = start,
                 end = end
             ),
-            topLeft = Offset(stroke / 2f, stroke / 2f),
-            size = Size(size.width - stroke, size.height - stroke),
-            cornerRadius = radius,
-            style = Stroke(width = stroke)
+            corner = radius.x,
+            width = stroke
         )
     }
 }
+
+/**
+ * Parlayan kenar çizgisi.
+ *
+ * ### Neden tek bir çizgi parlamıyor
+ *
+ * Bir kenarı `Stroke` ile bir kez çizmek, o kenarı **çizilmiş** gösteriyor;
+ * parlayan bir şey ise kendi sınırının dışına ışık taşırıyor. Gerçek ışık
+ * kaynağının etrafındaki hâle, kaynaktan uzaklaştıkça hızla sönen bir dağılım
+ * — ve göz "bu parlıyor" kararını çizginin kendisinden değil, o dağılımdan
+ * veriyor.
+ *
+ * ### Nasıl kuruluyor
+ *
+ * Aynı yol birkaç kez çiziliyor: en dıştaki en geniş ve en sönük, en içteki
+ * en dar ve en parlak. Üst üste binen katmanlar toplandığında merkeze doğru
+ * hızla artan bir yoğunluk çıkıyor — bir bulanıklık katmanı kurmadan hâlenin
+ * yaptığı iş bu.
+ *
+ * Katman sayısı üç: ikisi hâleyi kurmuyor, dördüncüsü üçüncüden ayırt
+ * edilmiyor ve her katman ayrı bir çizim çağrısı. Genişlik katsayıları
+ * doğrusal değil — hâle yakında hızlı, uzakta yavaş sönüyor.
+ *
+ * ### Çekirdek neden ayrı
+ *
+ * En içteki çizgi tam parlaklıkta ve **ince**. O olmadan hâle bir leke gibi
+ * duruyor; onunla birlikte, ışığın nereden geldiği belli olan bir kenar
+ * oluyor. Işıklı yüzeylerin fotoğrafında da aynı ikili var: doymuş bir
+ * çekirdek ve çevresinde yumuşak bir hâle.
+ *
+ * @param brush çizginin rengi ya da degradesi
+ * @param corner köşe yarıçapı
+ * @param width çekirdek çizginin kalınlığı
+ * @param spread hâlenin çekirdeğin kaç katı kadar yayılacağı
+ * @param intensity toplam parlaklık çarpanı (0-1)
+ */
+fun DrawScope.drawGlowStroke(
+    brush: Brush,
+    corner: Float,
+    width: Float,
+    spread: Float = GLOW_SPREAD,
+    intensity: Float = 1f
+) {
+    if (intensity <= 0.01f || size.minDimension <= 0f) return
+
+    val radius = CornerRadius(corner)
+    // Dıştan içe: geniş ve sönük olan altta kalıyor, çekirdek en üstte.
+    GLOW_LAYERS.forEach { layer ->
+        val strokeWidth = width * (1f + spread * layer.width)
+        val inset = strokeWidth / 2f
+        // Yüzeyden taşan bir hâle, kenarın dışında da görünmeli; kutuyu
+        // daraltmak yerine çizgiyi kenarın üstüne oturtuyoruz ve fazlası
+        // dışarı taşıyor — kırpma varsa zaten o kesiyor.
+        drawRoundRect(
+            brush = brush,
+            topLeft = Offset(inset, inset),
+            size = Size(size.width - strokeWidth, size.height - strokeWidth),
+            cornerRadius = radius,
+            style = Stroke(width = strokeWidth),
+            alpha = (layer.alpha * intensity).coerceIn(0f, 1f)
+        )
+    }
+}
+
+/**
+ * Hâlenin katmanları: genişlik çarpanı ve saydamlık.
+ *
+ * Saydamlıklar toplandığında merkezde ~1'e yaklaşıyor, dışta 0.10'da
+ * kalıyor. Eşit dağıtılsaydı hâle düz bir kalın çizgi gibi görünürdü.
+ */
+private data class GlowLayer(val width: Float, val alpha: Float)
+
+private val GLOW_LAYERS = listOf(
+    GlowLayer(width = 1.0f, alpha = 0.10f),
+    GlowLayer(width = 0.45f, alpha = 0.22f),
+    GlowLayer(width = 0f, alpha = 1f)
+)
+
+/** Hâlenin çekirdeğe göre yayılma katsayısı. */
+private const val GLOW_SPREAD = 2.6f
 
 /**
  * Basılan noktaya en yakın kenarın parlaması.
@@ -244,20 +325,23 @@ fun Modifier.pressRim(
             drawContent()
             if (progress <= 0.01f || !origin.isSpecifiedSafely()) return@drawWithContent
             val stroke = width.toPx()
-            drawRoundRect(
+            drawGlowStroke(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        color.copy(alpha = maxAlpha * progress),
-                        color.copy(alpha = maxAlpha * progress * 0.25f),
+                        color.copy(alpha = maxAlpha),
+                        color.copy(alpha = maxAlpha * 0.25f),
                         Color.Transparent
                     ),
                     center = origin,
                     radius = hypot(size.width, size.height) * (0.35f + progress * 0.35f)
                 ),
-                topLeft = Offset(stroke / 2f, stroke / 2f),
-                size = Size(size.width - stroke, size.height - stroke),
-                cornerRadius = CornerRadius(corner.toPx()),
-                style = Stroke(width = stroke)
+                corner = corner.toPx(),
+                width = stroke,
+                // Hâle basışla birlikte büyüyor: sabit bir yayılma, ışığın
+                // parmakla birlikte geldiğini değil hep orada olduğunu
+                // söylerdi.
+                spread = 1.4f + progress * 1.6f,
+                intensity = progress
             )
         }
 }
@@ -303,16 +387,18 @@ fun Modifier.shimmerRim(
         val stroke = width.toPx()
         val span = size.width * 0.38f
         val head = -span + travel * (size.width + span * 2f)
-        drawRoundRect(
+        // Şeridin uçlarında hâle sönüyor: geçişin başı ve sonu, ortasıyla
+        // aynı güçte parlasaydı şerit belirip kaybolmak yerine yanıp sönerdi.
+        val fade = sin(travel * PI).toFloat().coerceIn(0f, 1f)
+        drawGlowStroke(
             brush = Brush.linearGradient(
                 colors = listOf(Color.Transparent, color.copy(alpha = alpha), Color.Transparent),
                 start = Offset(head, 0f),
                 end = Offset(head + span, size.height)
             ),
-            topLeft = Offset(stroke / 2f, stroke / 2f),
-            size = Size(size.width - stroke, size.height - stroke),
-            cornerRadius = CornerRadius(corner.toPx()),
-            style = Stroke(width = stroke)
+            corner = corner.toPx(),
+            width = stroke,
+            intensity = fade
         )
     }
 }

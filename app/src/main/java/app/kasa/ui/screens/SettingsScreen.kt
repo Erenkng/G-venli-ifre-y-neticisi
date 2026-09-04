@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntOffset
 import app.kasa.ui.components.glassSurface
+import app.kasa.ui.components.LoadingOverlay
 import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.theme.KasaMotion
@@ -295,6 +296,17 @@ fun SettingsScreen(
     val enterSpec = KasaMotion.enter<Float>()
     val exitSpec = KasaMotion.exit<Float>()
     val slideSpec = KasaMotion.large<IntOffset>()
+
+    // Uzun işler için örtü.
+    //
+    // Anahtar döndürme bütün kasayı yeniden şifreliyor, ana parola değişimi
+    // anahtarı yeniden türetiyor, içe aktarma her kaydı ayrı ayrı şifreliyor.
+    // Üçü de saniyeler sürüyor ve ekranda hiçbir karşılığı yoktu: kullanıcı
+    // aynı düğmeye ikinci kez basabiliyordu.
+    //
+    // Parola penceresi açıkken örtü çıkmıyor: o pencerenin kendi durum
+    // yazısı var ve ikisi üst üste gelince pencere örtünün altında kalıyor.
+    val overlayVisible = busy && !showChangeMaster
 
     AnimatedContent(
         targetState = section,
@@ -814,6 +826,13 @@ fun SettingsScreen(
     }
     }
 
+
+    if (overlayVisible) {
+        LoadingOverlay(
+            label = stringResource(R.string.chg_working),
+            modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)
+        )
+    }
 
     // ── pencereler ────────────────────────────────────────────────────────
 

@@ -1,6 +1,7 @@
 package app.kasa.ui.screens
 
 import app.kasa.ui.components.HeaderCollapse
+import app.kasa.ui.components.SkeletonRows
 import app.kasa.ui.components.edgeDepth
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -114,6 +115,7 @@ fun VaultScreen(
     // ve sıralama bir görüntüleme tercihi — kasanın içeriğine ait değil.
     val sorted = remember(items, settings.sortOrder) { sortItems(items, settings.sortOrder) }
     val compact = settings.listDensity == SettingsStore.ListDensity.COMPACT
+    val listReady by viewModel.listReady.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
@@ -246,7 +248,14 @@ fun VaultScreen(
             )
         }
 
-        if (items.isEmpty()) {
+        if (items.isEmpty() && !listReady) {
+            // İlk süzme hesabı daha bitmedi: gelecek olanın biçimi
+            // gösteriliyor, "hiç kayıt yok" değil. Gerekçesi SkeletonRows
+            // üzerinde yazılı.
+            item(key = "skeleton") {
+                SkeletonRows(count = 6, modifier = Modifier.padding(top = 4.dp))
+            }
+        } else if (items.isEmpty()) {
             item(key = "empty") {
                 val emptyVault = data.liveItems.isEmpty()
                 EmptyState(
