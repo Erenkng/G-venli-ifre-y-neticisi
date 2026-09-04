@@ -139,6 +139,17 @@ fun KasaLoader(
             size = box,
             style = Stroke(width = stroke, cap = StrokeCap.Round)
         )
+        // Yayın altına hâle: degradeyle çizilen yay tek geçişte kalıyor,
+        // hâle ayrı bir geçiş olarak düz renkle geliyor.
+        drawGlowArc(
+            color = color,
+            startAngle = start,
+            sweepAngle = sweep,
+            topLeft = topLeft,
+            arcSize = box,
+            width = stroke,
+            intensity = 0.55f
+        )
 
         // Ucundaki ışık: yayın ilerleyen tarafı. Hareketin yönünü tek başına
         // bu söylüyor ve dönüş durduğunda (hareket kapalı) da yayın hangi

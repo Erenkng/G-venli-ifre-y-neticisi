@@ -3,6 +3,7 @@ package app.kasa.ui.components
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.CornerRadius
 import android.hardware.Sensor
@@ -257,6 +258,46 @@ fun DrawScope.drawGlowStroke(
             size = Size(size.width - strokeWidth, size.height - strokeWidth),
             cornerRadius = radius,
             style = Stroke(width = strokeWidth),
+            alpha = (layer.alpha * intensity).coerceIn(0f, 1f)
+        )
+    }
+}
+
+/**
+ * Parlayan yay.
+ *
+ * [drawGlowStroke] ile aynı mantık, kapalı bir yol yerine bir yay üzerinde:
+ * dıştan içe genişleyen katmanlar, en içte doymuş bir çekirdek. Halkalar
+ * (güç puanı, TOTP sayacı, yükleme göstergesi) uygulamanın en çok bakılan
+ * grafik öğeleri ve düz bir yay onları çizim gibi gösteriyordu.
+ *
+ * Yayın kutusu her katmanda daralıyor: kalınlaşan bir çizgi kendi merkez
+ * çizgisi etrafında büyüyor ve kutuyu sabit bırakmak hâleyi yolun dışına
+ * kaydırıyordu.
+ */
+fun DrawScope.drawGlowArc(
+    color: Color,
+    startAngle: Float,
+    sweepAngle: Float,
+    topLeft: Offset,
+    arcSize: Size,
+    width: Float,
+    spread: Float = GLOW_SPREAD,
+    intensity: Float = 1f
+) {
+    if (intensity <= 0.01f || sweepAngle == 0f) return
+
+    GLOW_LAYERS.forEach { layer ->
+        val strokeWidth = width * (1f + spread * layer.width)
+        val grow = (strokeWidth - width) / 2f
+        drawArc(
+            color = color,
+            startAngle = startAngle,
+            sweepAngle = sweepAngle,
+            useCenter = false,
+            topLeft = Offset(topLeft.x - grow, topLeft.y - grow),
+            size = Size(arcSize.width + grow * 2f, arcSize.height + grow * 2f),
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
             alpha = (layer.alpha * intensity).coerceIn(0f, 1f)
         )
     }

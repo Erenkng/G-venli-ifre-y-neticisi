@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
@@ -80,6 +81,8 @@ fun RowActionsSheet(
     onShowWifiQr: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
+    /** Seçim kipini bu kayıtla başlatır. */
+    onSelect: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -131,6 +134,14 @@ fun RowActionsSheet(
                 }
             )
         }
+        // Seçim kipine giriş buradan. Basılı tutmanın kendisini seçime
+        // bağlamak, bu sayfanın öteki sekiz işlemini erişilmez yapardı.
+        add(
+            RowAction(
+                label = stringResource(R.string.bulk_select),
+                icon = Icons.Rounded.Checklist
+            ) { onSelect() }
+        )
         add(
             RowAction(
                 label = stringResource(

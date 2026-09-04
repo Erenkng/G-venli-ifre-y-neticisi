@@ -103,14 +103,16 @@ fun CountdownRing(
                 size = Size(size.width - stroke, size.height - stroke),
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
-            drawArc(
+            // Sayacın kalan kısmı hâleyle: kod okunurken göz zaten oraya
+            // bakıyor ve kalan sürenin azaldığı hâlenin sönmesinden de
+            // okunuyor.
+            drawGlowArc(
                 color = color,
                 startAngle = -90f,
                 sweepAngle = 360f * progress.coerceIn(0f, 1f),
-                useCenter = false,
                 topLeft = Offset(inset, inset),
-                size = Size(size.width - stroke, size.height - stroke),
-                style = Stroke(width = stroke, cap = StrokeCap.Round)
+                arcSize = Size(size.width - stroke, size.height - stroke),
+                width = stroke
             )
         }
         Text(

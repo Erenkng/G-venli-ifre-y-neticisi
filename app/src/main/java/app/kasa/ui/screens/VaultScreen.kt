@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -116,6 +117,8 @@ fun VaultScreen(
     val sorted = remember(items, settings.sortOrder) { sortItems(items, settings.sortOrder) }
     val compact = settings.listDensity == SettingsStore.ListDensity.COMPACT
     val listReady by viewModel.listReady.collectAsStateWithLifecycle()
+    val selection by viewModel.selection.collectAsStateWithLifecycle()
+    val selecting = selection.isNotEmpty()
 
     val listState = rememberLazyListState()
 
@@ -293,8 +296,21 @@ fun VaultScreen(
                     position = groupPositionOf(index, sorted.size),
                     folderName = if (compact) null else viewModel.folderName(entry.folderId),
                     compact = compact,
-                    onClick = { viewModel.select(entry.id) },
-                    onLongClick = { actionTarget = entry },
+                    selectable = selecting,
+                    selected = entry.id in selection,
+                    // Seçim kipindeyken dokunuş kaydı açmıyor, seçiyor:
+                    // aynı hareketin iki farklı sonucu olması kipin kendisi.
+                    onClick = {
+                        if (selecting) viewModel.toggleSelected(entry.id)
+                        else viewModel.select(entry.id)
+                    },
+                    // Basılı tutma kipteyken de işlem sayfasını açsaydı,
+                    // kullanıcı seçtiklerini kaybetme riskiyle her basışta
+                    // bir pencere görürdü.
+                    onLongClick = {
+                        if (selecting) viewModel.toggleSelected(entry.id)
+                        else actionTarget = entry
+                    },
                     modifier = Modifier
                         .animateItem(
                             fadeInSpec = KasaMotion.effect(),
@@ -336,8 +352,57 @@ fun VaultScreen(
             onShowWifiQr = { qrTarget = target },
             onToggleFavorite = { viewModel.toggleFavorite(target.id) },
             onDelete = { viewModel.moveToTrash(target) },
+            // Seçim kipine giriş buradan: basılı tutmanın kendisi zaten bu
+            // sayfayı açıyor ve o hareketi seçime bağlamak, sayfanın öteki
+            // sekiz işlemini erişilmez yapardı.
+            onSelect = { viewModel.startSelection(target.id) },
             onDismiss = { actionTarget = null }
         )
+    }
+}
+
+/**
+ * Seçim kipindeki satırın rozet yerine taşıdığı işaret.
+ *
+ * Rozetin **yerine** geçiyor, yanına eklenmiyor: satırın yanına ikinci bir
+ * yuvarlak koymak satırı daraltıyor ve seçim kipinden çıkınca yerleşim
+ * zıplıyordu. Rozet zaten kaydın kimliğini söylüyor ve seçim kipinde asıl
+ * soru "hangileri seçili" — kimlik listenin adında duruyor.
+ */
+@Composable
+private fun SelectionMark(selected: Boolean) {
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1f else 0.86f,
+        animationSpec = KasaMotion.small(),
+        label = "selectionMark"
+    )
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(KasaRadius.full))
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary
+                else Color.Transparent
+            )
+            .then(
+                if (selected) Modifier
+                else Modifier.border(
+                    2.dp,
+                    KasaTheme.colors.ink3.copy(alpha = 0.45f),
+                    RoundedCornerShape(KasaRadius.full)
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Rounded.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }
 
@@ -358,13 +423,23 @@ fun VaultRow(
      * klasör, sızıntı işareti) kayıt açıldığında zaten görünüyor; listede asıl
      * iş aradığını **bulmak** ve onun için ad ile rozet yetiyor.
      */
-    compact: Boolean = false
+    compact: Boolean = false,
+    /**
+     * Seçim kipi açık mı ve bu satır seçili mi.
+     *
+     * İki ayrı bayrak, çünkü seçim kipinde **seçili olmayan** satırın da
+     * görünümü değişiyor: rozetinin yerinde boş bir daire duruyor ve satır
+     * "seçilebilir" olduğunu böyle söylüyor. Tek bayrakla, kipteyken seçili
+     * olmayan satır sıradan bir satırdan ayırt edilemezdi.
+     */
+    selectable: Boolean = false,
+    selected: Boolean = false
 ) {
     val tone = toneOf(item)
     val breachMark = stringResource(R.string.breach_mark)
 
     KasaTile(position = position, onClick = onClick, onLongClick = onLongClick, modifier = modifier) {
-        EntryBadge(item = item)
+        if (selectable) SelectionMark(selected = selected) else EntryBadge(item = item)
         Column(Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

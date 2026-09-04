@@ -463,6 +463,68 @@ class VaultRepository(
         })
     }
 
+    // ------------------------------------------------------------ toplu işlem
+
+    /**
+     * Birden çok kaydı tek yazımda çöp kutusuna taşır.
+     *
+     * ### Neden döngü değil
+     *
+     * [moveToTrash] her çağrıda kasanın tamamını şifreleyip diske yazıyor.
+     * Otuz kayıt için otuz tam yazım, hem yavaş hem de her biri ayrı bir
+     * kesinti noktası: arada uygulama ölürse kasa yarı işlenmiş kalıyor.
+     * Toplu işlem tek bir dönüşüm ve tek bir yazım, yani ya hepsi ya hiçbiri.
+     */
+    suspend fun moveToTrash(ids: Set<String>): Boolean {
+        if (ids.isEmpty()) return false
+        val now = System.currentTimeMillis()
+        return mutate { current ->
+            current.copy(items = current.items.map {
+                if (it.id in ids && !it.inTrash) it.copy(deletedAt = now, updatedAt = now) else it
+            })
+        }
+    }
+
+    /** Toplu geri alma: [moveToTrash] ile aynı gerekçe. */
+    suspend fun restoreFromTrash(ids: Set<String>): Boolean {
+        if (ids.isEmpty()) return false
+        val now = System.currentTimeMillis()
+        return mutate { current ->
+            current.copy(items = current.items.map {
+                if (it.id in ids) it.copy(deletedAt = 0L, updatedAt = now) else it
+            })
+        }
+    }
+
+    /**
+     * Seçili kayıtları sık kullanılana ekler ya da çıkarır.
+     *
+     * Tek tek [toggleFavorite] çağırmak seçimdeki karışık durumu ters
+     * çeviriyordu: yarısı işaretliyken "sık kullanılana ekle" demek,
+     * işaretli olanları çıkarmak anlamına geliyordu. Burada hedef durum
+     * doğrudan veriliyor.
+     */
+    suspend fun setFavorite(ids: Set<String>, favorite: Boolean): Boolean {
+        if (ids.isEmpty()) return false
+        val now = System.currentTimeMillis()
+        return mutate { current ->
+            current.copy(items = current.items.map {
+                if (it.id in ids) it.copy(favorite = favorite, updatedAt = now) else it
+            })
+        }
+    }
+
+    /** Seçili kayıtları bir klasöre taşır; null "klasörsüz" demek. */
+    suspend fun moveToFolder(ids: Set<String>, folderId: String?): Boolean {
+        if (ids.isEmpty()) return false
+        val now = System.currentTimeMillis()
+        return mutate { current ->
+            current.copy(items = current.items.map {
+                if (it.id in ids) it.copy(folderId = folderId, updatedAt = now) else it
+            })
+        }
+    }
+
     suspend fun replaceAll(items: List<VaultItem>): Boolean = mutate { it.copy(items = items) }
 
     // ------------------------------------------------------------- klasörler

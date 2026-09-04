@@ -90,26 +90,26 @@ fun ScoreRing(
                 style = stroke
             )
 
+            // Yay hâleyle çiziliyor: ekranın en çok bakılan grafik öğesi ve
+            // düz bir çizgi onu grafik değil çizim gibi gösteriyordu.
             if (scanning) {
                 // Belirsiz kip: kısa bir yay yolun üzerinde dönüyor.
-                drawArc(
+                drawGlowArc(
                     color = color,
                     startAngle = if (reduced) START_ANGLE else START_ANGLE + spin,
                     sweepAngle = SWEEP_ANGLE * INDETERMINATE_FRACTION,
-                    useCenter = false,
                     topLeft = topLeft,
-                    size = arcSize,
-                    style = stroke
+                    arcSize = arcSize,
+                    width = strokeWidth.toPx()
                 )
             } else if (progress > 0f) {
-                drawArc(
+                drawGlowArc(
                     color = color,
                     startAngle = START_ANGLE,
                     sweepAngle = SWEEP_ANGLE * progress.coerceIn(0f, 1f),
-                    useCenter = false,
                     topLeft = topLeft,
-                    size = arcSize,
-                    style = stroke
+                    arcSize = arcSize,
+                    width = strokeWidth.toPx()
                 )
             }
         }

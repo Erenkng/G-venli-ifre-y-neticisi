@@ -187,6 +187,118 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    // --------------------------------------------------------- toplu seçim
+
+    /**
+     * Seçili kayıtların kimlikleri. Boşken seçim kipi kapalı.
+     *
+     * ### Neden ayrı bir kip
+     *
+     * Otuz kaydı bir klasöre taşımanın tek yolu, otuz kez kaydı açıp
+     * klasörünü değiştirmekti. Kasa büyüdükçe bu iş yapılmaz hâle geliyor ve
+     * kullanıcı düzeni bırakıyor — yani klasörler var ama kimse kullanmıyor.
+     *
+     * ### Neden kimlik kümesi, kayıt listesi değil
+     *
+     * Seçim sırasında kayıtlar değişebiliyor (arama daraltılıyor, bir kayıt
+     * siliniyor). Kimlik tutmak, artık var olmayan bir kaydın seçili
+     * kalmasını da zararsız kılıyor: toplu işlem eşleşmeyeni sessizce
+     * atlıyor.
+     */
+    private val _selection = MutableStateFlow<Set<String>>(emptySet())
+    val selection: StateFlow<Set<String>> = _selection.asStateFlow()
+
+    fun toggleSelected(id: String) {
+        val current = _selection.value
+        _selection.value = if (id in current) current - id else current + id
+        container.haptics.play(Haptics.Kind.TAP)
+    }
+
+    /** Seçim kipini bu kayıtla başlatır. */
+    fun startSelection(id: String) {
+        _selection.value = setOf(id)
+        container.haptics.play(Haptics.Kind.THRESHOLD)
+    }
+
+    fun clearSelection() {
+        if (_selection.value.isEmpty()) return
+        _selection.value = emptySet()
+        container.haptics.play(Haptics.Kind.NAV)
+    }
+
+    /**
+     * Görünen kayıtların hepsini seçer; hepsi zaten seçiliyse seçimi
+     * kaldırır.
+     *
+     * Aynı düğmenin iki işi olması, ikinci bir "hiçbirini seçme" düğmesi
+     * eklemekten daha az yer kaplıyor ve durumu düğmenin kendisi söylüyor.
+     */
+    fun toggleSelectAllVisible() {
+        val all = visibleItems.value.map { it.id }.toSet()
+        _selection.value = if (all.isNotEmpty() && _selection.value.containsAll(all)) emptySet() else all
+        container.haptics.play(Haptics.Kind.TOGGLE)
+    }
+
+    /**
+     * Görünenlerin hepsi seçili mi.
+     *
+     * Ekran iskeleti bunu doğrudan hesaplasaydı, görünen kayıt listesini
+     * okumak zorunda kalır ve listedeki her değişiklikte bütün iskelet
+     * yeniden birleşirdi. Burada tek bir mantıksal değere iniyor.
+     */
+    val allVisibleSelected: StateFlow<Boolean> =
+        combine(visibleItems, _selection) { items, selected ->
+            items.isNotEmpty() && selected.containsAll(items.map { it.id })
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun trashSelected() {
+        val ids = _selection.value
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            if (repository.moveToTrash(ids)) {
+                container.haptics.play(Haptics.Kind.DISCARD)
+                _selection.value = emptySet()
+                messages.send(
+                    UiMessage(
+                        textRes = R.string.bulk_trashed,
+                        args = listOf(ids.size),
+                        actionRes = R.string.detail_undo,
+                        action = { viewModelScope.launch { repository.restoreFromTrash(ids) } }
+                    )
+                )
+            }
+        }
+    }
+
+    fun favoriteSelected(favorite: Boolean) {
+        val ids = _selection.value
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            if (repository.setFavorite(ids, favorite)) {
+                container.haptics.play(Haptics.Kind.TOGGLE)
+                _selection.value = emptySet()
+                messages.send(
+                    UiMessage(
+                        if (favorite) R.string.bulk_favorited else R.string.bulk_unfavorited,
+                        listOf(ids.size)
+                    )
+                )
+            }
+        }
+    }
+
+    fun moveSelectedToFolder(folderId: String?) {
+        val ids = _selection.value
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            if (repository.moveToFolder(ids, folderId)) {
+                container.haptics.play(Haptics.Kind.SUCCESS)
+                _selection.value = emptySet()
+                messages.send(UiMessage(R.string.bulk_moved, listOf(ids.size)))
+            }
+        }
+    }
+
     // ------------------------------------------------------------ çöp kutusu
 
     /** Kaydı çöp kutusuna taşır; geri alma hem şeritte hem çöp kutusunda. */

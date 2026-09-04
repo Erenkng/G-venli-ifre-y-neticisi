@@ -115,6 +115,16 @@
     <string name="history_restore">Bu parolaya geri dön</string>
     <string name="history_restored">Parola geri yüklendi</string>
     <string name="history_open">Geçmişi aç</string>
+    <string name="bulk_selected">%1$d seçildi</string>
+    <string name="bulk_select">Seç</string>
+    <string name="bulk_select_all">Tümünü seç</string>
+    <string name="bulk_clear">Seçimi bırak</string>
+    <string name="bulk_trashed">%1$d kayıt çöp kutusuna taşındı</string>
+    <string name="bulk_favorited">%1$d kayıt sık kullanılana eklendi</string>
+    <string name="bulk_unfavorited">%1$d kayıt sık kullanılandan çıkarıldı</string>
+    <string name="bulk_moved">%1$d kayıt taşındı</string>
+    <string name="bulk_folder">Klasöre taşı</string>
+    <string name="bulk_no_folder">Klasörsüz</string>
     <string name="detail_leak_warning">Bu parola bilinen bir sızıntıda geçiyor. Bugün değiştir.</string>
     <string name="detail_mid_warning">Fena değil ama kısa. Uzunluğu 16 karakterin üstüne çıkar.</string>
     <string name="detail_ok_note">İyi görünüyor. 12 ayda bir yenilemen yeterli.</string>

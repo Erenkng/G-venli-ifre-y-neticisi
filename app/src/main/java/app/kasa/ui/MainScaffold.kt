@@ -79,7 +79,9 @@ import app.kasa.ui.components.KasaNavBar
 import app.kasa.ui.components.KasaSnackbarHost
 import app.kasa.ui.components.KasaTopBar
 import app.kasa.ui.components.NavDestination
+import app.kasa.ui.components.SelectionBar
 import app.kasa.ui.screens.ConfirmDialog
+import app.kasa.ui.screens.FolderPickerSheet
 import app.kasa.ui.screens.GeneratorScreen
 import app.kasa.ui.screens.ItemDetailSheet
 import app.kasa.ui.screens.ItemEditorScreen
@@ -151,6 +153,10 @@ fun MainScaffold(
     val selectedItem by vaultViewModel.selectedItem.collectAsStateWithLifecycle()
     val editing by vaultViewModel.editing.collectAsStateWithLifecycle()
     val vaultView by vaultViewModel.view.collectAsStateWithLifecycle()
+    val selection by vaultViewModel.selection.collectAsStateWithLifecycle()
+    val allVisibleSelected by vaultViewModel.allVisibleSelected.collectAsStateWithLifecycle()
+    val vaultFolders by vaultViewModel.folders.collectAsStateWithLifecycle()
+    var folderPickerOpen by remember { mutableStateOf(false) }
     val vaultData by vaultViewModel.data.collectAsStateWithLifecycle()
 
     // Kısayoldan gelen kayıt: kasa zaten açık olduğu için (bu bileşen yalnızca
@@ -224,9 +230,15 @@ fun MainScaffold(
     BackHandler(
         enabled = qrTarget == null && editing == null && selectedItem == null && !searchOpen && fabExpanded
     ) { fabExpanded = false }
+    // Seçim kipi geri tuşuyla kapanıyor: kullanıcının otuz kaydı seçtikten
+    // sonra yanlışlıkla uygulamadan çıkmasındansa seçimi bırakması iyi.
     BackHandler(
         enabled = qrTarget == null && editing == null && selectedItem == null &&
-            !searchOpen && !fabExpanded && tab != TAB_VAULT
+            !searchOpen && !fabExpanded && selection.isNotEmpty()
+    ) { vaultViewModel.clearSelection() }
+    BackHandler(
+        enabled = qrTarget == null && editing == null && selectedItem == null &&
+            !searchOpen && !fabExpanded && selection.isEmpty() && tab != TAB_VAULT
     ) { tab = TAB_VAULT }
     // Kasa sekmesindeyken bir koleksiyonun içindeysek geri tuşu önce
     // "Tümü" görünümüne döner; uygulamadan çıkmaz.
@@ -449,6 +461,33 @@ fun MainScaffold(
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
+        // Seçim kipindeki eylem çubuğu. Gezinme çubuğunun üstüne biniyor,
+        // yerine geçmiyor: kullanıcı seçim yaparken sekme değiştirmek
+        // isteyebiliyor ve gezinme çubuğunun kaybolması o yolu kapatıyor.
+        SelectionBar(
+            count = selection.size,
+            allSelected = allVisibleSelected,
+            onSelectAll = vaultViewModel::toggleSelectAllVisible,
+            onFavorite = { vaultViewModel.favoriteSelected(true) },
+            onMoveToFolder = { folderPickerOpen = true },
+            onTrash = { vaultViewModel.trashSelected() },
+            onClose = { vaultViewModel.clearSelection() },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = SELECTION_BAR_LIFT)
+        )
+
+        if (folderPickerOpen) {
+            FolderPickerSheet(
+                folders = vaultFolders,
+                onPick = { folderId ->
+                    vaultViewModel.moveSelectedToFolder(folderId)
+                    folderPickerOpen = false
+                },
+                onDismiss = { folderPickerOpen = false }
+            )
+        }
+
         // Menü açıkken ekran buzlanıyor. Düz bir karartmanın altında liste
         // hâlâ okunuyordu ve menüyle dikkat için yarışıyordu; gerekçesi
         // GlassBackdropScrim üzerinde yazılı.
@@ -464,7 +503,10 @@ fun MainScaffold(
 
         AnimatedVisibility(
             // Çöp kutusundayken yeni kayıt eklemek anlamsız.
-            visible = tab == TAB_VAULT && !vaultView.isTrash,
+            // Seçim kipinde gizleniyor: eylem çubuğuyla aynı köşeyi
+            // paylaşıyorlar ve seçim sürerken yeni kayıt eklemek zaten
+            // kullanıcının yapmak istediği şey değil.
+            visible = tab == TAB_VAULT && !vaultView.isTrash && selection.isEmpty(),
             enter = fadeIn(KasaMotion.effect()) + scaleIn(
                 initialScale = 0.7f,
                 animationSpec = KasaMotion.medium()
@@ -701,3 +743,12 @@ private const val SEARCH_STIFFNESS = 520f
  * beste ağacına girip çıkardı.
  */
 private const val BAR_APPEAR_THRESHOLD = 0.02f
+
+/**
+ * Seçim çubuğunun gezinme çubuğunun üstünde kaldığı mesafe.
+ *
+ * Gezinme çubuğunun yüksekliği ölçülebilirdi ama bu değer sabit tutuluyor:
+ * ölçüm bir kare geriden geliyor ve çubuk belirirken zıplıyordu. Sabit
+ * mesafe, gezinme çubuğunun tasarım yüksekliğinden türetildi.
+ */
+private val SELECTION_BAR_LIFT = 96.dp
