@@ -177,7 +177,7 @@ class KasaAutofillService : AutofillService() {
 
         if (index == 0) return null
 
-        builder.setSaveInfo(buildSaveInfo(parsed))
+        buildSaveInfo(parsed)?.let { builder.setSaveInfo(it) }
         return builder.build()
     }
 
@@ -222,7 +222,7 @@ class KasaAutofillService : AutofillService() {
                     mode = AutofillUnlockActivity.MODE_UNLOCK
                 )
             )
-            .setSaveInfo(buildSaveInfo(parsed))
+            .apply { buildSaveInfo(parsed)?.let { setSaveInfo(it) } }
             .build()
 
     /**
@@ -270,12 +270,16 @@ class KasaAutofillService : AutofillService() {
      * gerçekleşmiyor. Bayrakla birlikte soru, izlenen alanların hepsi
      * ekrandan çekildiğinde geliyor.
      */
-    private fun buildSaveInfo(parsed: StructureParser.Result): SaveInfo {
+    private fun buildSaveInfo(parsed: StructureParser.Result): SaveInfo? {
         val required: Array<AutofillId>
         val optional: Array<AutofillId>
         val type: Int
 
         if (parsed.kind == StructureParser.Kind.CARD) {
+            // Numara alanı olmayan bir ödeme formunda kaydedilecek bir şey yok:
+            // pencereyi açıp sonra başarısız olmak, kullanıcıya boşuna bir
+            // soru sormak olurdu.
+            if (parsed.card.number == null) return null
             required = listOfNotNull(parsed.card.number).toTypedArray()
             optional = listOfNotNull(
                 parsed.card.holder,
@@ -297,6 +301,7 @@ class KasaAutofillService : AutofillService() {
         }
 
         val ids: Array<AutofillId> = if (required.isNotEmpty()) required else optional
+        if (ids.isEmpty()) return null
         return SaveInfo.Builder(type, ids)
             .apply { if (required.isNotEmpty() && optional.isNotEmpty()) setOptionalIds(optional) }
             .setFlags(SaveInfo.FLAG_SAVE_ON_ALL_VIEWS_INVISIBLE)

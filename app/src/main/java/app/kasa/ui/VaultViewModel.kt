@@ -555,6 +555,23 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * Kaydın bir uygulamayla otomatik doldurma bağını kaldırır.
+     *
+     * Bağ, kullanıcı o uygulamada kaydı bir kez elle seçtiğinde kuruluyor ve
+     * bir daha sorulmuyor. Yanlış kaydı seçmişse geri alacak bir yer olması
+     * gerekiyordu: depoda kaldırma işlevi vardı ama hiçbir ekrandan
+     * çağrılmıyordu, yani yanlış bir bağ kalıcıydı.
+     */
+    fun unlinkApp(itemId: String, token: String) {
+        viewModelScope.launch {
+            if (wrote(repository.unlinkApp(itemId, token))) {
+                container.haptics.play(Haptics.Kind.DETACH)
+                messages.send(UiMessage(R.string.link_removed))
+            }
+        }
+    }
+
     fun moveToFolder(itemId: String, folderId: String?) {
         viewModelScope.launch { wrote(repository.moveToFolder(itemId, folderId)) }
     }

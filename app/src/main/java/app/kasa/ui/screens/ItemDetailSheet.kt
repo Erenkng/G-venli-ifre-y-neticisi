@@ -1,5 +1,9 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.GroupPosition
+import app.kasa.ui.components.KasaTile
+import app.kasa.ui.components.groupPositionOf
+import androidx.compose.material.icons.rounded.LinkOff
 import app.kasa.ui.components.SheetBlurBehind
 import app.kasa.ui.components.sheetGlassColor
 import app.kasa.ui.components.CategoryHeroBand
@@ -407,6 +411,28 @@ fun ItemDetailSheet(
                         }
                     }
                     Spacer(Modifier.height(6.dp))
+                }
+            }
+
+            // ── bağlı uygulamalar ─────────────────────────────────────────
+            //
+            // Otomatik doldurma bu kaydı hangi uygulamalara sunacağını buradan
+            // biliyor. Bağ, kullanıcı o uygulamada kaydı bir kez elle
+            // seçtiğinde kuruluyor ve bir daha sorulmuyor — yanlış kaydı
+            // seçmişse bunu geri alacak bir yer olması gerekiyor. Depoda
+            // kaldırma işlevi vardı ama hiçbir ekrandan çağrılmıyordu, yani
+            // yanlış bir bağ kalıcıydı.
+            if (item.linkedApps.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                SectionLabel(stringResource(R.string.link_title), count = item.linkedApps.size)
+                Spacer(Modifier.height(6.dp))
+                item.linkedApps.forEachIndexed { index, token ->
+                    LinkedAppRow(
+                        token = token,
+                        position = groupPositionOf(index, item.linkedApps.size),
+                        onRemove = { viewModel.unlinkApp(item.id, token) }
+                    )
+                    Spacer(Modifier.height(3.dp))
                 }
             }
 
@@ -911,6 +937,66 @@ private fun CategoryHero(item: VaultItem) {
                         maxLines = 1
                     )
                 }
+            }
+        }
+    }
+}
+
+
+/**
+ * Kaydın bağlı olduğu tek bir uygulama.
+ *
+ * Bağ dizgesi `paket adı|imza parmak izi` biçiminde. Ekranda uygulamanın
+ * kullanıcıya görünen adı yazıyor; parmak izi gösterilmiyor, çünkü kullanıcı
+ * için bir anlamı yok ve satırı okunmaz hâle getiriyor. Uygulama kaldırılmışsa
+ * ad çözülemiyor ve paket adı yazıyor — o da "bu bağ artık kurulu olmayan bir
+ * uygulamaya ait" bilgisini veriyor.
+ */
+@Composable
+private fun LinkedAppRow(token: String, position: GroupPosition, onRemove: () -> Unit) {
+    val context = LocalContext.current
+    val packageName = token.substringBefore('|')
+    val label = remember(packageName) {
+        runCatching {
+            val manager = context.packageManager
+            manager.getApplicationLabel(manager.getApplicationInfo(packageName, 0)).toString()
+        }.getOrDefault(packageName)
+    }
+
+    KasaTile(position = position) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = KasaTheme.colors.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (label != packageName) {
+                    Text(
+                        packageName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KasaTheme.colors.ink3,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            KasaIconButton(
+                onClick = onRemove,
+                size = 36.dp,
+                contentDescription = stringResource(R.string.link_remove)
+            ) {
+                Icon(
+                    Icons.Rounded.LinkOff,
+                    contentDescription = null,
+                    tint = KasaTheme.colors.ink2,
+                    modifier = Modifier.size(17.dp)
+                )
             }
         }
     }
