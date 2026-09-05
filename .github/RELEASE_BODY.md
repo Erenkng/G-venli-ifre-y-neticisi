@@ -18,9 +18,118 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
-## 1.9'da yenilikler
+## 2.0'da yenilikler
 
-Bu sürümün ekseni gezinme: geri gitmek artık bir tuşa basmak değil, parmakla
+Otomatik doldurma bu sürümün ekseni: üç alan tanıyan bir servisten dört form
+türü tanıyan bir servise geçti. Yanında tabletlerde çalışan bir düzen var.
+
+### Ödeme formları dolduruluyor
+
+Kasa kartları saklıyordu ama otomatik doldurma onları hiç sunmuyordu —
+kullanıcı ödeme ekranında kasayı açıp numarayı elle kopyalamak zorundaydı.
+Artık kart numarası, sahibi, son kullanma tarihi ve güvenlik kodu doldurulup
+kaydediliyor.
+
+Son kullanma tarihi formun istediği biçime çevriliyor: ay ile yılı ayrı isteyen
+forma ayrı, tek alanda isteyene `AA/YY`, dört haneli yıl alanına `20YY`.
+
+Kart eşleşmesi tek yoldan kuruluyor: kullanıcı o uygulamada kartı bir kez elle
+seçiyor. Kartın alan adı yok, yani alan adı ve `assetlinks.json` kademeleri
+onun için hiç çalışmıyor — ve bir ödeme yapılırken bir kez sormak, kolaylıktan
+daha çok istenen şey.
+
+### Üye olma formunda parola üretme
+
+İki parola alanı ya da açık bir `new-password` beyanı, formun üye olma formu
+olduğunu söylüyor. Orada "Güçlü parola üret" satırı çıkıyor: parola üretiliyor,
+**aynı anda kasaya yazılıyor** ve parolanın tekrarı da dâhil iki alana birden
+dolduruluyor.
+
+Kasaya yazmayı kaydetme akışına bırakmadım. Uygulama kaydetmeyi tetiklemezse —
+bölünmüş formlarda bu sık oluyor — kullanıcı bir daha hiçbir yerde
+bulamayacağı bir parolayla üye olmuş oluyor ve kaybedilen şey bir kayıt değil,
+hesabın kendisi.
+
+### Bölünmüş giriş akışları — düzeltme
+
+Giriş akışlarının çoğu iki ekrana bölünmüş: önce kullanıcı adı, sonra parola.
+Kaydetme yalnızca son ekrana bakıyordu ve kullanıcı adı her seferinde boş
+kalıyordu — kayıt açılıyor ama kimin hesabı olduğu yazmıyordu. Artık bütün
+adımlar taranıyor.
+
+Aynı sebeple `SAVE_ON_ALL_VIEWS_INVISIBLE` eklendi: o bayrak olmadan sistem
+kaydetmeyi ilk ekran kapanırken — parola daha yazılmamışken — soruyor ve
+kaydetme hiç gerçekleşmiyordu.
+
+### Yanlış bağ artık kaldırılabiliyor
+
+Otomatik doldurma bir kaydı hangi uygulamalara sunacağını, kullanıcının bir kez
+elle kurduğu bağdan biliyor. Yanlış kaydı seçmişse geri alacak bir yer yoktu ve
+doldurma her seferinde aynı yanlış kaydı öneriyordu. Kayıt ayrıntısında artık
+**Bağlı uygulamalar** bölümü var.
+
+### Alan tanıma
+
+HTML `autocomplete` belirteci artık okunuyor (`cc-number`, `new-password`,
+`one-time-code`); web formlarında Android'in kendi ipuçlarından belirgin
+biçimde daha sık ve daha doğru yazılıyor.
+
+Alan metni artık parçalanarak aranıyor. Ham metinde arama kısa sözcüklerde
+çalışmıyordu: ay alanını bulan "ay", `payment_name` alanının içinde de geçiyor
+ve o alanı kartın son kullanma ayı sanıyordu. `otpCode` → `otp code`,
+`payment_name` → `payment name`. Yan etkisi Türkçe için de doğru: küçültme
+karakter karakter yapıldığı için `İ` tek bir `i`ye dönüyor ve "GÜVENLİK KODU"
+artık eşleşiyor — dize üzerinde küçültme onu iki karaktere açıyordu.
+
+"Güvenlik kodu" Türkçede hem kartın CVV'si hem SMS doğrulama kodu demek. Ayrım
+formun geri kalanından çıkıyor: ortada kart numarası ya da son kullanma tarihi
+yoksa o alan CVV değil.
+
+### Tabletler
+
+Android 16, 600dp üstü ekranlarda uygulamanın yön kilidini yok sayıyor:
+manifest "portrait" dese de tablette uygulama yatay çalışıyor. Yani düzen artık
+dikey için tasarlanmış olmakla kalamıyor.
+
+İçerik 700dp'de duruyor ve ortalanıyor; kilit ekranı daha dar, 460dp. Bin
+piksel genişliğinde bir liste satırında ad solda, tarih sağda kalıyor ve göz
+ikisini birleştirmek için ekranı baştan sona tarıyor.
+
+İki gerçek taşma da düzeldi: **tanıtım çizimi** en-boy oranı sabit olduğu için
+geniş bir pencerede yüksekliği ekranın ötesine taşıyor ve altındaki yazıyı
+dışarı itiyordu; **yüzen seçim çubuğu** ekran boyunca uzuyordu.
+
+### Kurulumdaki üst adım rayı kaldırıldı
+
+Tanıtım sayfalarının altında zaten bir gösterge vardı ve parola adımına
+geçerken ekranın öteki ucunda ikinci bir gösterge beliriyordu. İkisi de üç şey
+sayıyor ama farklı şeyler sayıyorlar ve farklı yerlerde duruyorlar; görülen şey
+ilerleme değil, birden ortaya çıkan yeni bir nesne oluyordu.
+
+Biyometri adımı da kaydırılabilir oldu. Öteki iki adım kaydırılıyordu, bu
+değildi: kısa bir pencerede düğmeler ekranın altında kalıyor ve adım
+tamamlanamıyordu.
+
+### Simge düğmelerinin adı var
+
+Yazısı olmayan düğmelerin adı yalnızca "çift dokun: Kapat" biçiminde bir eylem
+etiketiydi; ekran okuyucu düğmenin kendisini yalnızca "düğme" diye okuyordu.
+Yan yana beş simge düğmesi varsa beşi de "düğme". Göz tuşunun ve aramanın geri
+okunun hiç adı yoktu.
+
+### Depo
+
+Hata ayıklama APK'sı artık her itmede yapı çıktısı olarak yüklenmiyor: ~71 MB
+ve doksan gün saklanıyordu, deponun yapı çıktısı kotasını doldurmuştu.
+Kurulabilir APK zaten bu sayfada ve sürüm varlıkları o kotaya girmiyor.
+
+Gezinme çubuğuna yine dokunulmadı.
+
+---
+
+## 1.9'da gelenler
+
+Ekseni gezinme: geri gitmek artık bir tuşa basmak değil, parmakla
 yürütülen bir hareket. Yanında bir tur kusur avı var ve çıkanların çoğu
 görünmeyen türden — kare bütçesi yiyen, sessizce veri kaybettiren şeyler.
 

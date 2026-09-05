@@ -71,19 +71,25 @@ jobs:
         continue-on-error: true
         run: ./gradlew --no-daemon lintDebug
 
-      - name: APK yukle
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kasa-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: warn
+      # Hata ayıklama APK'sı artık yüklenmiyor.
+      #
+      # Her itmede ~71 MB'lık bir yapı çıktısı yükleniyordu ve saklama süresi
+      # varsayılan doksan gündü. Doksan çalışmadan sonra depo doldu ve hesabın
+      # yapı çıktısı kotası bitti.
+      #
+      # Kaybedilen bir şey yok: kurulabilir APK 1.9'dan beri **Sürümler**
+      # sayfasında ve orada imzalı, küçültülmüş hâli duruyor. Sürüm varlıkları
+      # yapı çıktısı kotasına da girmiyor. Bir dalın APK'sı gerekirse sürüm iş
+      # akışı elle çalıştırılabiliyor.
 
+      # Raporlar yalnızca derleme kırıldığında ve kısa süre için.
+      # Yeşil bir çalışmanın lint raporunu kimse açmıyor.
       - name: Rapor yukle
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-reports
           path: |
             app/build/reports/**
           if-no-files-found: ignore
+          retention-days: 5
