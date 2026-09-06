@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.unit.dp
 import app.kasa.ui.theme.KasaMotion
@@ -60,7 +59,9 @@ fun KasaSnackbarHost(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .shadow(6.dp, shape, clip = false)
+                // Gölge yok: levha bulanıklığın üstünde ve saydam; platform
+                // gölgesinin çekirdeği içinden görünürdü. Gerekçesi KasaCard
+                // üzerinde yazılı.
                 .clip(shape)
         ) {
             BackdropBlur(backdrop, Modifier.matchParentSize(), radius = SNACKBAR_BLUR)

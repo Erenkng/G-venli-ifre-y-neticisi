@@ -28,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -216,7 +215,37 @@ fun SectionLabel(
     }
 }
 
-/** Yüzeyi kalkık kart. [tinted] açıkken tasarımın jade-kehribar geçişini alır. */
+/**
+ * Yüzeyi kalkık kart. [tinted] açıkken tasarımın jade-kehribar geçişini alır.
+ *
+
+ * ### Saydam yüzeyler neden gölge atmıyor
+ *
+ * Bu kart bir zamanlar `Modifier.shadow(2.dp, shape, clip = false)` taşıyordu
+ * ve o gölge, kartın **içinde** keskin köşeli bir dikdörtgen olarak
+ * görünüyordu — açık temada apaçık, koyu temada zar zor.
+ *
+ * Sebebi platformun gölge geometrisi. Android yuvarlak dikdörtgenin gölgesini
+ * iki parçadan kuruyor: dış hattı köşe yarıçapı kadar içeri çekerek elde
+ * ettiği tam koyu çekirdek (umbra) ve oradan kenara kadar açılan yumuşak
+ * geçiş (penumbra). Yuvarlak bir dikdörtgeni kendi köşe yarıçapı kadar içeri
+ * çekince köşelerin yuvarlaklığı sıfıra iniyor: umbra, kenarlardan yarıçap
+ * kadar içeride duran **keskin köşeli** bir dikdörtgen oluyor.
+ *
+ * Opak bir yüzeyde bunun bir önemi yok, çünkü gölge yüzeyin altında kalıyor.
+ * Bu yüzey saydam ([SURFACE_OPACITY]) ve gölge onun **içinden** görünüyor:
+ * kenar boyunca yarıçap genişliğinde biraz daha koyu bir bant, ortada keskin
+ * köşeli bir sınır. Ölçülen bant genişliği kartın köşe yarıçapının tam
+ * kendisiydi.
+ *
+ * `clip = true` yapmak da çözmüyor: kırpma yüzeyin **içeriğini** kısıtlıyor,
+ * altına çizilen gölgeyi değil.
+ *
+ * Derinlik zaten gölgeden gelmiyordu. Bu tasarım dilinde derinliği taşıyan
+ * şey yüzeyin geçirgenliği ve üst kenarındaki ışık: arkadaki zemin
+ * görünüyor, kenar yukarıdan aydınlanıyor. Gölge, o dilin üstüne binen ikinci
+ * ve yanlış bir eğretilemeydi.
+ */
 @Composable
 fun KasaCard(
     modifier: Modifier = Modifier,
@@ -238,7 +267,6 @@ fun KasaCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(2.dp, RoundedCornerShape(KasaRadius.xl), clip = false)
             .clip(RoundedCornerShape(KasaRadius.xl))
             // Kart kendi degradesini taşıyor (jade–kehribar geçişi), bu yüzden
             // glassSurface'in düz tonu yerine aynı degrade geçirgen çiziliyor.
@@ -286,7 +314,9 @@ fun RecentCard(
         modifier = modifier
             .width(104.dp)
             .scale(scale)
-            .shadow(1.dp, RoundedCornerShape(radius), clip = false)
+            // Gölge yok: saydam bir yüzeyde platform gölgesinin çekirdeği
+            // kartın içinden keskin köşeli bir dikdörtgen olarak görünüyor.
+            // Gerekçesi [KasaCard] üzerinde yazılı.
             // Kenar ışığı kısık: 104dp'lik bir kartta tam güçteki ışık
             // yüzeyin görünür bir kısmını kaplıyor ve levha değil çerçeve
             // gibi duruyor.

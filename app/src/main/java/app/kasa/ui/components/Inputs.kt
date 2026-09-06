@@ -46,7 +46,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
@@ -118,7 +117,9 @@ fun SearchBarButton(
                 }
             )
             .scale(scale)
-            .shadow(1.dp, RoundedCornerShape(radius), clip = false)
+            // Gölge yok: gerekçesi KasaCard üzerinde yazılı — saydam bir
+            // yüzeyde platform gölgesinin çekirdeği yüzeyin içinden keskin
+            // köşeli bir dikdörtgen olarak görünüyor.
             // Cam pil: ekranın en üstündeki yüzey ve zeminin en aydınlık
             // bölgesinin üstünde duruyor. Opak hâli oradaki gradyanı bir
             // dikdörtgen olarak kesiyordu.

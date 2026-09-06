@@ -1,5 +1,11 @@
 package app.kasa.ui.screens
 
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
+import app.kasa.ui.components.SwipeAction
+import app.kasa.ui.components.SwipeActions
+import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.staggeredReveal
 import app.kasa.ui.components.REVEAL_WINDOW_MILLIS
 import androidx.compose.runtime.LaunchedEffect
@@ -393,26 +399,27 @@ fun VaultScreen(
                 // kayarak kapatıyor. Anlık atlamada kullanıcı hangi satırın
                 // gittiğini göremiyor ve "yanlış olanı mı sildim" sorusu
                 // kalıyordu; geri alma şeridi de bu yüzden geç fark ediliyordu.
-                VaultRow(
-                    item = entry,
-                    position = groupPositionOf(index, sorted.size),
-                    folderName = if (compact) null else viewModel.folderName(entry.folderId),
-                    compact = compact,
-                    selectable = selecting,
-                    selected = entry.id in selection,
-                    // Seçim kipindeyken dokunuş kaydı açmıyor, seçiyor:
-                    // aynı hareketin iki farklı sonucu olması kipin kendisi.
-                    onClick = {
-                        if (selecting) viewModel.toggleSelected(entry.id)
-                        else viewModel.select(entry.id)
-                    },
-                    // Basılı tutma kipteyken de işlem sayfasını açsaydı,
-                    // kullanıcı seçtiklerini kaybetme riskiyle her basışta
-                    // bir pencere görürdü.
-                    onLongClick = {
-                        if (selecting) viewModel.toggleSelected(entry.id)
-                        else actionTarget = entry
-                    },
+                // Kaydırma eylemleri: sağa çekmek kayda bir şey **ekliyor**
+                // (sık kullanılan), sola çekmek onu listeden **çıkarıyor**
+                // (çöp). Yön hareketin kendisinde duruyor ve ikisi de listenin
+                // en sık yapılan işleri.
+                //
+                // Seçim kipinde kapalı: orada yatay hareketin kendi anlamı
+                // yok ve seçimini kaydırırken kaybeden kullanıcı, kipin ne
+                // yaptığına bir daha güvenmiyor.
+                SwipeActions(
+                    enabled = !selecting,
+                    start = SwipeAction(
+                        icon = if (entry.favorite) Icons.Rounded.StarBorder
+                        else Icons.Rounded.Star,
+                        label = stringResource(R.string.detail_favorite),
+                        tint = MaterialTheme.colorScheme.tertiary
+                    ) { viewModel.toggleFavorite(entry.id) },
+                    end = SwipeAction(
+                        icon = Icons.Rounded.DeleteOutline,
+                        label = stringResource(R.string.detail_delete_to_trash),
+                        tint = KasaTheme.colors.strengthWeak
+                    ) { viewModel.moveToTrash(entry) },
                     modifier = Modifier
                         .staggeredReveal(step = index, play = !revealed)
                         .animateItem(
@@ -425,7 +432,32 @@ fun VaultScreen(
                         // gibi okunuyor ve gezinme çubuğunun altına giren
                         // içeriğin oraya gitmesi doğal görünüyor.
                         .edgeDepth()
+                ) {
+                VaultRow(
+                    item = entry,
+                    position = groupPositionOf(index, sorted.size),
+                    folderName = if (compact) null else viewModel.folderName(entry.folderId),
+                    compact = compact,
+                    selectable = selecting,
+                    selected = entry.id in selection,
+                    onCopy = if (entry.primarySecret.isNotBlank()) {
+                        { viewModel.copySecret(entry.primarySecret, settings.clipboardClearSeconds) }
+                    } else null,
+                    // Seçim kipindeyken dokunuş kaydı açmıyor, seçiyor:
+                    // aynı hareketin iki farklı sonucu olması kipin kendisi.
+                    onClick = {
+                        if (selecting) viewModel.toggleSelected(entry.id)
+                        else viewModel.select(entry.id)
+                    },
+                    // Basılı tutma kipteyken de işlem sayfasını açsaydı,
+                    // kullanıcı seçtiklerini kaybetme riskiyle her basışta
+                    // bir pencere görürdü.
+                    onLongClick = {
+                        if (selecting) viewModel.toggleSelected(entry.id)
+                        else actionTarget = entry
+                    }
                 )
+                }
             }
         }
     }
@@ -726,7 +758,19 @@ fun VaultRow(
      * olmayan satır sıradan bir satırdan ayırt edilemezdi.
      */
     selectable: Boolean = false,
-    selected: Boolean = false
+    selected: Boolean = false,
+    /**
+     * Kaydı açmadan gizli değerini panoya alma.
+     *
+     * Kullanıcının listede yaptığı en sık iş bu: kaydı aç, parolayı kopyala,
+     * çık. Üç adımın ortadaki ikisi satırın kendisinde yapılabiliyorsa, sayfa
+     * yalnızca **bakmak** için açılıyor.
+     *
+     * Seçim kipinde ve gizli değeri olmayan türlerde çizilmiyor: her satıra
+     * konan ama çoğunda çalışmayan bir düğme, çalıştığı yerlerde de
+     * güvenilmez oluyor.
+     */
+    onCopy: (() -> Unit)? = null
 ) {
     val tone = toneOf(item)
     val breachMark = stringResource(R.string.breach_mark)
@@ -776,6 +820,20 @@ fun VaultRow(
             }
         }
         StrengthDot(tone)
+        if (onCopy != null && !selectable) {
+            KasaIconButton(
+                onClick = onCopy,
+                size = 40.dp,
+                contentDescription = stringResource(R.string.copy)
+            ) {
+                Icon(
+                    Icons.Rounded.ContentCopy,
+                    contentDescription = null,
+                    tint = KasaTheme.colors.ink2,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+        }
     }
 }
 
