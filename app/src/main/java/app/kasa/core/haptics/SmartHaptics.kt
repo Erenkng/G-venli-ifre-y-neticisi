@@ -167,8 +167,8 @@ class SmartHaptics(context: Context) {
      * bildirimi yok etmek olurdu — kaydırırken tıkırtının kesilmesi
      * "bozuldu" hissi veriyor.
      *
-     * Sessizlik penceresi geçtiğinde sayaç sıfırlanıyor: iki dakika sonraki
-     * aynı olay yeni bir olay.
+     * Sayaç yalnızca art arda gelen dokunuşlarda büyüyor; aralarında kısa
+     * bir sessizlik olan iki dokunuş ayrı iki olay ve ikisi de tam güçte.
      */
     private fun repetitionScale(affect: Affect, now: Long): Float {
         val previous = lastAffect.value
