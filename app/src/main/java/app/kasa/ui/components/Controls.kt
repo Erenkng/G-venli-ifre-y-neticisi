@@ -323,9 +323,19 @@ fun KasaSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    /**
+     * Dışarıdan verilen etkileşim kaynağı.
+     *
+     * Anahtar bir satırın içinde duruyorsa satırın tamamı aynı işi yapıyor ve
+     * o zaman ikisi tek bir nesne. Kendi kaynağını tutsaydı, kullanıcı satırın
+     * adına bastığında ayar değişir ama anahtar hiç kıpırdamazdı: basılan yer
+     * ile tepki veren yer ayrı düşerdi.
+     */
+    interactionSource: MutableInteractionSource? = null
 ) {
-    val interaction = remember { MutableInteractionSource() }
+    val own = remember { MutableInteractionSource() }
+    val interaction = interactionSource ?: own
     val pressed by interaction.collectIsPressedAsState()
 
     val thumbSize by animateDpAsState(

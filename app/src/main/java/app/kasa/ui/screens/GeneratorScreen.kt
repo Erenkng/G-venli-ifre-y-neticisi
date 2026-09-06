@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.semantics.Role
 import app.kasa.ui.components.HeaderCollapse
 import app.kasa.ui.components.headerHandoff
@@ -12,7 +13,10 @@ import app.kasa.ui.components.KasaChip
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.theme.KasaRadius
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -490,7 +495,23 @@ fun GeneratorScreen(
     }
 }
 
-/** Ayar satırı: başlık, açıklama ve anahtar. */
+/**
+ * Ayar satırı: başlık, açıklama ve anahtar.
+ *
+ * ### Satırın tamamı hedef
+ *
+ * Eskiden yalnızca sağdaki anahtar dokunulabilirdi: ekranın genişliği boyunca
+ * uzanan bir satırda, tıklanabilir olan yer 54 dp'lik bir dikdörtgendi.
+ * Kullanıcı adına ya da açıklamasına dokunduğunda hiçbir şey olmuyordu —
+ * ayarların "flat" hissettiren kısmı da tam olarak buydu: yüzeyin çoğu ölü.
+ *
+ * ### Basınca ne oluyor
+ *
+ * Satır hafifçe küçülüyor, zemini bir ton koyulaşıyor ve anahtar basılı
+ * duruma geçiyor. Üçü aynı yayla hareket ediyor, yani satır tek bir nesne
+ * gibi tepki veriyor. Ölçek küçük tutuldu: satır bir kart değil, kartın
+ * içindeki bir çizgi; kart gibi zıplaması onu bulunduğu gruptan koparırdı.
+ */
 @Composable
 fun ToggleRow(
     title: String,
@@ -501,6 +522,27 @@ fun ToggleRow(
     first: Boolean = false,
     enabled: Boolean = true
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed && enabled) 0.985f else 1f,
+        KasaMotion.small(),
+        label = "toggleRowScale"
+    )
+    val tint by animateColorAsState(
+        if (pressed && enabled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+        else Color.Transparent,
+        KasaMotion.effect(),
+        label = "toggleRowTint"
+    )
+    // Ayrı bir yay: yazı rengi konum değil görünüm değiştiriyor ve aşan bir
+    // yay renkte hedefin ötesine geçip geri dönerdi.
+    val titleColor by animateColorAsState(
+        if (enabled) KasaTheme.colors.ink else KasaTheme.colors.ink3,
+        KasaMotion.effect(),
+        label = "toggleRowTitle"
+    )
+
     Column(modifier.fillMaxWidth()) {
         if (!first) {
             Box(
@@ -511,7 +553,19 @@ fun ToggleRow(
             )
         }
         Row(
-            Modifier.fillMaxWidth().padding(vertical = 13.dp, horizontal = 2.dp),
+            Modifier
+                .fillMaxWidth()
+                .scale(scale)
+                .clip(RoundedCornerShape(KasaRadius.s))
+                .background(tint)
+                // Anahtarın kendi tıklama alanı duruyor ve aynı işi yapıyor;
+                // buradaki satır onu kapsıyor, yerini almıyor.
+                .clickableNoRipple(
+                    enabled = enabled,
+                    interactionSource = interaction,
+                    role = Role.Switch
+                ) { onCheckedChange(!checked) }
+                .padding(vertical = 13.dp, horizontal = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -519,7 +573,7 @@ fun ToggleRow(
                 Text(
                     title,
                     style = MaterialTheme.typography.titleSmall,
-                    color = if (enabled) KasaTheme.colors.ink else KasaTheme.colors.ink3
+                    color = titleColor
                 )
                 if (subtitle != null) {
                     Text(
@@ -529,7 +583,15 @@ fun ToggleRow(
                     )
                 }
             }
-            KasaSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+            // Aynı etkileşim kaynağı: satırın adına basıldığında da tutamak
+            // büyüyor. İki ayrı kaynakla basılan yer ile tepki veren yer ayrı
+            // düşerdi.
+            KasaSwitch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled,
+                interactionSource = interaction
+            )
         }
     }
 }

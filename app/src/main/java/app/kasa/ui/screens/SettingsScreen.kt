@@ -1,6 +1,9 @@
 package app.kasa.ui.screens
 
 import app.kasa.ui.components.HeaderCollapse
+import app.kasa.ui.components.REVEAL_WINDOW_MILLIS
+import app.kasa.ui.components.staggeredReveal
+import kotlinx.coroutines.delay
 import app.kasa.ui.components.predictiveBackPush
 import app.kasa.ui.components.rememberBackGesture
 import app.kasa.ui.components.headerHandoff
@@ -30,7 +33,10 @@ import app.kasa.ui.theme.KasaRadius
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,12 +79,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.BuildConfig
@@ -98,6 +107,8 @@ import app.kasa.ui.components.KasaCard
 import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.KasaPinField
 import app.kasa.ui.components.KasaTile
+import app.kasa.ui.components.animatedCorner
+import app.kasa.ui.components.pressRim
 import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.WavyProgress
 import app.kasa.ui.components.groupPositionOf
@@ -297,6 +308,18 @@ fun SettingsScreen(
     // sekmeye geçildiğinde orada kategori adı yazılı kalırdı.
     DisposableEffect(Unit) { onDispose { onSectionTitle(null) } }
 
+    // Kategori satırları sırayla beliriyor.
+    //
+    // Altı satır aynı karede geldiğinde tek bir blok olarak okunuyor ve
+    // aralarındaki sıra kayboluyor; sırayla gelince göz onları ayrı ayrı
+    // görüyor. Yalnızca bir kez: her geri dönüşte tekrarlansaydı ekran
+    // "yükleniyor" gibi görünürdü.
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(REVEAL_WINDOW_MILLIS)
+        revealed = true
+    }
+
     val enterSpec = KasaMotion.enter<Float>()
     val exitSpec = KasaMotion.exit<Float>()
     val slideSpec = KasaMotion.large<IntOffset>()
@@ -356,6 +379,7 @@ fun SettingsScreen(
             SettingsCategoryRow(
                 section = entry,
                 position = groupPositionOf(index, SettingsSection.entries.size),
+                modifier = Modifier.staggeredReveal(step = index, play = !revealed),
                 onClick = { section = entry }
             )
         }
@@ -1609,13 +1633,30 @@ enum class SettingsSection(
 private fun SettingsCategoryRow(
     section: SettingsSection,
     position: GroupPosition,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+
+    // Kasa listesindeki satırla aynı hareket: basınca küçülüyor, köşeleri
+    // yuvarlanıyor ve dokunulan kenar parlıyor. Ayarlar hub'ı da bir liste ve
+    // aynı işi yapan iki yüzeyin farklı davranması, ikisini de yabancılaştırır.
+    val scale by animateFloatAsState(if (pressed) 0.968f else 1f, KasaMotion.small(), label = "catScale")
+    val loose = animatedCorner(KasaRadius.l, label = "catLoose")
+    val tight = animatedCorner(if (pressed) KasaRadius.l else CATEGORY_TIGHT, label = "catTight")
+    // Ok basınca ileri kayıyor: gidilecek yönü satırın kendisi söylüyor.
+    val nudge by animateFloatAsState(if (pressed) 1f else 0f, KasaMotion.small(), label = "catNudge")
+
+    val shape = categoryShape(position, tight, loose)
+
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .glassSurface(categoryShape(position), MaterialTheme.colorScheme.surfaceContainerLow)
-            .clickableNoRipple(role = Role.Button, onClick = onClick)
+            .scale(scale)
+            .glassSurface(shape, MaterialTheme.colorScheme.surfaceContainerLow)
+            .pressRim(shape = shape, color = MaterialTheme.colorScheme.primary)
+            .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -1650,7 +1691,9 @@ private fun SettingsCategoryRow(
             Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             contentDescription = null,
             tint = KasaTheme.colors.ink3,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier
+                .size(22.dp)
+                .graphicsLayer { translationX = nudge * CHEVRON_NUDGE.toPx() }
         )
     }
 }
@@ -1679,6 +1722,12 @@ private fun SettingsSectionTopBar(section: SettingsSection, onBack: () -> Unit) 
     }
 }
 
+/** Grubun iç köşeleri; basılınca [KasaRadius].l'ye açılıyor. */
+private val CATEGORY_TIGHT = 6.dp
+
+/** Okun basınca kat ettiği yol. */
+private val CHEVRON_NUDGE = 3.dp
+
 /**
  * Kategori satırının köşeleri.
  *
@@ -1687,9 +1736,11 @@ private fun SettingsSectionTopBar(section: SettingsSection, onBack: () -> Unit) 
  * kopyalamak yerine kendi ölçüsüyle yazıldı. Grubun dış köşeleri geniş, iç
  * köşeleri dar: satırlar tek bir blok gibi okunuyor ama sınırları belli.
  */
-private fun categoryShape(position: GroupPosition): androidx.compose.ui.graphics.Shape {
-    val loose = KasaRadius.l
-    val tight = 6.dp
+private fun categoryShape(
+    position: GroupPosition,
+    tight: Dp = CATEGORY_TIGHT,
+    loose: Dp = KasaRadius.l
+): androidx.compose.ui.graphics.Shape {
     return when (position) {
         GroupPosition.ONLY -> RoundedCornerShape(loose)
         GroupPosition.FIRST -> RoundedCornerShape(
