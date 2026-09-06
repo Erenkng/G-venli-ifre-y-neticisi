@@ -7,6 +7,9 @@ import android.os.SystemClock
 import android.os.VibrationAttributes
 import android.os.Vibrator
 import android.os.VibratorManager
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.pow
 
@@ -107,6 +110,47 @@ class SmartHaptics(context: Context) {
     /** Fırlattığı görülen yollar; ikinci kez denenmiyor. */
     private val brokenPaths = mutableSetOf<HapticRenderer.Path>()
 
+    /**
+     * Titreşimin hazırlandığı ve çalındığı iş parçacığı.
+     *
+     * ### Neden çağıranın iş parçacığında olmuyor
+     *
+     * [Vibrator.vibrate] bir binder çağrısı: sistem sürecine gidip dönüyor ve
+     * bedeli genelde birkaç milisaniye, yük altında çok daha fazla. Bu
+     * uygulamada titreşim **basış anında** çalınıyor — yani tam da basış
+     * animasyonunun ilk karesinin çizildiği anda. Arayüz iş parçacığında
+     * yapılan çağrı o kareyi düşürüyordu ve görülen şey, düğmeye basınca
+     * animasyonun takılmasıydı.
+     *
+     * ### Neden tek bir iş parçacığı
+     *
+     * Motorun durumu (tekrar sayacı, bütçe penceresi, bozuk yollar) kilitsiz
+     * tutuluyor. Tek bir iş parçacığı bütün o durumu oraya hapsediyor: sıra
+     * korunuyor, yarış yok, kilit de yok. [lastAffect] zaten `ThreadLocal`
+     * ve burada doğru yere düşüyor.
+     *
+     * ### Neden sıra kısa ve taşan atılıyor
+     *
+     * Geç gelen bir titreşim yanlış olayı işaret ediyor; hiç gelmemesinden
+     * kötü. Hızlı kaydırmada onlarca istek gelebiliyor ve bunları sıraya
+     * dizmek, parmağın çoktan geçtiği satırların titreşimini sonradan
+     * çalmak demek. Sıra dolduğunda [ThreadPoolExecutor.DiscardPolicy] yeni
+     * geleni sessizce atıyor; ayrıca çalınmadan önce isteğin yaşı da
+     * denetleniyor.
+     */
+    private val worker = ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue(WORKER_QUEUE),
+        { runnable -> Thread(runnable, "kasa-haptics").apply { isDaemon = true } },
+        ThreadPoolExecutor.DiscardPolicy()
+    )
+
+    init {
+        // Yetenek yoklaması da binder çağrıları yapıyor. İlk titreşimde
+        // arayüz iş parçacığında yapılmasın diye kurulumda ısıtılıyor.
+        runCatching { worker.execute { capabilities } }
+    }
+
     // ── genel arayüz ─────────────────────────────────────────────────────
 
     /**
@@ -115,13 +159,24 @@ class SmartHaptics(context: Context) {
      * Hiçbir koşulda fırlatmıyor ve hiçbir koşulda çağıranı bekletmiyor:
      * titreşim bir yan etki, akışın parçası değil. Bir titreşimin
      * çalınamaması kullanıcının fark etmeyeceği bir şey; çökme değil.
+     *
+     * Çağıran taraf yalnızca isteği bırakıyor; hazırlık ve donanım çağrısı
+     * [worker] üzerinde yapılıyor. Gerekçesi orada yazılı.
      */
     fun play(affect: Affect) {
         if (!enabled) return
+        // Zaman **istek anında** okunuyor, çalınma anında değil: sönümleme ve
+        // bütçe kullanıcının dokunma sıklığına bakıyor ve o sıklık burada.
+        val requestedAt = SystemClock.uptimeMillis()
+        runCatching { worker.execute { render(affect, requestedAt) } }
+    }
+
+    private fun render(affect: Affect, now: Long) {
         val caps = capabilities
         if (!caps.usable) return
 
-        val now = SystemClock.uptimeMillis()
+        // Beklerken bayatlayan istek atılıyor.
+        if (SystemClock.uptimeMillis() - now > STALE_MILLIS) return
         val scale = contextScale() * repetitionScale(affect, now) * intensity
         if (scale <= 0f) return
 
@@ -304,6 +359,25 @@ class SmartHaptics(context: Context) {
     }
 
     private companion object {
+        /**
+         * Sırada bekleyebilecek istek sayısı.
+         *
+         * Kısa: geç gelen bir titreşim yanlış olayı işaret ediyor ve hiç
+         * gelmemesinden kötü. Dört, art arda gelen birkaç isteğin (basış +
+         * sonucun titreşimi) kaybolmamasına yetiyor; hızlı kaydırmadaki
+         * onlarca isteği ise sıraya dizmiyor.
+         */
+        const val WORKER_QUEUE = 4
+
+        /**
+         * Bir isteğin bayatlama süresi.
+         *
+         * Bunu geçen istek çalınmıyor. İnsan, dokunuşla titreşim arasındaki
+         * ~100ms'lik gecikmeyi ikisinin ayrı olayı olarak okumaya başlıyor;
+         * o noktadan sonra çalmak, olmayan bir olayı bildirmek oluyor.
+         */
+        const val STALE_MILLIS = 90L
+
         /** Bu uyarılmanın üstündeki olaylar sönümlenmiyor. */
         const val NO_DAMPING_AROUSAL = 0.8f
 

@@ -45,7 +45,6 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
@@ -98,7 +97,7 @@ fun SearchBarButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.975f else 1f, label = "searchScale")
+    val scale = animateFloatAsState(if (pressed) 0.975f else 1f, label = "searchScale")
     // Tam yuvarlak = yüksekliğin yarısı. 999dp hedefiyle yay, basış bırakılınca
     // negatif yarıçapa iniyordu ve gölgesi olan bu bileşende çökme yapıyordu.
     val radius = animatedCorner(if (pressed) 22.dp else SEARCH_HEIGHT / 2, label = "searchRadius")
@@ -116,7 +115,7 @@ fun SearchBarButton(
                     onBoundsChanged(it.boundsInRoot(), restingCornerPx)
                 }
             )
-            .scale(scale)
+            .pressScale(scale)
             // Gölge yok: gerekçesi KasaCard üzerinde yazılı — saydam bir
             // yüzeyde platform gölgesinin çekirdeği yüzeyin içinden keskin
             // köşeli bir dikdörtgen olarak görünüyor.
@@ -189,7 +188,7 @@ fun FieldBlock(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         targetValue = if (pressed && onClick != null) 0.98f else 1f,
         animationSpec = KasaMotion.small(),
         label = "fieldBlockScale"
@@ -198,7 +197,7 @@ fun FieldBlock(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .scale(scale)
+            .pressScale(scale)
             // Cam yüzey: uygulamanın geri kalanı zeminini geçiriyor ve
             // alan blokları opak kaldığı sürece kayıt ayrıntısı ötekilerden
             // farklı bir dile konuşuyordu. Örtücülük yüksek — bu bloklar

@@ -4,13 +4,13 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.semantics.Role
 import app.kasa.ui.components.HeaderCollapse
 import app.kasa.ui.components.headerHandoff
 import app.kasa.data.GeneratorMode
 import app.kasa.ui.components.KasaChip
 import app.kasa.ui.components.clickableNoRipple
+import app.kasa.ui.components.pressScale
 import app.kasa.ui.theme.KasaRadius
 import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedContent
@@ -572,7 +572,7 @@ fun ToggleRow(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         if (pressed && enabled) 0.985f else 1f,
         KasaMotion.small(),
         label = "toggleRowScale"
@@ -603,7 +603,7 @@ fun ToggleRow(
         Row(
             Modifier
                 .fillMaxWidth()
-                .scale(scale)
+                .pressScale(scale)
                 .clip(RoundedCornerShape(KasaRadius.s))
                 .background(tint)
                 // Anahtarın kendi tıklama alanı duruyor ve aynı işi yapıyor;

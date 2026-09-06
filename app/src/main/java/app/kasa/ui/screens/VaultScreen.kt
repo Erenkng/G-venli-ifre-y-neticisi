@@ -69,7 +69,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -103,6 +102,7 @@ import app.kasa.ui.components.StrengthDot
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.components.glassSurface
 import app.kasa.ui.components.groupPositionOf
+import app.kasa.ui.components.pressScale
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
@@ -517,7 +517,7 @@ fun VaultScreen(
  */
 @Composable
 private fun SelectionMark(selected: Boolean) {
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         targetValue = if (selected) 1f else 0.86f,
         animationSpec = KasaMotion.small(),
         label = "selectionMark"
@@ -525,7 +525,7 @@ private fun SelectionMark(selected: Boolean) {
     Box(
         modifier = Modifier
             .size(46.dp)
-            .scale(scale)
+            .pressScale(scale)
             .clip(RoundedCornerShape(KasaRadius.full))
             .background(
                 if (selected) MaterialTheme.colorScheme.primary
@@ -901,7 +901,7 @@ private fun CollectionChip(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         if (pressed) 0.93f else 1f,
         KasaMotion.small(),
         label = "collectionChip"
@@ -922,7 +922,7 @@ private fun CollectionChip(
     Row(
         modifier = Modifier
             .height(36.dp)
-            .scale(scale)
+            .pressScale(scale)
             .clip(RoundedCornerShape(KasaRadius.full))
             .background(background)
             .then(

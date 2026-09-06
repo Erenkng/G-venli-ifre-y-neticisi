@@ -27,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -84,7 +83,7 @@ fun KasaTile(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.965f else 1f, KasaMotion.small(), label = "tileScale")
+    val scale = animateFloatAsState(if (pressed) 0.965f else 1f, KasaMotion.small(), label = "tileScale")
     // Yarıçap animasyonları [animatedCorner] üzerinden: yaylı hareket hedefi
     // aşıyor ve gölgenin kullandığı platform Outline'ı negatif yarıçapta
     // istisna atıyor.
@@ -94,7 +93,7 @@ fun KasaTile(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .scale(scale)
+            .pressScale(scale)
             // Cam yüzey: satır zemindeki gradyanı geçiriyor, üst kenarı
             // ışık alıyor. Gerekçesi glassSurface üzerinde yazılı.
             .glassSurface(
@@ -307,13 +306,13 @@ fun RecentCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "recentScale")
+    val scale = animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "recentScale")
     val radius = animatedCorner(if (pressed) KasaRadius.l else KasaRadius.m, label = "recentRadius")
 
     Column(
         modifier = modifier
             .width(104.dp)
-            .scale(scale)
+            .pressScale(scale)
             // Gölge yok: saydam bir yüzeyde platform gölgesinin çekirdeği
             // kartın içinden keskin köşeli bir dikdörtgen olarak görünüyor.
             // Gerekçesi [KasaCard] üzerinde yazılı.

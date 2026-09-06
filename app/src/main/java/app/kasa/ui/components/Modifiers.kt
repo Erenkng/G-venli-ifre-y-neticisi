@@ -7,8 +7,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.Role
@@ -124,3 +126,34 @@ fun Modifier.combinedClickableNoRipple(
 /** Genişliği piksel cinsinden bildirir; kaydırıcı konumu bunun üzerinden hesaplanır. */
 fun Modifier.onSizeChangedPx(onWidth: (Float) -> Unit): Modifier =
     this.onSizeChanged { onWidth(it.width.toFloat()) }
+
+/**
+ * Basış ölçeği — değer **çizim** aşamasında okunuyor.
+ *
+ * ### Neden ayrı bir işlev gerekti
+ *
+ * Basış animasyonu her yerde şöyle yazılıydı:
+ *
+ * ```
+ * val scale by animateFloatAsState(if (pressed) 0.94f else 1f, ...)
+ * Box(Modifier.scale(scale)) { ... }
+ * ```
+ *
+ * `by` ile okunan değer **beste** aşamasında okunuyor ve o değer animasyon
+ * boyunca her karede değişiyor. Yani parmak düğmenin üstünde durduğu sürece
+ * düğmenin bütün iskeleti — yazısı, simgesi, rozeti — saniyede 120 kez
+ * yeniden besteleniyordu. Küçük bir düğmede fark edilmiyor; içinde metin ve
+ * birkaç katman olan bir liste satırında basış animasyonu takılıyordu.
+ *
+ * Burada durum nesnesi olduğu gibi taşınıyor ve yalnızca `graphicsLayer`
+ * bloğunun içinde — yani çizim sırasında — okunuyor. Beste hiç çalışmıyor,
+ * her karede olan tek şey bir dönüşüm matrisinin güncellenmesi.
+ *
+ * Aynı kural deponun tasarım becerisinde de yazılı: animasyonlu bir değeri
+ * beste aşamasında okumak, "animasyon takılıyor" şikâyetinin en sık sebebi.
+ */
+fun Modifier.pressScale(scale: State<Float>): Modifier = graphicsLayer {
+    val value = scale.value
+    scaleX = value
+    scaleY = value
+}

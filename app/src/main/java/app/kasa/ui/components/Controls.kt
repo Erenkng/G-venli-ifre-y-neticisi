@@ -109,7 +109,7 @@ fun KasaButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "btnScale")
+    val scale = animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "btnScale")
     val radius = animatedCorner(if (pressed) pressedRadius else restingRadius, label = "btnRadius")
 
     val background = when (tone) {
@@ -127,7 +127,7 @@ fun KasaButton(
     Box(
         modifier = modifier
             .height(height)
-            .scale(scale)
+            .pressScale(scale)
             .clip(RoundedCornerShape(radius))
             .background(background.copy(alpha = background.alpha * alpha))
             .then(
@@ -227,12 +227,12 @@ private fun KasaButtonShaped(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "splitScale")
+    val scale = animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "splitScale")
 
     Box(
         modifier = modifier
             .height(52.dp)
-            .scale(scale)
+            .pressScale(scale)
             .clip(if (pressed) shapePressed else shapeResting)
             .background(MaterialTheme.colorScheme.primary)
             .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick),
@@ -582,7 +582,7 @@ fun KasaChip(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.92f else 1f, KasaMotion.small(), label = "chipScale")
+    val scale = animateFloatAsState(if (pressed) 0.92f else 1f, KasaMotion.small(), label = "chipScale")
 
     // Renkler yumuşak geçiyor: bir yongadan ötekine atlarken iki çipin de
     // aynı anda değişmesi, seçimin kullanıcıdan geldiğini hissettiriyor.
@@ -611,7 +611,7 @@ fun KasaChip(
     Box(
         modifier = modifier
             .height(34.dp)
-            .scale(scale)
+            .pressScale(scale)
             .clip(RoundedCornerShape(KasaRadius.full))
             .background(background)
             .border(1.5.dp, border, RoundedCornerShape(KasaRadius.full))
@@ -655,7 +655,7 @@ fun KasaIconButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.86f else 1f, KasaMotion.small(), label = "iconScale")
+    val scale = animateFloatAsState(if (pressed) 0.86f else 1f, KasaMotion.small(), label = "iconScale")
     // Hedef "tam yuvarlak" için 999dp değil, bileşenin kendi yarısı: aralık
     // küçük kalınca yayın aşma payı da görünmez oluyor.
     val radius = animatedCorner(if (pressed) 13.dp else size / 2, label = "iconRadius")
@@ -663,7 +663,7 @@ fun KasaIconButton(
     Box(
         modifier = modifier
             .size(size)
-            .scale(scale)
+            .pressScale(scale)
             .clip(RoundedCornerShape(radius))
             .background(
                 if (accent) MaterialTheme.colorScheme.primary
@@ -708,7 +708,7 @@ fun RowScope.ToolbarAction(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "tbScale")
+    val scale = animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "tbScale")
     // Yay hedefi aşıyor; dönüşte 1'in biraz altına iniyor. `weight` sıfır ya
     // da negatif bir değerde çöktüğü için taban açıkça konuyor.
     val weight by animateFloatAsState(
@@ -720,7 +720,7 @@ fun RowScope.ToolbarAction(
         modifier = Modifier
             .weight(weight.coerceAtLeast(MIN_WEIGHT))
             .height(48.dp)
-            .scale(scale)
+            .pressScale(scale)
             .clip(RoundedCornerShape(KasaRadius.full))
             .background(if (pressed) Color.Black.copy(alpha = 0.07f) else Color.Transparent)
             .buttonLabel(contentDescription)

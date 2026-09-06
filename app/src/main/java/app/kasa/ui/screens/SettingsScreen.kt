@@ -25,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntOffset
 import app.kasa.ui.components.glassSurface
+import app.kasa.ui.components.pressScale
 import app.kasa.ui.components.LoadingOverlay
 import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.clickableNoRipple
@@ -79,7 +80,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -1652,7 +1652,7 @@ private fun SettingsCategoryRow(
     // Kasa listesindeki satırla aynı hareket: basınca küçülüyor, köşeleri
     // yuvarlanıyor ve dokunulan kenar parlıyor. Ayarlar hub'ı da bir liste ve
     // aynı işi yapan iki yüzeyin farklı davranması, ikisini de yabancılaştırır.
-    val scale by animateFloatAsState(if (pressed) 0.968f else 1f, KasaMotion.small(), label = "catScale")
+    val scale = animateFloatAsState(if (pressed) 0.968f else 1f, KasaMotion.small(), label = "catScale")
     val loose = animatedCorner(KasaRadius.l, label = "catLoose")
     val tight = animatedCorner(if (pressed) KasaRadius.l else CATEGORY_TIGHT, label = "catTight")
     // Ok basınca ileri kayıyor: gidilecek yönü satırın kendisi söylüyor.
@@ -1663,7 +1663,7 @@ private fun SettingsCategoryRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .scale(scale)
+            .pressScale(scale)
             .glassSurface(shape, MaterialTheme.colorScheme.surfaceContainerLow)
             .pressRim(shape = shape, color = MaterialTheme.colorScheme.primary)
             .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = onClick)
@@ -1712,7 +1712,15 @@ private fun SettingsCategoryRow(
 @Composable
 private fun SettingsSectionTopBar(section: SettingsSection, onBack: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        // Dikey ritim [HeroHeader] ile aynı: üstte 14, altta 18.
+        //
+        // Üst boşluk hiç yoktu ve kategori başlığı öteki ekranların
+        // başlığından 14dp daha yukarıda duruyordu. Tek başına bakınca
+        // fark edilmiyor; ayarlardan güvenliğe geçen kullanıcıda ise
+        // başlık yerinden oynuyor gibi görünüyordu. Alt boşluk da eşitlendi:
+        // burada alt satır yok, dolayısıyla başlıktan ilk karta olan mesafe
+        // öteki ekranlarda alt satırdan karta olan mesafeyle aynı oluyor.
+        Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 18.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {

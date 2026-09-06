@@ -51,6 +51,7 @@ import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.KasaTile
 import app.kasa.ui.components.groupPositionOf
+import app.kasa.ui.components.pressScale
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaTheme
 import java.util.concurrent.TimeUnit
@@ -61,7 +62,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import app.kasa.ui.theme.KasaRadius
 
@@ -348,7 +348,7 @@ private fun TrashRow(
  */
 @Composable
 private fun TrashSelectionMark(selected: Boolean) {
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         targetValue = if (selected) 1f else 0.86f,
         animationSpec = KasaMotion.small(),
         label = "trashSelectionMark"
@@ -356,7 +356,7 @@ private fun TrashSelectionMark(selected: Boolean) {
     Box(
         modifier = Modifier
             .size(46.dp)
-            .scale(scale)
+            .pressScale(scale)
             .clip(RoundedCornerShape(KasaRadius.full))
             .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
             .then(
