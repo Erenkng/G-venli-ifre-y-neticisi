@@ -128,9 +128,19 @@ fun KasaTopBar(
             // Yukarıdan inmesi, büyük başlığın çıktığı yerden geldiğini
             // söylüyor.
             .graphicsLayer {
+                // Çubuk büyük başlıkla **aynı** oranı paylaşmıyor.
+                //
+                // Paylaştığında ikisi de yolun ortasında yarı saydam oluyordu:
+                // ekranda aynı sözcük, iki ayrı boyda, iki ayrı yerde, ikisi
+                // de yarım — bir geçiş değil, bir hayal görüntüsü. Çubuk artık
+                // ancak büyük başlık çubuğun ölçüsüne inmişken belirmeye
+                // başlıyor. Kalan küçük örtüşme bilerek: iki yazı o anda aynı
+                // boyda ve aynı yerde olduğu için göz tek bir nesne görüyor.
                 val fraction = progress().coerceIn(0f, 1f)
-                alpha = fraction
-                translationY = -(1f - fraction) * BAR_TRAVEL.toPx()
+                val appear = ((fraction - BAR_FADE_IN) / (1f - BAR_FADE_IN))
+                    .coerceIn(0f, 1f)
+                alpha = appear
+                translationY = -(1f - appear) * BAR_TRAVEL.toPx()
             }
     ) {
         BackdropBlur(
@@ -245,24 +255,57 @@ fun Modifier.headerHandoff(state: LazyListState): Modifier = composed {
         else state.firstVisibleItemScrollOffset.toFloat()
         val fraction = (offset / runway).coerceIn(0f, 1f)
 
-        alpha = 1f - fraction
-        // Küçülme çok az: başlık uzaklaşıyor, yok olmuyor. Belirgin bir
-        // ölçek, sayfanın tamamının uzaklaştığı hissini veriyordu.
-        val shrink = 1f - fraction * HANDOFF_SHRINK
+        // Dönüşüm devir anında **bitiyor**, pistin sonunda değil: büyük
+        // başlık çubuk belirmeden önce çubuğun ölçüsüne inmiş oluyor.
+        val morph = (fraction / HANDOFF_CROSSOVER).coerceIn(0f, 1f)
+
+        val shrink = 1f - morph * (1f - HANDOFF_TARGET_SCALE)
         scaleX = shrink
         scaleY = shrink
-        // Ölçek merkezi üstte: başlık kendi tabanına doğru değil, çubuğun
-        // olduğu yöne doğru toplanıyor.
+        // Ölçek merkezi sol üst: başlık kendi ortasına değil, çubuktaki
+        // yazının başladığı köşeye doğru toplanıyor.
         transformOrigin = TransformOrigin(0f, 0f)
-        translationY = -fraction * HANDOFF_LIFT.toPx()
+
+        // Sönme küçülmeden geç: kare alınca eğri başta yatay, sonda dik.
+        // Doğrusal olsaydı başlık daha yarı yoldayken yarı saydam olurdu ve
+        // küçülürken **kaybolan** bir şey gibi görünürdü; oysa kaybolmuyor,
+        // yer değiştiriyor.
+        alpha = 1f - morph * morph
+
+        // Kaydırmanın bir kısmı geri alınıyor.
+        //
+        // Başlık listeyle birlikte tam hızda yukarı gitseydi, devir anında
+        // çubuğun satırını çoktan geçmiş olurdu — 72dp'lik pistin %62'si
+        // 45dp, oysa başlığın çubuğa inmesi için gereken yol ~33dp. Aradaki
+        // farkı kapatmak için başlık kaydırmaya direniyor: liste akarken o
+        // yavaşlayıp çubuğun satırına oturuyor.
+        translationY = offset * HANDOFF_HOLD
     }
 }
 
-/** Devir sırasında başlığın küçülme oranı. */
-private const val HANDOFF_SHRINK = 0.10f
+/**
+ * Büyük başlığın devir anındaki ölçeği.
+ *
+ * 16/46: çubuktaki yazının boyunun dev başlığınkine oranı. Başlık devir
+ * anında çubuktaki yazıyla **aynı** boyda oluyor ve takas o yüzden
+ * görünmüyor. Eski değer %10'luk bir küçülmeydi; başlık uzaklaşıyor gibi
+ * duruyordu ama çubuktaki yazıya dönüşmüyordu, çünkü ona hiç benzemiyordu.
+ */
+private const val HANDOFF_TARGET_SCALE = 0.348f
 
-/** Devir sırasında başlığın yukarı çekilme mesafesi. */
-private val HANDOFF_LIFT = 12.dp
+/** Pistin hangi noktasında büyük başlığın işi bitiyor. */
+private const val HANDOFF_CROSSOVER = 0.62f
+
+/** Çubuğun belirmeye başladığı nokta. Devirden biraz önce: ince bir örtüşme. */
+private const val BAR_FADE_IN = 0.46f
+
+/**
+ * Başlığın kaydırmaya direnme oranı.
+ *
+ * Kaydırılan yolun bu kadarı geri veriliyor, yani başlık listeden yavaş
+ * gidiyor ve devir anında çubuğun satırına oturuyor.
+ */
+private const val HANDOFF_HOLD = 0.25f
 
 /** Çubuğun içerik yüksekliği; sistem çubuğu bunun üstüne ekleniyor. */
 private val BAR_HEIGHT = 44.dp
