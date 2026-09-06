@@ -18,6 +18,125 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
+## 2.2'de yenilikler
+
+Bu sürümün ekseni listede yapılan iş: bir kaydı açmadan kopyalamak, yana
+kaydırıp sık kullanılana eklemek ya da çöpe atmak. Yanında uzun süredir
+duran bir çizim kusurunun kaynağı bulundu.
+
+### Keskin dikdörtgen — düzeltme
+
+Yüzeylerin içinde, kenarlardan eşit uzaklıkta, keskin köşeli bir dikdörtgen
+görünüyordu; açık temada apaçık, koyu temada zar zor. 2.1'de kenar ışığı
+düzeltilmişti ama bant kalmıştı.
+
+Kaynak platformun gölge geometrisiymiş. Android yuvarlak dikdörtgenin
+gölgesini iki parçadan kuruyor: dış hattı köşe yarıçapı kadar içeri çekerek
+elde ettiği tam koyu çekirdek (umbra) ve oradan kenara açılan yumuşak geçiş.
+Yuvarlak bir dikdörtgeni kendi köşe yarıçapı kadar içeri çekince köşelerin
+yuvarlaklığı sıfıra iniyor: umbra, kenarlardan yarıçap kadar içeride duran
+**keskin köşeli** bir dikdörtgen oluyor.
+
+Opak bir yüzeyde bunun önemi yok, gölge altta kalıyor. Kasa'nın yüzeyleri
+saydam olduğu için gölge onların **içinden** görünüyordu. Ölçülen bant
+genişliği kartın köşe yarıçapının tam kendisiydi.
+
+Dört saydam yüzeyden gölge kaldırıldı: kart, "Son kullanılan" döşemesi,
+arama pili ve bildirim şeridi. Derinlik zaten gölgeden gelmiyordu; bu
+tasarım dilinde onu taşıyan şey yüzeyin geçirgenliği ve üst kenarındaki
+ışık.
+
+### Listede kaydırma eylemleri
+
+Satırı sağa çekmek sık kullanılana ekliyor, sola çekmek çöpe atıyor. İkisi
+de yönlü işler — biri kayda bir şey ekliyor, öteki onu listeden çıkarıyor —
+ve yön artık hareketin kendisinde.
+
+Eşik geçildiğinde parmağa tıkırtı geliyor ve satır sonra yerine dönüyor:
+hareket bir düğme gibi davranıyor, bir çöp kutusu gibi değil. Sık kullanılana
+eklenen kayıt yerinde kalmalı; satırın ekrandan atılması orada kaydın
+silindiği izlenimini verirdi.
+
+### Satırda kopyalama
+
+Listede yapılan en sık iş "aç, parolayı kopyala, çık" idi. Ortadaki iki adım
+artık satırın kendisinde: sağdaki küçük düğme gizli değeri panoya alıyor ve
+pano yine süreli temizleniyor. Gizli değeri olmayan türlerde ve seçim
+kipinde çizilmiyor.
+
+### Arama boş açılmıyor
+
+Kutuya dokunan kullanıcı bomboş bir ekranla karşılaşıyordu. Artık son
+aramalar ve son kullanılan kayıtlar duruyor.
+
+Arama terimleri **diske yazılmıyor**, bellekte duruyor. Terimler kasanın
+içeriğini ele veriyor: "instagram" araması, kasada o kaydın bulunduğunu
+söylüyor. Bu uygulamanın verdiği söz, kayıt adlarının ve hangi kategorilerin
+kullanıldığının şifreli dosyanın içinde kalması; aynı bilgiyi şifresiz bir
+tercih dosyasına yazmak o sözü tam da kaçınılan yerden bozardı. Karşılığı,
+uygulama kapanınca geçmişin boşalması.
+
+### Kilit açıldıktan sonra devamlılık
+
+Uygulamadan çıkıp geri dönen kullanıcı, parmağını okuttuktan sonra kendini
+kasa listesinin en başında buluyordu. Artık bıraktığı yere dönüyor: sekme,
+kaydırma konumu ve açık ayar kategorisi korunuyor. Yalnızca bellekte —
+saklanan şeyin içinde açık kaydın kimliği de var ve onu sistemin örnek
+durumu olarak diske yazdırmak kasanın içindekine dair bir izi dışarı
+taşımak olurdu.
+
+### Başlık geçişi
+
+Büyük başlık ile çubuktaki yazı aynı oranı paylaşıyordu: yolun ortasında
+ikisi de yarı saydam oluyor, ekranda aynı sözcük iki ayrı boyda ve iki ayrı
+yerde yarım hâlde duruyordu.
+
+Küçülme %10'dan 16/46'ya indi — çubuktaki yazının dev başlığa oranı — ve
+başlık devir anında çubuktaki yazıyla aynı boyda oluyor. Başlık ayrıca
+kaydırmanın dörtte birine direniyor, yani liste akarken yavaşlayıp çubuğun
+satırına oturuyor.
+
+### Dokunuş geri bildirimi
+
+Titreşim yalnızca olayı bilen yerde çalınıyordu; sonucu olmayan
+denetimlerde — yonga, sekme, kategori satırı, menü seçeneği — parmağa
+hiçbir şey gelmiyordu. Artık ortak basış ilkeli parmak inerken çalıyor.
+Tıklamada değil basışta, böylece anlamlı titreşimle üst üste binmiyor:
+parmak inerken yüzey karşılık veriyor, kalkınca sonuç geliyor.
+
+### Alt sayfaların arkası
+
+Pencere bulanıklığı bir ayrıcalık değil istek: üretici, pil tasarrufu ya da
+geliştirici seçenekleri kapatmış olabiliyor. Kapalıyken sayfa karartmasız
+kalıyor ve altındaki liste okunmaya devam ediyordu. Artık bulanıklık yoksa
+karartma devreye giriyor ve levha kendi rengiyle kapatıyor.
+
+### Ufak olanlar
+
+- Kayıt ayrıntısında güç bloğu, sızıntı ya da tekrar varsa o kayıtların
+  listesine götürüyor.
+- Güvenlik ekranında puan alttan yükselerek geliyor, bulgular sırayla
+  açılıyor.
+- Boş kasada ilk kaydı eklemenin yolu boş durumun içinde.
+- Üreteç kadranı güçten ölçü değil karakter alıyor: zayıfta huzursuzluk
+  (merkez yerinde duramıyor, dikenler kendi ritminde kabarıyor), güçlüde
+  nefes (biçim yavaşça büyüyüp küçülüyor, başka hiçbir şey yapmıyor).
+- Anahtarın tutamağı basılınca yana esneyip hapa dönüşüyor; ray, kenar ve
+  tutamak renkleri artık animasyonlu.
+- Eylem çubuğunda basılan düğme yer kaplıyor, komşuları kendiliğinden
+  daralıyor.
+- Üretici panelinde kip değişimi sıçramıyor.
+- Ayarlarda başlığını tekrar eden düğme metinleri kısaltıldı; "Vazgeç"
+  yanındaki uzun etiket kaba sığmıyordu.
+- Ayarlar → Görünüm → **Tanecikli zemin**: gradyanın üzerine filmden gelen
+  ince bir doku.
+- Kayıt ayrıntısında girişin şeridi kaldırıldı — aynı simgeyi ve adı hemen
+  altındaki başlık zaten gösteriyordu.
+
+Gezinme çubuğuna yine dokunulmadı.
+
+---
+
 ## 2.1'de yenilikler
 
 Karekodu okutup ikinci faktörü ekleyebilme bu sürümün ekseni. Yanında
