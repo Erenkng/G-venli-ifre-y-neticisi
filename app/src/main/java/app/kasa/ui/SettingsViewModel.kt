@@ -80,6 +80,11 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         container.haptics.play(Haptics.Kind.SUCCESS)
     }
     fun setExperimentalEffects(value: Boolean) = launchSetting { settingsStore.setExperimentalEffects(value) }
+    fun setEffectTilt(value: Boolean) = launchSetting { settingsStore.setEffectTilt(value) }
+    fun setEffectPressBloom(value: Boolean) = launchSetting { settingsStore.setEffectPressBloom(value) }
+    fun setEffectShimmer(value: Boolean) = launchSetting { settingsStore.setEffectShimmer(value) }
+    fun setEffectEdgeDepth(value: Boolean) = launchSetting { settingsStore.setEffectEdgeDepth(value) }
+    fun setEffectParallax(value: Boolean) = launchSetting { settingsStore.setEffectParallax(value) }
     fun setGradientTheme(value: GradientTheme) = launchSetting { settingsStore.setGradientTheme(value) }
     fun setGradientFollowsTime(value: Boolean) = launchSetting { settingsStore.setGradientFollowsTime(value) }
     fun setHaptics(value: Boolean) = launchSetting {

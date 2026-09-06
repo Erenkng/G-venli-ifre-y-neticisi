@@ -69,6 +69,7 @@
     <string name="vault_recent">Son kullanılan</string>
     <!-- Arama ekranının boş durumu -->
     <string name="search_recent_queries">Son aramalar</string>
+    <string name="search_clear_history">Temizle</string>
     <string name="search_blank_title">Kasada ara</string>
     <string name="search_blank_sub">Kayıt adı, kullanıcı adı ya da adres yazmaya başla.</string>
     <string name="vault_all">Tüm kayıtlar</string>
@@ -701,7 +702,19 @@
     <string name="sec_chip_renew">Yenile %d</string>
     <string name="set_group_effects">Deneysel efektler</string>
     <string name="set_effects">Yüzey efektleri</string>
-    <string name="set_effects_sub">Kartlarda eğimle kayan ışık, dokunulan noktadan açılan parıltı, yüzeylerden geçen yansıma ve liste uçlarında derinlik. Kapatıldığında ivmeölçer hiç açılmıyor.</string>
+    <string name="set_effects_sub">Kapatıldığında ivmeölçer hiç açılmıyor ve fazladan hiçbir katman kurulmuyor.</string>
+    <string name="set_cat_effects_sub">Eğim ışığı, basış parıltısı, yansıma, derinlik</string>
+    <string name="set_effects_each">Tek tek</string>
+    <string name="set_effect_tilt">Eğim ışığı</string>
+    <string name="set_effect_tilt_sub">Kartların kenarındaki ışık cihazın eğimiyle geziniyor.</string>
+    <string name="set_effect_bloom">Basış parıltısı</string>
+    <string name="set_effect_bloom_sub">Dokunulan noktaya en yakın kenar parlıyor.</string>
+    <string name="set_effect_shimmer">Yüzey yansıması</string>
+    <string name="set_effect_shimmer_sub">Kart göründüğünde kenarından bir kez yansıma geçiyor.</string>
+    <string name="set_effect_edge">Liste uçlarında derinlik</string>
+    <string name="set_effect_edge_sub">Ekranın kenarına yaklaşan satırlar küçülüp soluyor.</string>
+    <string name="set_effect_parallax">Zeminin eğimle kayması</string>
+    <string name="set_effect_parallax_sub">Gradyanın ışık kaynakları cihaz döndükçe yerinde duruyor gibi oluyor.</string>
     <string name="gen_regenerate">Yeniden üret</string>
     <string name="gen_mode_uuid">UUID</string>
     <string name="gen_mode_recovery">Yedek kod</string>

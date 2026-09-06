@@ -193,6 +193,11 @@ class SettingsStore(private val context: Context) {
          * dinleyicisi kaydedilmiyor, sonsuz animasyon başlamıyor.
          */
         val experimentalEffects: Boolean = true,
+        val effectTilt: Boolean = true,
+        val effectPressBloom: Boolean = true,
+        val effectShimmer: Boolean = true,
+        val effectEdgeDepth: Boolean = true,
+        val effectParallax: Boolean = false,
         val gradientTheme: GradientTheme = GradientTheme.JADE,
         /**
          * Gradyan günün saatine göre kaysın mı.
@@ -287,6 +292,15 @@ class SettingsStore(private val context: Context) {
             generatorSymbols = prefs[KEY_GEN_SYMBOLS] ?: true,
             generatorAvoidLookalikes = prefs[KEY_GEN_CLEAR] ?: false,
             experimentalEffects = prefs[KEY_EXPERIMENTAL] ?: true,
+            // Alt anahtarların varsayılanı açık: ana anahtar zaten hepsini
+            // birden kapatıyor ve 2.2'den gelen kullanıcı, açık bıraktığı
+            // efektlerin aynısını görmeye devam ediyor. Manzara efekti yeni
+            // olduğu için kapalı geliyor.
+            effectTilt = prefs[KEY_EFFECT_TILT] ?: true,
+            effectPressBloom = prefs[KEY_EFFECT_BLOOM] ?: true,
+            effectShimmer = prefs[KEY_EFFECT_SHIMMER] ?: true,
+            effectEdgeDepth = prefs[KEY_EFFECT_EDGE] ?: true,
+            effectParallax = prefs[KEY_EFFECT_PARALLAX] ?: false,
             gradientTheme = runCatching { GradientTheme.valueOf(prefs[KEY_GRADIENT] ?: GradientTheme.JADE.name) }
                 .getOrDefault(GradientTheme.JADE),
             gradientFollowsTime = prefs[KEY_GRADIENT_TIME] ?: true,
@@ -345,6 +359,11 @@ class SettingsStore(private val context: Context) {
     suspend fun setGeneratorWordCount(value: Int) = put(KEY_GEN_WORDS, value)
     suspend fun setGeneratorSeparator(value: String) = put(KEY_GEN_SEPARATOR, value)
     suspend fun setExperimentalEffects(value: Boolean) = put(KEY_EXPERIMENTAL, value)
+    suspend fun setEffectTilt(value: Boolean) = put(KEY_EFFECT_TILT, value)
+    suspend fun setEffectPressBloom(value: Boolean) = put(KEY_EFFECT_BLOOM, value)
+    suspend fun setEffectShimmer(value: Boolean) = put(KEY_EFFECT_SHIMMER, value)
+    suspend fun setEffectEdgeDepth(value: Boolean) = put(KEY_EFFECT_EDGE, value)
+    suspend fun setEffectParallax(value: Boolean) = put(KEY_EFFECT_PARALLAX, value)
     suspend fun setGradientTheme(value: GradientTheme) = put(KEY_GRADIENT, value.name)
     suspend fun setGradientFollowsTime(value: Boolean) = put(KEY_GRADIENT_TIME, value)
     suspend fun setGeneratorMode(value: GeneratorMode) = put(KEY_GEN_MODE, value.name)
@@ -415,6 +434,11 @@ class SettingsStore(private val context: Context) {
         val KEY_GEN_SEPARATOR = stringPreferencesKey("gen_separator")
         val KEY_GEN_CAPITALIZE = booleanPreferencesKey("gen_capitalize")
         val KEY_EXPERIMENTAL = booleanPreferencesKey("experimental_effects")
+        val KEY_EFFECT_TILT = booleanPreferencesKey("effect_tilt")
+        val KEY_EFFECT_BLOOM = booleanPreferencesKey("effect_bloom")
+        val KEY_EFFECT_SHIMMER = booleanPreferencesKey("effect_shimmer")
+        val KEY_EFFECT_EDGE = booleanPreferencesKey("effect_edge")
+        val KEY_EFFECT_PARALLAX = booleanPreferencesKey("effect_parallax")
         val KEY_GRADIENT = stringPreferencesKey("gradient_theme")
         val KEY_GRADIENT_TIME = booleanPreferencesKey("gradient_follows_time")
         val KEY_GEN_MODE = stringPreferencesKey("gen_mode")

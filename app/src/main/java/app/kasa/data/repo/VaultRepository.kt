@@ -464,6 +464,25 @@ class VaultRepository(
         })
     }
 
+    /**
+     * "Son kullanılan" geçmişini siler.
+     *
+     * Tek bir yazım: kullanım zamanı bütün kayıtlarda sıfırlanıyor.
+     *
+     * Sık kullanılanlar şeritte kalmaya devam ediyor, çünkü oraya kullanım
+     * geçmişiyle değil kullanıcının kendi işaretiyle girmişler. Onları da
+     * silmek, "geçmişi temizle" diyen kullanıcının hiç istemediği bir şeyi
+     * — özenle kurduğu kısayolları — götürmek olurdu.
+     *
+     * `updatedAt` bilerek dokunulmuyor: kayıt değişmedi, yalnızca ona ne
+     * zaman bakıldığı unutuldu.
+     */
+    suspend fun clearUsageHistory(): Boolean = mutate { current ->
+        current.copy(items = current.items.map {
+            if (it.lastUsedAt == 0L) it else it.copy(lastUsedAt = 0L)
+        })
+    }
+
     // ------------------------------------------------------------ toplu işlem
 
     /**

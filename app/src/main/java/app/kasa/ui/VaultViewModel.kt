@@ -669,6 +669,22 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
      * Tek harflik terimler atlanıyor: kullanıcının aradığı şeyi
      * hatırlatmıyorlar, yalnızca listeyi dolduruyorlar.
      */
+    /**
+     * Arama geçmişini ve "son kullanılan" şeridini birlikte temizler.
+     *
+     * İkisi ayrı yerlerde duruyor — biri bellekte, öteki kasada — ama
+     * kullanıcı için tek bir şey: "ne aradığım ve neye baktığım". Ayrı iki
+     * düğme, aynı niyetin iki kez sorulması olurdu.
+     */
+    fun clearHistory() {
+        _recentQueries.value = emptyList()
+        viewModelScope.launch {
+            if (wrote(repository.clearUsageHistory())) {
+                container.haptics.play(Haptics.Kind.MEDIUM)
+            }
+        }
+    }
+
     fun rememberQuery(raw: String) {
         val term = raw.trim()
         if (term.length < MIN_REMEMBERED_QUERY) return

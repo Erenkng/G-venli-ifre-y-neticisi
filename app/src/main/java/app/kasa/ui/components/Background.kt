@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
 import app.kasa.ui.theme.KasaTheme
+import app.kasa.ui.theme.LocalSurfaceEffects
 import kotlin.random.Random
 
 /**
@@ -59,7 +60,20 @@ fun Modifier.kasaBackdrop(): Modifier {
     val colors = KasaTheme.colors
     val grain = rememberGrainBrush()
 
+    // Zemin eğimle kayıyor: ışık kaynakları cihaz döndükçe yerinde duruyor
+    // gibi, yüzey onların altından geçiyor gibi oluyor. Gerçek bir camın
+    // arkasındaki ışığın yaptığı da bu.
+    //
+    // Eğim **durum nesnesi** olarak alınıyor ve yalnızca çizim sırasında
+    // okunuyor. Değeri beste aşamasında okumak, her sensör örneğinde
+    // uygulamanın tamamını yeniden bestelemek olurdu — bu zemin bütün
+    // ekranları sarıyor.
+    val tilt = rememberDeviceTiltState()
+    val parallax = LocalSurfaceEffects.current.parallax
+
     return drawBehind {
+        val shiftX = if (parallax) tilt.value.x * size.width * PARALLAX_REACH else 0f
+        val shiftY = if (parallax) tilt.value.y * size.height * PARALLAX_REACH else 0f
         // Taban: yukarıdan aşağı hafif koyulaşan düz zemin
         drawRect(
             Brush.verticalGradient(
@@ -72,7 +86,7 @@ fun Modifier.kasaBackdrop(): Modifier {
         drawRect(
             Brush.radialGradient(
                 colors = listOf(colors.gradientTopLeft, colors.gradientTopLeft.copy(alpha = 0f)),
-                center = Offset(size.width * 0.06f, -size.height * 0.08f),
+                center = Offset(size.width * 0.06f + shiftX, -size.height * 0.08f + shiftY),
                 radius = size.width * 1.2f
             )
         )
@@ -80,7 +94,7 @@ fun Modifier.kasaBackdrop(): Modifier {
         drawRect(
             Brush.radialGradient(
                 colors = listOf(colors.gradientTopRight, colors.gradientTopRight.copy(alpha = 0f)),
-                center = Offset(size.width * 1.04f, size.height * 0.02f),
+                center = Offset(size.width * 1.04f - shiftX, size.height * 0.02f + shiftY),
                 radius = size.width * 0.85f
             )
         )
@@ -88,7 +102,7 @@ fun Modifier.kasaBackdrop(): Modifier {
         drawRect(
             Brush.radialGradient(
                 colors = listOf(colors.gradientBottom, colors.gradientBottom.copy(alpha = 0f)),
-                center = Offset(size.width * 0.5f, size.height * 1.08f),
+                center = Offset(size.width * 0.5f + shiftX, size.height * 1.08f - shiftY),
                 radius = size.width * 1.1f
             )
         )
@@ -148,3 +162,12 @@ private fun generateGrain(size: Int): ImageBitmap {
 
 /** Tanenin orta griden sapma payı. */
 private const val GRAIN_SWING = 40
+
+/**
+ * Işık kaynaklarının eğimle kat ettiği yol, ekranın oranı olarak.
+ *
+ * Küçük: gradyanın durakları zaten yumuşak ve büyük bir kayma, zemini
+ * cihazla birlikte sallanan ayrı bir nesne gibi gösteriyor. Bu kadarı ise
+ * yalnızca "ışık burada" duygusunu yerinden oynatıyor.
+ */
+private const val PARALLAX_REACH = 0.05f

@@ -21,6 +21,7 @@ import app.kasa.ui.BiometricGate
 import app.kasa.ui.KasaApp
 import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.theme.KasaTheme
+import app.kasa.ui.theme.SurfaceEffects
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -74,7 +75,16 @@ class MainActivity : FragmentActivity() {
                 gradientTheme = settings.gradientTheme,
                 gradientFollowsTime = settings.gradientFollowsTime,
                 grainLevel = settings.grainLevel,
-                experimentalEffects = settings.experimentalEffects
+                // Ana anahtar kapalıyken hiçbir alt bayrak okunmuyor: efekt
+                // "görünmez ama çalışıyor" durumuna düşmesin diye kapatma
+                // gerçekten kapatıyor.
+                effects = if (!settings.experimentalEffects) SurfaceEffects.None else SurfaceEffects(
+                    tilt = settings.effectTilt,
+                    pressBloom = settings.effectPressBloom,
+                    shimmer = settings.effectShimmer,
+                    edgeDepth = settings.effectEdgeDepth,
+                    parallax = settings.effectParallax
+                )
             ) {
                 CompositionLocalProvider(
                     LocalBiometricGate provides gate,

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -507,15 +508,18 @@ fun SettingsScreen(
                     color = KasaTheme.colors.ink3
                 )
 
-                // Deneysel efektler.
-                //
-                // Kapatıldığında kod yolları hiç çalışmıyor: ivmeölçer
-                // dinleyicisi kaydedilmiyor, sonsuz animasyon başlamıyor,
-                // fazladan katman kurulmuyor. "Görünmez ama çalışıyor" bir
-                // efekt kapatılmış sayılmaz.
-                Spacer(Modifier.height(16.dp))
-                SectionLabel(stringResource(R.string.set_group_effects))
-                Spacer(Modifier.height(8.dp))
+            }
+        }
+
+        }
+
+        if (current == SettingsSection.EFFECTS) {
+        item(key = "effects") {
+            KasaCard {
+                // Ana anahtar en üstte ve tek başına: kapatıldığında kod
+                // yolları hiç çalışmıyor — ivmeölçer dinleyicisi
+                // kaydedilmiyor, fazladan katman kurulmuyor. "Görünmez ama
+                // çalışıyor" bir efekt kapatılmış sayılmaz.
                 ToggleRow(
                     title = stringResource(R.string.set_effects),
                     subtitle = stringResource(R.string.set_effects_sub),
@@ -523,9 +527,54 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setExperimentalEffects,
                     first = true
                 )
+                // Alt anahtarlar yalnızca ana anahtar açıkken duruyor:
+                // kapalıyken hiçbiri iş görmüyor ve etkisiz anahtarlar
+                // göstermek, kullanıcıya dokunduğunda bir şey değişecekmiş
+                // gibi söylemek olurdu.
+                AnimatedVisibility(
+                    visible = settings.experimentalEffects,
+                    enter = fadeIn(hapticFadeIn) + expandVertically(hapticSize),
+                    exit = fadeOut(hapticFadeOut) + shrinkVertically(hapticSize)
+                ) {
+                    Column {
+                        Spacer(Modifier.height(16.dp))
+                        SectionLabel(stringResource(R.string.set_effects_each))
+                        Spacer(Modifier.height(8.dp))
+                        ToggleRow(
+                            title = stringResource(R.string.set_effect_tilt),
+                            subtitle = stringResource(R.string.set_effect_tilt_sub),
+                            checked = settings.effectTilt,
+                            onCheckedChange = viewModel::setEffectTilt,
+                            first = true
+                        )
+                        ToggleRow(
+                            title = stringResource(R.string.set_effect_bloom),
+                            subtitle = stringResource(R.string.set_effect_bloom_sub),
+                            checked = settings.effectPressBloom,
+                            onCheckedChange = viewModel::setEffectPressBloom
+                        )
+                        ToggleRow(
+                            title = stringResource(R.string.set_effect_shimmer),
+                            subtitle = stringResource(R.string.set_effect_shimmer_sub),
+                            checked = settings.effectShimmer,
+                            onCheckedChange = viewModel::setEffectShimmer
+                        )
+                        ToggleRow(
+                            title = stringResource(R.string.set_effect_edge),
+                            subtitle = stringResource(R.string.set_effect_edge_sub),
+                            checked = settings.effectEdgeDepth,
+                            onCheckedChange = viewModel::setEffectEdgeDepth
+                        )
+                        ToggleRow(
+                            title = stringResource(R.string.set_effect_parallax),
+                            subtitle = stringResource(R.string.set_effect_parallax_sub),
+                            checked = settings.effectParallax,
+                            onCheckedChange = viewModel::setEffectParallax
+                        )
+                    }
+                }
             }
         }
-
         }
 
         if (current == SettingsSection.DEVICE) {
@@ -1705,6 +1754,7 @@ enum class SettingsSection(
     val icon: ImageVector
 ) {
     APPEARANCE(R.string.set_group_appearance, R.string.set_cat_appearance_sub, Icons.Rounded.Palette),
+    EFFECTS(R.string.set_group_effects, R.string.set_cat_effects_sub, Icons.Rounded.AutoAwesome),
     DEVICE(R.string.set_group_device, R.string.set_cat_device_sub, Icons.Rounded.PhoneAndroid),
     SECURITY(R.string.set_group_security, R.string.set_cat_security_sub, Icons.Rounded.Shield),
     CRYPTO(R.string.set_group_crypto, R.string.set_cat_crypto_sub, Icons.Rounded.Lock),

@@ -13,11 +13,8 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -28,6 +25,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -43,7 +41,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
-import app.kasa.ui.theme.LocalExperimentalEffects
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import app.kasa.ui.theme.LocalSurfaceEffects
 import app.kasa.ui.theme.LocalReducedMotion
 import kotlin.math.abs
 import kotlin.math.PI
@@ -102,13 +103,32 @@ data class DeviceTilt(val x: Float, val y: Float) {
  * `DisposableEffect` anahtarı [enabled] olduğu için kullanıcı ayarı
  * kapattığında kayıt anında düşüyor.
  */
+/**
+ * Eğim, **durum nesnesi** olarak.
+ *
+ * [rememberDeviceTilt] değeri döndürüyor, yani onu çağıran bileşen her
+ * sensör okumasında yeniden besteleniyor. Kart gibi küçük bir yüzeyde bunun
+ * bedeli görünmüyor; zemin gibi bütün uygulamayı saran bir yüzeyde ise her
+ * sensör okuması ekranın tamamını yeniden besteler. Bu sürüm okumayı
+ * çağırana bırakıyor: değer `drawBehind` içinde okunduğunda beste hiç
+ * çalışmıyor.
+ */
 @Composable
-fun rememberDeviceTilt(): DeviceTilt {
-    val enabled = LocalExperimentalEffects.current && !LocalReducedMotion.current
-    if (!enabled) return DeviceTilt.Level
+fun rememberDeviceTiltState(): State<DeviceTilt> = rememberDeviceTiltInternal()
+
+@Composable
+fun rememberDeviceTilt(): DeviceTilt = rememberDeviceTiltInternal().value
+
+@Composable
+private fun rememberDeviceTiltInternal(): State<DeviceTilt> {
+    val enabled = LocalSurfaceEffects.current.needsTilt && !LocalReducedMotion.current
+    // Kapalıyken de bir durum nesnesi dönüyor; çağıran taraf iki ayrı yol
+    // yazmak zorunda kalmasın diye. Değeri hiç değişmiyor.
+    val state = remember { mutableStateOf(DeviceTilt.Level) }
+    if (!enabled) return state
 
     val context = LocalContext.current
-    var tilt by remember { mutableStateOf(DeviceTilt.Level) }
+    var tilt by state
 
     DisposableEffect(enabled) {
         val manager = context.getSystemService(SensorManager::class.java)
@@ -143,7 +163,7 @@ fun rememberDeviceTilt(): DeviceTilt {
         onDispose { manager.unregisterListener(listener) }
     }
 
-    return tilt
+    return state
 }
 
 /**
@@ -174,7 +194,7 @@ fun Modifier.tiltRim(
     width: Dp = RIM_WIDTH,
     strength: Float = 0.5f
 ): Modifier = composed {
-    if (!LocalExperimentalEffects.current) return@composed this
+    if (!LocalSurfaceEffects.current.tilt) return@composed this
 
     val x by animateFloatAsState(tilt.x, label = "rimTiltX")
     val y by animateFloatAsState(tilt.y, label = "rimTiltY")
@@ -381,7 +401,7 @@ fun Modifier.pressRim(
     width: Dp = RIM_WIDTH,
     maxAlpha: Float = 0.55f
 ): Modifier = composed {
-    if (!LocalExperimentalEffects.current) return@composed this
+    if (!LocalSurfaceEffects.current.pressBloom) return@composed this
 
     var origin by remember { mutableStateOf(Offset.Unspecified) }
     var pressed by remember { mutableStateOf(false) }
@@ -447,24 +467,33 @@ fun Modifier.shimmerRim(
     width: Dp = RIM_WIDTH,
     alpha: Float = 0.45f
 ): Modifier = composed {
-    if (!LocalExperimentalEffects.current || LocalReducedMotion.current) return@composed this
+    if (!LocalSurfaceEffects.current.shimmer || LocalReducedMotion.current) return@composed this
 
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = SHIMMER_CYCLE_MILLIS, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmerPhase"
-    )
+    // Şerit sayfaya girildiğinde **bir kez** geçiyor.
+    //
+    // Eskiden 5,6 saniyede bir tekrar eden sonsuz bir döngüydü. İki sorunu
+    // vardı. Ekranda duran her kart, kullanıcı ona hiç bakmasa da sürekli
+    // bir animasyon çalıştırıyordu — sonsuz bir animasyonun sonu yok ve
+    // bedeli kare bütçesinden çıkıyor. Ve tekrar, parıltının söylediği şeyi
+    // bozuyordu: bir yüzeyin cilalı olduğunu bir kez gösteren yansıma
+    // karakter, aynı yerde her beş saniyede bir tekrarlayan yansıma ise
+    // bir uyarı ışığı gibi okunuyordu.
+    //
+    // Şimdi kart göründükten kısa bir süre sonra bir kez geçiyor ve
+    // susuyor. Kullanıcı ekrandan çıkıp geri geldiğinde yeniden görüyor,
+    // çünkü o an yüzeye yeniden bakıyor.
+    val phase = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        // Gecikme, kartın kendi beliriş animasyonunun bitmesini bekliyor:
+        // ikisi üst üste binseydi parıltı belirişin parçası sanılırdı.
+        delay(SHIMMER_DELAY_MILLIS)
+        phase.animateTo(1f, tween(durationMillis = SHIMMER_SWEEP_MILLIS, easing = LinearEasing))
+    }
 
     drawWithContent {
         drawContent()
-        // Döngünün yalnızca ilk parçasında şerit geçiyor; gerisi sessizlik.
-        if (phase > SHIMMER_ACTIVE) return@drawWithContent
-        val travel = phase / SHIMMER_ACTIVE
+        val travel = phase.value
+        if (travel <= 0f || travel >= 1f) return@drawWithContent
         val stroke = width.toPx()
         val span = size.width * 0.38f
         val head = -span + travel * (size.width + span * 2f)
@@ -502,7 +531,7 @@ fun Modifier.shimmerRim(
  * dönüşüm uygulanmıyor, yani kaydırmanın büyük kısmı bedelsiz.
  */
 fun Modifier.edgeDepth(): Modifier = composed {
-    if (!LocalExperimentalEffects.current) return@composed this
+    if (!LocalSurfaceEffects.current.edgeDepth) return@composed this
 
     val windowHeight = LocalWindowInfo.current.containerSize.height.toFloat()
     var factor by remember { mutableFloatStateOf(1f) }
@@ -532,9 +561,11 @@ private const val SMOOTHING = 0.12f
 private const val TILT_EPSILON = 0.008f
 private const val BLOOM_IN_MILLIS = 220
 private const val BLOOM_OUT_MILLIS = 360
-private const val SHIMMER_CYCLE_MILLIS = 5600
-/** Döngünün ne kadarında şerit geçiyor; gerisi bekleme. */
-private const val SHIMMER_ACTIVE = 0.28f
+/** Şeridin yüzeyi kat etme süresi. */
+private const val SHIMMER_SWEEP_MILLIS = 1500
+
+/** Kart belirdikten sonra şeridin beklediği süre. */
+private const val SHIMMER_DELAY_MILLIS = 420L
 /**
  * Kenar bandının kalınlığı.
  *

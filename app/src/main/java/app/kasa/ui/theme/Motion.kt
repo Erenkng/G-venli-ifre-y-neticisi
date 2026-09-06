@@ -7,6 +7,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
@@ -150,17 +151,46 @@ object KasaMotion {
 }
 
 /**
- * Deneysel yüzey efektleri açık mı.
+ * Hangi yüzey efektlerinin açık olduğu.
+ *
+ * ### Neden tek bir bayrak yetmiyordu
+ *
+ * Dört efekt tek bir anahtarın arkasındaydı ve dördü çok farklı şeyler
+ * yapıyor: biri ivmeölçer dinliyor, biri her karede yol çiziyor, biri
+ * listenin her satırında konum ölçüyor. Kullanıcının "eğim ışığı hoşuma
+ * gitti ama liste uçlarındaki derinlik başımı döndürüyor" demesinin bir
+ * yolu yoktu; elindeki tek seçenek hepsini birden kapatmaktı.
  *
  * ### Neden CompositionLocal
  *
- * Efektler `Modifier` uzantıları olarak yazıldı ve bileşen ağacının her
- * yerinde kullanılıyorlar. Bayrağı parametre olarak taşımak, aradaki her
+ * Efektler `Modifier` uzantıları ve bileşen ağacının her yerinde
+ * kullanılıyorlar. Bayrakları parametre olarak taşımak, aradaki her
  * bileşene ilgilenmediği bir alan eklemek olurdu: kart yüzü, liste satırı,
  * döşeme, başlık — hiçbirinin bu kararla işi yok, yalnızca içinden geçiyor.
  *
- * Varsayılan `false`: bir efekt, açık olduğu açıkça sağlanmadıkça
+ * Varsayılan hepsi kapalı: bir efekt, açık olduğu açıkça sağlanmadıkça
  * çalışmamalı. Ters varsayılan, önizlemelerde ve testlerde sensör
  * dinleyicisi kuran bir arayüz üretirdi.
  */
-val LocalExperimentalEffects = staticCompositionLocalOf { false }
+@Immutable
+data class SurfaceEffects(
+    /** Kartlarda eğimle kayan kenar ışığı. İvmeölçer dinliyor. */
+    val tilt: Boolean = false,
+    /** Dokunulan noktadan açılan kenar parıltısı. */
+    val pressBloom: Boolean = false,
+    /** Yüzeyin kenarından geçen yansıma. */
+    val shimmer: Boolean = false,
+    /** Ekranın uçlarına yaklaşan satırların geriye çekilmesi. */
+    val edgeDepth: Boolean = false,
+    /** Zemin gradyanının eğimle kayması. İvmeölçer dinliyor. */
+    val parallax: Boolean = false
+) {
+    /** İvmeölçer gerektiren bir efekt var mı. */
+    val needsTilt: Boolean get() = tilt || parallax
+
+    companion object {
+        val None = SurfaceEffects()
+    }
+}
+
+val LocalSurfaceEffects = staticCompositionLocalOf { SurfaceEffects.None }

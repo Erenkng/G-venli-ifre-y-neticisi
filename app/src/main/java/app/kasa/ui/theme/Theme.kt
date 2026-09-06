@@ -131,7 +131,7 @@ fun KasaTheme(
     gradientTheme: GradientTheme = GradientTheme.JADE,
     gradientFollowsTime: Boolean = true,
     grainLevel: SettingsStore.GrainLevel = SettingsStore.GrainLevel.OFF,
-    experimentalEffects: Boolean = false,
+    effects: SurfaceEffects = SurfaceEffects.None,
     content: @Composable () -> Unit
 ) {
     val dark = when (themeMode) {
@@ -190,7 +190,7 @@ fun KasaTheme(
     }
 
     CompositionLocalProvider(
-        LocalExperimentalEffects provides experimentalEffects,
+        LocalSurfaceEffects provides effects,
         LocalKasaColors provides kasaColors,
         LocalKasaTextStyles provides KasaTextStyles(),
         // Hareket ayarı buradan aşağıya iniyor: her bileşen kendi başına

@@ -36,6 +36,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import app.kasa.ui.components.KasaChip
 import app.kasa.ui.components.SectionLabel
+import androidx.compose.foundation.layout.Row
+import app.kasa.ui.components.KasaButton
+import app.kasa.ui.components.ButtonTone
+import androidx.compose.ui.Alignment
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.readablePane
 import app.kasa.ui.components.SearchTopBar
@@ -127,11 +131,38 @@ fun SearchOverlay(
                 // hiçbir şey olmuyordu. Oysa o anda söylenebilecek iki şey
                 // var — az önce ne aradığı ve az önce neyi açtığı. İkisi de
                 // aradığı şeyin **büyük ihtimalle** o olduğunu söylüyor.
-                if (recentQueries.isNotEmpty()) {
-                    item(key = "recent-queries-label") {
-                        SectionLabel(stringResource(R.string.search_recent_queries))
+                // Geçmişi temizleme, geçmişin **yanında** duruyor.
+                //
+                // Ayarların içine konsaydı, geçmişi gören kullanıcı onu
+                // silmek için ekranı terk edip başka bir yerde aramak
+                // zorunda kalırdı. Tek düğme ikisini birden siliyor: aranan
+                // terimler ve bakılan kayıtlar kullanıcı için tek bir şey —
+                // "ne yaptığım" — ve ayrı iki düğme aynı niyeti iki kez
+                // sormak olurdu.
+                if (recentQueries.isNotEmpty() || recentItems.isNotEmpty()) {
+                    item(key = "history-clear") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            SectionLabel(
+                                stringResource(
+                                    if (recentQueries.isNotEmpty()) R.string.search_recent_queries
+                                    else R.string.vault_recent
+                                )
+                            )
+                            KasaButton(
+                                text = stringResource(R.string.search_clear_history),
+                                onClick = { viewModel.clearHistory() },
+                                tone = ButtonTone.TEXT,
+                                height = 38.dp
+                            )
+                        }
                         Spacer(Modifier.height(8.dp))
                     }
+                }
+                if (recentQueries.isNotEmpty()) {
                     item(key = "recent-queries") {
                         FlowRow(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
@@ -150,8 +181,13 @@ fun SearchOverlay(
                 if (recentItems.isNotEmpty()) {
                     item(key = "recent-items-label") {
                         Spacer(Modifier.height(10.dp))
-                        SectionLabel(stringResource(R.string.vault_recent))
-                        Spacer(Modifier.height(8.dp))
+                        // Başlık yalnızca üstte arama geçmişi de varken
+                        // gerekiyor; tek başınayken onu zaten temizleme
+                        // satırı taşıyor.
+                        if (recentQueries.isNotEmpty()) {
+                            SectionLabel(stringResource(R.string.vault_recent))
+                            Spacer(Modifier.height(8.dp))
+                        }
                     }
                     itemsIndexed(
                         items = recentItems,
