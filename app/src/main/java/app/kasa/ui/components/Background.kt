@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.ShaderBrush
@@ -91,8 +92,26 @@ fun Modifier.kasaBackdrop(): Modifier {
                 radius = size.width * 1.1f
             )
         )
-        // Tane
-        drawRect(brush = grain, size = Size(size.width, size.height), alpha = colors.grainAlpha)
+        // ── tane ──────────────────────────────────────────────────────
+        //
+        // Karışım kipi **Overlay**, düz alfa değil.
+        //
+        // Doku ortalaması orta gri olan bir gürültü. Düz alfayla çizilince
+        // sonuç `zemin*(1-a) + gri*a` oluyor: yani saydamlık arttıkça
+        // gradyan doygunluğunu kaybedip griye yıkanıyor. Görülen şey tane
+        // değil, üstüne toz serpilmiş bir zemin oluyordu.
+        //
+        // Overlay orta griyi **kimliksiz** kabul ediyor: tam 128 olan piksel
+        // zemini hiç değiştirmiyor, ondan sapan piksel zemini kendi yönünde
+        // açıp koyultuyor. Ortalama korunuyor, yani renk kaymıyor ve geriye
+        // yalnızca dokunun kendisi kalıyor — filmdeki tanenin yaptığı iş de
+        // tam olarak bu.
+        drawRect(
+            brush = grain,
+            size = Size(size.width, size.height),
+            alpha = colors.grainAlpha,
+            blendMode = BlendMode.Overlay
+        )
     }
 }
 
@@ -115,7 +134,10 @@ private fun rememberGrainBrush(): ShaderBrush {
 private fun generateGrain(size: Int): ImageBitmap {
     val random = Random(20260819)
     val pixels = IntArray(size * size) {
-        val value = 128 + random.nextInt(-70, 71)
+        // Salınım dar: Overlay altında geniş bir salınım zemini alacalı
+        // yapıyor ve tane değil kir gibi duruyor. Filmdeki tane de zaten
+        // zeminden birkaç ton sapıyor, siyah-beyaz arasında gidip gelmiyor.
+        val value = 128 + random.nextInt(-GRAIN_SWING, GRAIN_SWING + 1)
         val clamped = value.coerceIn(0, 255)
         (0xFF shl 24) or (clamped shl 16) or (clamped shl 8) or clamped
     }
@@ -123,3 +145,6 @@ private fun generateGrain(size: Int): ImageBitmap {
     bitmap.setPixels(pixels, 0, size, 0, 0, size, size)
     return bitmap.asImageBitmap()
 }
+
+/** Tanenin orta griden sapma payı. */
+private const val GRAIN_SWING = 40

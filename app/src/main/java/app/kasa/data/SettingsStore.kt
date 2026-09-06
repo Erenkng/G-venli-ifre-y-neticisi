@@ -83,6 +83,43 @@ class SettingsStore(private val context: Context) {
     enum class ListDensity { COMFORTABLE, COMPACT }
 
     /**
+     * Titreşim gücü.
+     *
+     * ### Neden kaydırıcı değil üç kademe
+     *
+     * İnsan derisi titreşim şiddetindeki farkı ancak yaklaşık 1,4 kat
+     * büyüdüğünde ayırt ediyor. Yüzde birlik adımlarla ayarlanan bir
+     * kaydırıcı, kullanıcıya ayırt edemeyeceği yüz seçenek sunar ve
+     * seçtiğinin ne işe yaradığını göstermez. Üç kademe arasındaki oranlar
+     * (0,45 → 0,72 → 1,0) bilerek o eşiğin üstünde: her adım gerçekten
+     * **başka** hissediyor.
+     *
+     * Ölçek sistemin kendi titreşim ayarının yerine geçmiyor, üstüne
+     * çarpılıyor; sistemde kısılmış bir titreşimi buradan geri açmak mümkün
+     * değil.
+     */
+    /**
+     * Zemindeki tane dokusunun gücü.
+     *
+     * Değerler Overlay karışımına göre seçildi. Kapalıyken de sıfır değil:
+     * tane oradaki asıl işini — düz gradyanlarda oluşan bant etkisini kırmayı
+     * — görünmeden yapıyor. Kademeler onu görülür bir dokuya çıkarıyor.
+     */
+    enum class GrainLevel(val alpha: Float?) {
+        /** Yalnızca bant kırıcı; temanın kendi tabanı kullanılıyor. */
+        OFF(null),
+        FINE(0.22f),
+        MEDIUM(0.38f),
+        STRONG(0.58f)
+    }
+
+    enum class HapticStrength(val scale: Float) {
+        LIGHT(0.45f),
+        MEDIUM(0.72f),
+        STRONG(1f)
+    }
+
+    /**
      * Ayarların hepsi ilkel değer ve numaralandırma; yine de işaret açıkça
      * konuyor. Bileşen imzalarında en sık geçen tür bu ve kararlılığının
      * derleyicinin çıkarımına bırakılması, ileride bir liste alanı
@@ -93,8 +130,10 @@ class SettingsStore(private val context: Context) {
         val theme: ThemeMode = ThemeMode.SYSTEM,
         val dynamicColor: Boolean = false,
         val pureBlack: Boolean = false,
-        val gradientGrain: Boolean = false,
+        val grainLevel: GrainLevel = GrainLevel.OFF,
         val haptics: Boolean = true,
+        val hapticStrength: HapticStrength = HapticStrength.MEDIUM,
+        val hapticTouchTicks: Boolean = true,
         val biometricUnlock: Boolean = false,
         /** Biyometri yerine/yanında telefonun kendi ekran kilidi de kabul edilsin. */
         val deviceCredentialUnlock: Boolean = false,
@@ -209,8 +248,19 @@ class SettingsStore(private val context: Context) {
                 .getOrDefault(ThemeMode.SYSTEM),
             dynamicColor = prefs[KEY_DYNAMIC] ?: false,
             pureBlack = prefs[KEY_PURE_BLACK] ?: false,
-            gradientGrain = prefs[KEY_GRADIENT_GRAIN] ?: false,
+            // Eski sürümdeki aç/kapa anahtarı kademeye çevriliyor: açık
+            // bırakmış kullanıcı ortada bir kademeyle devam ediyor.
+            grainLevel = runCatching {
+                val stored = prefs[KEY_GRAIN_LEVEL]
+                if (stored != null) GrainLevel.valueOf(stored)
+                else if (prefs[KEY_GRADIENT_GRAIN] == true) GrainLevel.MEDIUM
+                else GrainLevel.OFF
+            }.getOrDefault(GrainLevel.OFF),
             haptics = prefs[KEY_HAPTICS] ?: true,
+            hapticStrength = runCatching {
+                HapticStrength.valueOf(prefs[KEY_HAPTIC_STRENGTH] ?: HapticStrength.MEDIUM.name)
+            }.getOrDefault(HapticStrength.MEDIUM),
+            hapticTouchTicks = prefs[KEY_HAPTIC_TICKS] ?: true,
             biometricUnlock = prefs[KEY_BIOMETRIC] ?: false,
             deviceCredentialUnlock = prefs[KEY_DEVICE_CRED] ?: false,
             contextLockEnabled = prefs[KEY_CONTEXT_LOCK] ?: false,
@@ -264,8 +314,10 @@ class SettingsStore(private val context: Context) {
     suspend fun setTheme(mode: ThemeMode) = put(KEY_THEME, mode.name)
     suspend fun setDynamicColor(value: Boolean) = put(KEY_DYNAMIC, value)
     suspend fun setPureBlack(value: Boolean) = put(KEY_PURE_BLACK, value)
-    suspend fun setGradientGrain(value: Boolean) = put(KEY_GRADIENT_GRAIN, value)
+    suspend fun setGrainLevel(value: GrainLevel) = put(KEY_GRAIN_LEVEL, value.name)
     suspend fun setHaptics(value: Boolean) = put(KEY_HAPTICS, value)
+    suspend fun setHapticStrength(value: HapticStrength) = put(KEY_HAPTIC_STRENGTH, value.name)
+    suspend fun setHapticTouchTicks(value: Boolean) = put(KEY_HAPTIC_TICKS, value)
     suspend fun setBiometricUnlock(value: Boolean) = put(KEY_BIOMETRIC, value)
     suspend fun setDeviceCredentialUnlock(value: Boolean) = put(KEY_DEVICE_CRED, value)
     suspend fun setContextLockEnabled(value: Boolean) = put(KEY_CONTEXT_LOCK, value)
@@ -328,8 +380,12 @@ class SettingsStore(private val context: Context) {
         val KEY_THEME = stringPreferencesKey("theme")
         val KEY_DYNAMIC = booleanPreferencesKey("dynamic_color")
         val KEY_PURE_BLACK = booleanPreferencesKey("pure_black")
+        /** 2.2'den kalan aç/kapa anahtarı; yalnızca göç için okunuyor. */
         val KEY_GRADIENT_GRAIN = booleanPreferencesKey("gradient_grain")
+        val KEY_GRAIN_LEVEL = stringPreferencesKey("grain_level")
         val KEY_HAPTICS = booleanPreferencesKey("haptics")
+        val KEY_HAPTIC_STRENGTH = stringPreferencesKey("haptic_strength")
+        val KEY_HAPTIC_TICKS = booleanPreferencesKey("haptic_touch_ticks")
         val KEY_BIOMETRIC = booleanPreferencesKey("biometric")
         val KEY_DEVICE_CRED = booleanPreferencesKey("device_credential")
         val KEY_CONTEXT_LOCK = booleanPreferencesKey("context_lock")

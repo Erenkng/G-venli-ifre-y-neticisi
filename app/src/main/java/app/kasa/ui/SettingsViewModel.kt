@@ -59,7 +59,26 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setTheme(mode: ThemeMode) = launchSetting { settingsStore.setTheme(mode) }
     fun setDynamicColor(value: Boolean) = launchSetting { settingsStore.setDynamicColor(value) }
     fun setPureBlack(value: Boolean) = launchSetting { settingsStore.setPureBlack(value) }
-    fun setGradientGrain(value: Boolean) = launchSetting { settingsStore.setGradientGrain(value) }
+    fun setGrainLevel(value: SettingsStore.GrainLevel) = launchSetting { settingsStore.setGrainLevel(value) }
+    fun setHapticStrength(value: SettingsStore.HapticStrength) =
+        launchSetting { settingsStore.setHapticStrength(value) }
+    fun setHapticTouchTicks(value: Boolean) = launchSetting { settingsStore.setHapticTouchTicks(value) }
+
+    /**
+     * Seçilen gücü hemen çalar.
+     *
+     * Ayarın ne yaptığını yazı anlatamıyor: titreşim ancak hissedilerek
+     * öğreniliyor. Kademeye dokunmak hem seçiyor hem çalıyor, yani deneme
+     * ayarlamanın parçası — ayrı bir "dene" düğmesi ikisini birbirinden
+     * koparırdı.
+     *
+     * Ölçek doğrudan buradan veriliyor; ayarın depoya yazılmasını beklemek,
+     * parmağa gelen şeyi bir tur geciktirirdi.
+     */
+    fun previewHaptics(level: SettingsStore.HapticStrength) {
+        container.haptics.intensity = level.scale
+        container.haptics.play(Haptics.Kind.SUCCESS)
+    }
     fun setExperimentalEffects(value: Boolean) = launchSetting { settingsStore.setExperimentalEffects(value) }
     fun setGradientTheme(value: GradientTheme) = launchSetting { settingsStore.setGradientTheme(value) }
     fun setGradientFollowsTime(value: Boolean) = launchSetting { settingsStore.setGradientFollowsTime(value) }

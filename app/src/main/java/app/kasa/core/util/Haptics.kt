@@ -136,7 +136,23 @@ class Haptics(context: Context) {
         DENY
     }
 
-    fun play(kind: Kind) = engine.play(affectOf(kind))
+    /**
+     * Dokunuş tıkırtısı açık mı.
+     *
+     * [Kind.TAP] uygulamadaki her dokunulabilir yüzeyden geliyor: parmak
+     * yüzeye değdiği an çalınıyor ve sonucu olan denetimlerde onun ardından
+     * bir de sonucun titreşimi geliyor. Bazı kullanıcı için bu çok; ama
+     * "kaydedildi", "silindi", "kilit açıldı" gibi anlamlı olayların da
+     * susması istenmiyor. Ayrı bir anahtar bu ikisini ayırıyor: tıkırtı
+     * kapanıyor, olaylar duruyor.
+     */
+    @Volatile
+    var touchTicks: Boolean = true
+
+    fun play(kind: Kind) {
+        if (kind == Kind.TAP && !touchTicks) return
+        engine.play(affectOf(kind))
+    }
 
     /**
      * İki olayın karışımı.

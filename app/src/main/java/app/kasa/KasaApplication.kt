@@ -50,6 +50,22 @@ class KasaApplication : Application(), Configuration.Provider {
             .onEach { container.haptics.enabled = it }
             .launchIn(container.scope)
 
+        // Güç ve tıkırtı tercihleri de motora buradan iniyor: motor bir
+        // görünüm modeli değil, uygulama ömrü boyunca yaşayan tek bir nesne
+        // ve otomatik doldurma ile passkey akışları da onu kullanıyor. Bir
+        // ekranın bestesine bağlansaydı o akışlarda ayar hiç uygulanmazdı.
+        container.settingsStore.settings
+            .map { it.hapticStrength }
+            .distinctUntilChanged()
+            .onEach { container.haptics.intensity = it.scale }
+            .launchIn(container.scope)
+
+        container.settingsStore.settings
+            .map { it.hapticTouchTicks }
+            .distinctUntilChanged()
+            .onEach { container.haptics.touchTicks = it }
+            .launchIn(container.scope)
+
         container.settingsStore.settings
             .map { it.autoLockSeconds }
             .distinctUntilChanged()

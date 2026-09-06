@@ -9,6 +9,15 @@ import app.kasa.ui.components.rememberBackGesture
 import app.kasa.ui.components.headerHandoff
 import app.kasa.data.GradientTheme
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.unit.IntSize
+import app.kasa.ui.components.KasaChip
+import app.kasa.data.SettingsStore
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -121,6 +130,7 @@ import app.kasa.ui.theme.KasaTheme
  * sonra güvenlik eşikleri, en sonda geri dönüşü olmayan kasa işlemleri.
  * Yıkıcı işlem (kasayı sil) en altta ve tek başına duruyor.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
@@ -348,6 +358,12 @@ fun SettingsScreen(
         label = "settingsSection"
     ) { current ->
     val listState = rememberLazyListState()
+
+    // transitionSpec ve enter/exit @Composable değil; belirteçler beste
+    // içinde okunup hazır değer olarak giriyor.
+    val hapticFadeIn: FiniteAnimationSpec<Float> = KasaMotion.enter()
+    val hapticFadeOut: FiniteAnimationSpec<Float> = KasaMotion.exit()
+    val hapticSize: FiniteAnimationSpec<IntSize> = KasaMotion.medium()
     HeaderCollapse(listState, onHeaderCollapse)
     LazyColumn(
         state = listState,
@@ -462,14 +478,33 @@ fun SettingsScreen(
                     first = true
                 )
                 // Tane, gradyanın bant oluşturmasını engellemek için zaten
-                // hep vardı ama görünmeyecek kadar azdı. Bu anahtar onu
-                // görülecek bir dokuya çıkarıyor: aynı gradyan, filmden gelen
-                // taneli bir zemin üzerinde.
-                ToggleRow(
-                    title = stringResource(R.string.set_gradient_grain),
-                    subtitle = stringResource(R.string.set_gradient_grain_sub),
-                    checked = settings.gradientGrain,
-                    onCheckedChange = viewModel::setGradientGrain
+                // hep vardı ama görünmeyecek kadar azdı. Kademeler onu
+                // görülür bir dokuya çıkarıyor.
+                //
+                // Aç/kapa yerine kademe, çünkü "ne kadar" sorusunun tek bir
+                // doğru cevabı yok: aynı doku parlak bir ekranda zar zor
+                // seçiliyor, kısık parlaklıkta baskın çıkıyor.
+                Spacer(Modifier.height(16.dp))
+                SectionLabel(stringResource(R.string.set_gradient_grain))
+                Spacer(Modifier.height(8.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SettingsStore.GrainLevel.entries.forEach { level ->
+                        KasaChip(
+                            text = stringResource(grainLevelLabel(level)),
+                            selected = settings.grainLevel == level,
+                            onClick = { viewModel.setGrainLevel(level) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.set_gradient_grain_sub),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KasaTheme.colors.ink3
                 )
 
                 // Deneysel efektler.
@@ -510,6 +545,51 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setHaptics,
                     first = true
                 )
+                // ── titreşimin ayarı ──────────────────────────────────────
+                //
+                // Kademe seçilince örneği **hemen** çalınıyor: gücü yazıdan
+                // değil parmaktan öğreniyorsun. Ayrı bir "dene" düğmesi,
+                // denemeyi ayarlamaktan koparırdı.
+                //
+                // Üç kademe var, kaydırıcı değil: insan derisi titreşim
+                // şiddetindeki farkı ancak yaklaşık 1,4 kat büyüdüğünde
+                // ayırt ediyor ve yüzde birlik adımlar, ayırt edilemeyen yüz
+                // seçenek sunmak olurdu.
+                AnimatedVisibility(
+                    visible = settings.haptics,
+                    enter = fadeIn(hapticFadeIn) + expandVertically(hapticSize),
+                    exit = fadeOut(hapticFadeOut) + shrinkVertically(hapticSize)
+                ) {
+                    Column {
+                        Spacer(Modifier.height(12.dp))
+                        SectionLabel(stringResource(R.string.set_haptic_strength))
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            SettingsStore.HapticStrength.entries.forEach { level ->
+                                KasaChip(
+                                    text = stringResource(hapticStrengthLabel(level)),
+                                    selected = settings.hapticStrength == level,
+                                    onClick = {
+                                        viewModel.setHapticStrength(level)
+                                        viewModel.previewHaptics(level)
+                                    }
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        ToggleRow(
+                            title = stringResource(R.string.set_haptic_ticks),
+                            subtitle = stringResource(R.string.set_haptic_ticks_sub),
+                            checked = settings.hapticTouchTicks,
+                            onCheckedChange = viewModel::setHapticTouchTicks,
+                            first = true
+                        )
+                    }
+                }
                 ToggleRow(
                     title = stringResource(R.string.set_bio),
                     subtitle = stringResource(
@@ -1769,4 +1849,19 @@ private fun categoryShape(
         )
         GroupPosition.MIDDLE -> RoundedCornerShape(tight)
     }
+}
+
+/** Tane kademesinin adı. */
+private fun grainLevelLabel(level: SettingsStore.GrainLevel): Int = when (level) {
+    SettingsStore.GrainLevel.OFF -> R.string.set_grain_off
+    SettingsStore.GrainLevel.FINE -> R.string.set_grain_fine
+    SettingsStore.GrainLevel.MEDIUM -> R.string.set_grain_medium
+    SettingsStore.GrainLevel.STRONG -> R.string.set_grain_strong
+}
+
+/** Titreşim gücünün adı. */
+private fun hapticStrengthLabel(level: SettingsStore.HapticStrength): Int = when (level) {
+    SettingsStore.HapticStrength.LIGHT -> R.string.set_haptic_light
+    SettingsStore.HapticStrength.MEDIUM -> R.string.set_haptic_medium
+    SettingsStore.HapticStrength.STRONG -> R.string.set_haptic_strong
 }

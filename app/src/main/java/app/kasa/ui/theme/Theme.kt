@@ -10,6 +10,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import app.kasa.data.SettingsStore
 import androidx.compose.runtime.CompositionLocalProvider
 import app.kasa.data.GradientTheme
 import androidx.compose.runtime.SideEffect
@@ -129,7 +130,7 @@ fun KasaTheme(
     pureBlack: Boolean = false,
     gradientTheme: GradientTheme = GradientTheme.JADE,
     gradientFollowsTime: Boolean = true,
-    gradientGrain: Boolean = false,
+    grainLevel: SettingsStore.GrainLevel = SettingsStore.GrainLevel.OFF,
     experimentalEffects: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -164,18 +165,17 @@ fun KasaTheme(
     // kipinde gradyan hiç değiştirilmiyor: o kip zaten "hiç ışık olmasın"
     // demek ve AMOLED'de piksel söndürmenin bütün kazancı oradan geliyor.
     val stops = rememberGradientStops(gradientTheme, dark, gradientFollowsTime)
-    // Tane her zaman var ama görünmeyecek kadar az: gradyanın bant
-    // oluşturmasını (banding) engellemek için konmuştu, bir doku olsun diye
-    // değil. Açık ayar onu görülecek bir dokuya çıkarıyor — filmden gelen o
-    // taneli zemin — ve tam siyah kipinde hiç uygulanmıyor, çünkü orada
-    // zemin zaten çizilmiyor.
-    val grain = if (gradientGrain) GRAIN_VISIBLE else 1f
+    // Tane her zaman var ama kapalıyken görünmeyecek kadar az: asıl işi
+    // gradyanın bant oluşturmasını (banding) engellemek, bir doku olsun diye
+    // değil. Kademeler onu görülür bir dokuya çıkarıyor. Tam siyah kipinde
+    // hiç uygulanmıyor, çünkü orada zemin zaten çizilmiyor.
+    val grain = grainLevel.alpha
     val kasaColors = if (dark && pureBlack) baseColors else baseColors.copy(
         gradientTopLeft = stops.topLeft,
         gradientTopRight = stops.topRight,
         gradientBottom = stops.bottom,
         gradientBase = stops.base,
-        grainAlpha = (baseColors.grainAlpha * grain).coerceAtMost(0.34f)
+        grainAlpha = grain ?: baseColors.grainAlpha
     )
 
     val view = LocalView.current
@@ -216,12 +216,3 @@ object KasaTheme {
         @Composable get() = LocalKasaTextStyles.current
 }
 
-/**
- * Tane ayarı açıkken taban saydamlığın kaç katına çıkacağı.
- *
- * Beş kat, taneyi bant engelleyici bir hileden görünür bir dokuya çıkarıyor
- * ama zemindeki rengi hâlâ okunur bırakıyor. Üst sınır ayrıca konuyor:
- * karanlık temada taban zaten düşük, açık temada yüksek ve aynı çarpan
- * ikisinde iki farklı sonuç veriyordu.
- */
-private const val GRAIN_VISIBLE = 5f
