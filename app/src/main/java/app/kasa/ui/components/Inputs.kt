@@ -212,7 +212,10 @@ fun FieldBlock(
             .then(
                 if (onClick == null) Modifier
                 else Modifier
-                    .pressRim(corner = KasaRadius.m, color = MaterialTheme.colorScheme.primary)
+                    .pressRim(
+                        shape = RoundedCornerShape(KasaRadius.m),
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     .clickableNoRipple(
                         interactionSource = interaction,
                         role = Role.Button,

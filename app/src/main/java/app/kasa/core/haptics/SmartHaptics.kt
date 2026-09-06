@@ -127,7 +127,7 @@ class SmartHaptics(context: Context) {
 
         val gesture = HapticSynth.compose(affect).scaled(scale)
         if (gesture.isSilent) return
-        if (!claimBudget(gesture.totalMillis, now)) return
+        if (!claimBudget(gesture.vibratingMillis, now)) return
 
         val rendered = renderUsable(gesture, caps) ?: return
         val effect = rendered.effect ?: return
@@ -175,9 +175,16 @@ class SmartHaptics(context: Context) {
         val sameEvent = previous != null && previous.sameCharacterAs(affect)
         val quietFor = now - lastPlayedAt
 
+        // Sönümleme yalnızca **hızlı** tekrarda.
+        //
+        // Eskiden sayaç, aynı olay bir saniyeden kısa aralıkla geldiği sürece
+        // büyüyordu ve normal kullanım — saniyede bir düğmeye dokunmak — onu
+        // tavana çıkarıyordu. Sönümlemenin var olma sebebi kesintisiz uğultu
+        // (liste kaydırma, basılı tutulan bir düğme); saniyede bir dokunuş
+        // uğultu değil, ayrı ayrı olaylar.
         repeatCount = when {
             !sameEvent -> 0
-            quietFor > REPEAT_RESET_MILLIS -> 0
+            quietFor > RAPID_REPEAT_MILLIS -> 0
             else -> (repeatCount + 1).coerceAtMost(REPEAT_CAP)
         }
         lastAffect.value = affect
@@ -303,13 +310,24 @@ class SmartHaptics(context: Context) {
         /** Her tekrarda kalan oran. */
         const val REPEAT_DECAY = 0.72f
 
-        /** Sönümlemenin inebileceği en düşük ölçek. */
-        const val REPEAT_FLOOR = 0.35f
+        /**
+         * Sönümlemenin inebileceği en düşük ölçek.
+         *
+         * Eskiden 0,35'ti ve donanım tarafında taban olmadığı için tekrarlanan
+         * dokunuşlar tamamen hissedilmez oluyordu. Yükseltildi: sönümlemenin
+         * işi gürültüyü kesmek, geri bildirimi yok etmek değil.
+         */
+        const val REPEAT_FLOOR = 0.55f
 
         const val REPEAT_CAP = 8
 
-        /** Bu kadar sessizlikten sonra tekrar sayacı sıfırlanıyor. */
-        const val REPEAT_RESET_MILLIS = 1_200L
+        /**
+         * Tekrarın "hızlı" sayılması için üst sınır.
+         *
+         * Bundan uzun aralıklarla gelen aynı olay tekrar değil, ayrı bir
+         * olay: kullanıcı arada başka bir şey yapmış, dokunuşu bekliyor.
+         */
+        const val RAPID_REPEAT_MILLIS = 320L
 
         const val POWER_SAVE_SCALE = 0.45f
 

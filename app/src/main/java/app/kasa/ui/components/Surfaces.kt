@@ -105,7 +105,15 @@ fun KasaTile(
             // Dokunulan yere en yakın kenarın parlaması. Yüzeyin içine
             // yayılan bir ışık, satırdaki adın ve alt satırın kontrastını
             // düşürüyordu; gerekçesi pressRim üzerinde yazılı.
-            .pressRim(corner = KasaRadius.l, color = MaterialTheme.colorScheme.primary)
+            // Şekil, yüzeyin **kendi** şekli — sabit bir yarıçap değil. Sabit
+            // yarıçapla çizilen çerçeve, grubun ortasındaki keskin köşeli
+            // satırın üzerine yuvarlak bir dikdörtgen bindiriyordu; iki şekil
+            // örtüşmediği için aradaki fark iç dolguda keskin köşeli bir
+            // dikdörtgen olarak görünüyordu.
+            .pressRim(
+                shape = groupShape(position, tight, loose),
+                color = MaterialTheme.colorScheme.primary
+            )
             .combinedClickableNoRipple(
                 interactionSource = interaction,
                 role = Role.Button,
@@ -237,7 +245,7 @@ fun KasaCard(
             .background(background, alpha = SURFACE_OPACITY)
             // Cilalı bir yüzeyin kenarından arada bir geçen yansıma.
             .shimmerRim(
-                corner = KasaRadius.xl,
+                shape = RoundedCornerShape(KasaRadius.xl),
                 color = if (colors.isDark) Color.White else colors.ink,
                 alpha = if (colors.isDark) 0.30f else 0.12f
             )

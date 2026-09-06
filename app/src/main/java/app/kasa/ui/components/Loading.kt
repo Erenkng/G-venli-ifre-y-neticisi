@@ -106,9 +106,15 @@ fun KasaLoader(
 
     Canvas(modifier.size(size)) {
         val stroke = this.size.minDimension * STROKE_FRACTION
-        val inset = stroke / 2f
-        val box = Size(this.size.width - stroke, this.size.height - stroke)
-        val topLeft = Offset(inset, inset)
+        // Hâlenin dış katmanı da kutunun içinde kalmalı; yoksa dönen yay
+        // tuvalin kenarına her geldiğinde düz kesiliyor.
+        val inset = glowExtent(stroke, RING_GLOW_SPREAD)
+        val diameter = this.size.minDimension - inset * 2
+        val box = Size(diameter, diameter)
+        val topLeft = Offset(
+            (this.size.width - diameter) / 2f,
+            (this.size.height - diameter) / 2f
+        )
 
         // Ray: yayın nerede gezindiğini gösteriyor. Onsuz yay boşlukta
         // dönüyor ve dönüşün bir yörüngesi olduğu okunmuyor.

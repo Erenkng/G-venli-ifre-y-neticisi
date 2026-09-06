@@ -104,6 +104,32 @@ object HapticRenderer {
         return Rendered(oneShot(gesture), Path.ONE_SHOT)
     }
 
+    /**
+     * Algılanan şiddeti donanımın sürüş oranına çevirir.
+     *
+     * ### Neden doğrudan geçmiyor
+     *
+     * Şiddet 0..1 aralığında **algısal** bir değer: "ne kadar güçlü
+     * hissetmeli". Donanımın 0..1 aralığı ise voltaj: sıfıra yakın değerlerde
+     * aktüatör kıpırdıyor ama deri bunu ayırt etmiyor. İkisini birebir
+     * eşlemek, "hafif bir dokunuş" isteyen her olayı hiç hissedilmeyen bir
+     * titreşime çeviriyordu.
+     *
+     * Ölçüm: en sık çalınan olay olan dokunuş 0,39 şiddet üretiyor ve
+     * tekrar sönümlemesiyle birlikte 0,15'e kadar düşüyordu — 255 üzerinden
+     * 39'luk bir genlik, yani kılıfın içinden hiç duyulmayan bir şey.
+     *
+     * Taban, "çalmaya karar verildiyse hissedilmeli" kuralının donanım
+     * tarafındaki karşılığı. Darbeler arası oranlar sıkışıyor ama sıralama
+     * korunuyor ve jestin tanınmasını sağlayan şey zaten süre, keskinlik ve
+     * ritim.
+     */
+    private fun drive(intensity: Float): Float {
+        val value = intensity.coerceIn(0f, 1f)
+        if (value <= 0f) return 0f
+        return PERCEPTIBLE_FLOOR + (1f - PERCEPTIBLE_FLOOR) * value
+    }
+
     // ── 1. zarf ──────────────────────────────────────────────────────────
 
     /**
@@ -125,7 +151,7 @@ object HapticRenderer {
 
         gesture.beats.forEach { beat ->
             builder.addControlPoint(
-                beat.intensity.coerceIn(0f, 1f),
+                drive(beat.intensity),
                 beat.sharpness.coerceIn(0f, 1f),
                 beat.durationMs.toLong().coerceAtLeast(1L)
             )
@@ -157,9 +183,7 @@ object HapticRenderer {
             gesture.beats.forEachIndexed { index, beat ->
                 composition.addPrimitive(
                     chosen[index],
-                    // İlkellerin kendi tabanı var; sıfıra yakın ölçek
-                    // "en düşük hissedilir" demek, sessizlik değil.
-                    beat.intensity.coerceIn(0.05f, 1f),
+                    drive(beat.intensity),
                     if (index == 0) 0 else gesture.beats[index - 1].gapMs
                 )
             }
@@ -198,7 +222,7 @@ object HapticRenderer {
             val amplitudes = mutableListOf(0)
             gesture.beats.forEach { beat ->
                 timings += beat.durationMs.toLong().coerceAtLeast(1L)
-                amplitudes += (beat.intensity * 255f).roundToInt().coerceIn(1, 255)
+                amplitudes += (drive(beat.intensity) * 255f).roundToInt().coerceIn(1, 255)
                 if (beat.gapMs > 0) {
                     timings += beat.gapMs.toLong()
                     amplitudes += 0
@@ -224,9 +248,18 @@ object HapticRenderer {
     private fun oneShot(gesture: HapticGesture): VibrationEffect? = runCatching {
         VibrationEffect.createOneShot(
             gesture.totalMillis.toLong().coerceIn(10L, MAX_ONE_SHOT_MILLIS),
-            (gesture.peakIntensity * 255f).roundToInt().coerceIn(1, 255)
+            (drive(gesture.peakIntensity) * 255f).roundToInt().coerceIn(1, 255)
         )
     }.getOrNull()
+
+    /**
+     * Donanımın hissedilir olduğu en düşük sürüş oranı.
+     *
+     * Cihazdan cihaza değişiyor ama bu civarı çoğu doğrusal titreşim
+     * aktüatöründe eşiğin biraz üstünde: yeterince düşük ki "hafif" olan
+     * hâlâ hafif hissetsin, yeterince yüksek ki hissedilsin.
+     */
+    private const val PERCEPTIBLE_FLOOR = 0.32f
 
     /** Zarfın sıfıra inmesi için gereken en kısa süre. */
     private const val MIN_RELEASE_MILLIS = 12

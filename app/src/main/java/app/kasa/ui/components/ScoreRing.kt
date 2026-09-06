@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -76,9 +77,19 @@ fun ScoreRing(
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
-            val inset = strokeWidth.toPx() / 2f
-            val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-            val topLeft = Offset(inset, inset)
+            // Kutu yalnızca çekirdek çizgiye göre daraltılsaydı hâlenin dış
+            // katmanı tuvalin dışında kalırdı: halka dört yanından düz kesilmiş
+            // görünürdü. [glowExtent] ışığın çizgiden ne kadar uzağa gittiğini
+            // söylüyor ve çember o kadar içeri çekiliyor.
+            val inset = glowExtent(strokeWidth.toPx(), RING_GLOW_SPREAD)
+            // Çember kutunun kısa kenarına oturuyor; kare olmayan bir kutuda
+            // yay elips olur ve halka "tuhaf" görünürdü.
+            val diameter = size.minDimension - inset * 2
+            val arcSize = Size(diameter, diameter)
+            val topLeft = Offset(
+                (size.width - diameter) / 2f,
+                (size.height - diameter) / 2f
+            )
 
             drawArc(
                 color = trackColor,
@@ -113,7 +124,17 @@ fun ScoreRing(
                 )
             }
         }
-        content()
+        // İçerik halkanın **içinde** duruyor. Dolgusuz bırakıldığında yazı
+        // tipi ölçeğini büyüten bir kullanıcıda rakam halkanın üzerine taşıyor
+        // ve ikisi birden okunmaz oluyordu; sınır konunca sayı küçük ekranda
+        // sarıyor ama halkanın dışına çıkmıyor.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(strokeWidth * (3f + RING_GLOW_SPREAD) / 2f),
+            contentAlignment = Alignment.Center,
+            content = content
+        )
     }
 }
 

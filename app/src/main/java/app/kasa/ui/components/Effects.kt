@@ -1,11 +1,13 @@
 package app.kasa.ui.components
 
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.geometry.CornerRadius
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -168,7 +170,7 @@ fun rememberDeviceTilt(): DeviceTilt {
  */
 fun Modifier.tiltRim(
     tilt: DeviceTilt,
-    corner: Dp,
+    shape: Shape,
     width: Dp = RIM_WIDTH,
     strength: Float = 0.5f
 ): Modifier = composed {
@@ -180,11 +182,10 @@ fun Modifier.tiltRim(
     drawWithContent {
         drawContent()
         val stroke = width.toPx()
-        val radius = CornerRadius(corner.toPx())
         // Parlak ucun yeri eğimle dönüyor; karşı uç sönük kalıyor.
         val start = Offset(size.width * (0.5f - x * 0.5f), size.height * (0.5f - y * 0.5f))
         val end = Offset(size.width * (0.5f + x * 0.5f), size.height * (0.5f + y * 0.5f))
-        drawGlowStroke(
+        drawGlowOutline(
             brush = Brush.linearGradient(
                 colors = listOf(
                     Color.White.copy(alpha = strength),
@@ -194,7 +195,7 @@ fun Modifier.tiltRim(
                 start = start,
                 end = end
             ),
-            corner = radius.x,
+            shape = shape,
             width = stroke
         )
     }
@@ -229,51 +230,73 @@ fun Modifier.tiltRim(
  * oluyor. Işıklı yüzeylerin fotoğrafında da aynı ikili var: doymuş bir
  * çekirdek ve çevresinde yumuşak bir hâle.
  *
+ * ### Neden şekil, köşe yarıçapı değil
+ *
+ * Eski hâli tek bir köşe yarıçapı alıyordu ve çağıranlar oraya yuvarlak bir
+ * sayı geçiyordu. Ama liste satırlarının şekli konuma göre değişiyor: gruptaki
+ * ilk satırın üstü geniş, altı dar. Sabit bir yarıçapla çizilen ışık o şeklin
+ * dışına taşıyor, kırpma onu kesiyor ve geriye köşeleri kare kesilmiş bir
+ * dikdörtgen kalıyordu — açık temada zeminle arasındaki fark yüzünden apaçık
+ * görünen şey buydu.
+ *
+ * ### Neden çizgi kenarın üzerinde
+ *
+ * Eskiden her katman kendi genişliği kadar **içeri** kaydırılıyordu, yani
+ * geniş ve sönük olan katman yüzeyin içine doğru bir bant çiziyordu. Işığın
+ * yeri kenar; genişleyen katman iki yana birden yayılmalı. Dışarı taşan yarısı
+ * zaten kırpılıyor ve sönerek biten bir kenar bırakıyor — istenen de bu.
+ *
  * @param brush çizginin rengi ya da degradesi
- * @param corner köşe yarıçapı
+ * @param shape yüzeyin kendi şekli — ışık tam bu şeklin kenarı üzerinde
  * @param width çekirdek çizginin kalınlığı
  * @param spread hâlenin çekirdeğin kaç katı kadar yayılacağı
  * @param intensity toplam parlaklık çarpanı (0-1)
  */
-fun DrawScope.drawGlowStroke(
+fun DrawScope.drawGlowOutline(
     brush: Brush,
-    corner: Float,
+    shape: Shape,
     width: Float,
     spread: Float = GLOW_SPREAD,
     intensity: Float = 1f
 ) {
     if (intensity <= 0.01f || size.minDimension <= 0f) return
 
-    val radius = CornerRadius(corner)
+    val outline = shape.createOutline(size, layoutDirection, this)
+    val path = Path().apply { addOutline(outline) }
+
     // Dıştan içe: geniş ve sönük olan altta kalıyor, çekirdek en üstte.
     GLOW_LAYERS.forEach { layer ->
-        val strokeWidth = width * (1f + spread * layer.width)
-        val inset = strokeWidth / 2f
-        // Yüzeyden taşan bir hâle, kenarın dışında da görünmeli; kutuyu
-        // daraltmak yerine çizgiyi kenarın üstüne oturtuyoruz ve fazlası
-        // dışarı taşıyor — kırpma varsa zaten o kesiyor.
-        drawRoundRect(
+        drawPath(
+            path = path,
             brush = brush,
-            topLeft = Offset(inset, inset),
-            size = Size(size.width - strokeWidth, size.height - strokeWidth),
-            cornerRadius = radius,
-            style = Stroke(width = strokeWidth),
-            alpha = (layer.alpha * intensity).coerceIn(0f, 1f)
+            alpha = (layer.alpha * intensity).coerceIn(0f, 1f),
+            style = Stroke(width = width * (1f + spread * layer.width))
         )
     }
 }
 
 /**
+ * Hâlenin çizginin kendisinden ne kadar uzağa yayıldığı.
+ *
+ * Yay çizen çağıranlar kutularını buna göre daraltmak zorunda: kutu yalnızca
+ * çekirdek çizgiyi sığdıracak kadar büyükse, en dıştaki sönük katman tuvalin
+ * dışında kalıyor ve kırpılınca hâle yuvarlak değil kesik görünüyor.
+ */
+fun glowExtent(width: Float, spread: Float = GLOW_SPREAD): Float =
+    width * (1f + spread) / 2f
+
+/**
  * Parlayan yay.
  *
- * [drawGlowStroke] ile aynı mantık, kapalı bir yol yerine bir yay üzerinde:
+ * [drawGlowOutline] ile aynı mantık, kapalı bir yol yerine bir yay üzerinde:
  * dıştan içe genişleyen katmanlar, en içte doymuş bir çekirdek. Halkalar
  * (güç puanı, TOTP sayacı, yükleme göstergesi) uygulamanın en çok bakılan
  * grafik öğeleri ve düz bir yay onları çizim gibi gösteriyordu.
  *
- * Yayın kutusu her katmanda daralıyor: kalınlaşan bir çizgi kendi merkez
- * çizgisi etrafında büyüyor ve kutuyu sabit bırakmak hâleyi yolun dışına
- * kaydırıyordu.
+ * Bütün katmanlar aynı yay üzerinde duruyor ve yalnızca kalınlık büyüyor, yani
+ * ışık iki yana simetrik yayılıyor. Çağıran taraf kutusunu [glowExtent] kadar
+ * daraltmak zorunda: yalnızca çekirdek çizgiyi sığdıran bir kutuda en dıştaki
+ * katman tuvalin dışında kalıyor ve kırpılınca hâle kesik görünüyor.
  */
 fun DrawScope.drawGlowArc(
     color: Color,
@@ -282,22 +305,26 @@ fun DrawScope.drawGlowArc(
     topLeft: Offset,
     arcSize: Size,
     width: Float,
-    spread: Float = GLOW_SPREAD,
+    spread: Float = RING_GLOW_SPREAD,
     intensity: Float = 1f
 ) {
     if (intensity <= 0.01f || sweepAngle == 0f) return
 
+    // Bütün katmanlar **aynı** yay üzerinde; yalnızca kalınlık büyüyor.
+    //
+    // Eskiden her katman kendi kutusunu dışa doğru büyütüyordu ve en dıştaki
+    // katman tuvalin dışına taşıp kırpılıyordu: hâle yuvarlak değil, kenardan
+    // kesilmiş görünüyordu. Kutuyu sabit tutmak ışığı iki yana simetrik
+    // yayıyor; çağıran tarafın kutuyu [glowExtent] kadar daraltması yeterli.
     GLOW_LAYERS.forEach { layer ->
-        val strokeWidth = width * (1f + spread * layer.width)
-        val grow = (strokeWidth - width) / 2f
         drawArc(
             color = color,
             startAngle = startAngle,
             sweepAngle = sweepAngle,
             useCenter = false,
-            topLeft = Offset(topLeft.x - grow, topLeft.y - grow),
-            size = Size(arcSize.width + grow * 2f, arcSize.height + grow * 2f),
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+            topLeft = topLeft,
+            size = arcSize,
+            style = Stroke(width = width * (1f + spread * layer.width), cap = StrokeCap.Round),
             alpha = (layer.alpha * intensity).coerceIn(0f, 1f)
         )
     }
@@ -321,6 +348,19 @@ private val GLOW_LAYERS = listOf(
 private const val GLOW_SPREAD = 2.6f
 
 /**
+ * Halkaların yayılma katsayısı.
+ *
+ * [GLOW_SPREAD] ince kenar çizgilerine göre ayarlı: 1dp'lik bir çerçevede
+ * 3.6dp'lik bir hâle bırakıyor, yani ışık çizginin hemen yanında sönüyor.
+ * Aynı katsayı 14dp'lik bir halka çizgisine uygulandığında 50dp'lik bir bulut
+ * çıkıyordu — halka artık bir halka değil, ortasında çizgi olan bir leke gibi
+ * duruyordu ve tuvale sığması için çemberin kendisi küçülmek zorunda kalıyordu.
+ *
+ * Hâle çizginin kalınlığıyla orantılı; kalın çizgide oran küçülmeli.
+ */
+const val RING_GLOW_SPREAD = 0.9f
+
+/**
  * Basılan noktaya en yakın kenarın parlaması.
  *
  * ### Material'ın dalgalanmasından farkı
@@ -336,7 +376,7 @@ private const val GLOW_SPREAD = 2.6f
  * dokunduğunu da söylemesi, art arda basılan iki satırı ayırt ettiriyor.
  */
 fun Modifier.pressRim(
-    corner: Dp,
+    shape: Shape,
     color: Color = Color.White,
     width: Dp = RIM_WIDTH,
     maxAlpha: Float = 0.55f
@@ -366,7 +406,7 @@ fun Modifier.pressRim(
             drawContent()
             if (progress <= 0.01f || !origin.isSpecifiedSafely()) return@drawWithContent
             val stroke = width.toPx()
-            drawGlowStroke(
+            drawGlowOutline(
                 brush = Brush.radialGradient(
                     colors = listOf(
                         color.copy(alpha = maxAlpha),
@@ -376,7 +416,7 @@ fun Modifier.pressRim(
                     center = origin,
                     radius = hypot(size.width, size.height) * (0.35f + progress * 0.35f)
                 ),
-                corner = corner.toPx(),
+                shape = shape,
                 width = stroke,
                 // Hâle basışla birlikte büyüyor: sabit bir yayılma, ışığın
                 // parmakla birlikte geldiğini değil hep orada olduğunu
@@ -402,7 +442,7 @@ private fun Offset.isSpecifiedSafely(): Boolean =
  * "yükleniyor" gibi görünüyor, arada bir geçen ise canlı.
  */
 fun Modifier.shimmerRim(
-    corner: Dp,
+    shape: Shape,
     color: Color = Color.White,
     width: Dp = RIM_WIDTH,
     alpha: Float = 0.45f
@@ -431,13 +471,13 @@ fun Modifier.shimmerRim(
         // Şeridin uçlarında hâle sönüyor: geçişin başı ve sonu, ortasıyla
         // aynı güçte parlasaydı şerit belirip kaybolmak yerine yanıp sönerdi.
         val fade = sin(travel * PI).toFloat().coerceIn(0f, 1f)
-        drawGlowStroke(
+        drawGlowOutline(
             brush = Brush.linearGradient(
                 colors = listOf(Color.Transparent, color.copy(alpha = alpha), Color.Transparent),
                 start = Offset(head, 0f),
                 end = Offset(head + span, size.height)
             ),
-            corner = corner.toPx(),
+            shape = shape,
             width = stroke,
             intensity = fade
         )

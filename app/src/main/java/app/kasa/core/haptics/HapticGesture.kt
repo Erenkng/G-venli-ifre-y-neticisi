@@ -55,8 +55,18 @@ data class HapticGesture(
         val gapMs: Int = 0
     )
 
-    /** Jestin toplam süresi; hız sınırlaması ve bütçe bunu okuyor. */
+    /** Jestin toplam süresi, boşluklar dâhil. */
     val totalMillis: Int get() = beats.sumOf { it.durationMs + it.gapMs }
+
+    /**
+     * Aktüatörün gerçekten çalıştığı süre.
+     *
+     * Bütçe bunu okuyor, toplam süreyi değil: iki darbe arasındaki sessizlik
+     * pil harcamıyor ve uğultuya katkısı yok. Boşlukları da saymak, ritimli
+     * jestleri haksız yere pahalı gösteriyor ve peş peşe gelen birkaç olayda
+     * bütçeyi erken tüketiyordu.
+     */
+    val vibratingMillis: Int get() = beats.sumOf { it.durationMs }
 
     /** En yüksek darbe şiddeti; kullanıcı ayarının tavanı buna uygulanıyor. */
     val peakIntensity: Float get() = beats.maxOfOrNull { it.intensity } ?: 0f

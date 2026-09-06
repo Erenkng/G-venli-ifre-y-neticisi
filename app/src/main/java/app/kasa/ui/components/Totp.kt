@@ -93,14 +93,23 @@ fun CountdownRing(
     Box(modifier = modifier.size(34.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(34.dp)) {
             val stroke = 3.dp.toPx()
-            val inset = stroke / 2f
+            // Kutu hâlenin tamamına göre daraltılıyor; yalnızca çekirdek
+            // çizgiye göre daraltılsaydı dış katman kırpılır ve sayaç halkası
+            // kenarlarından kesik görünürdü.
+            val inset = glowExtent(stroke, RING_GLOW_SPREAD)
+            val diameter = size.minDimension - inset * 2
+            val ring = Size(diameter, diameter)
+            val topLeft = Offset(
+                (size.width - diameter) / 2f,
+                (size.height - diameter) / 2f
+            )
             drawArc(
                 color = color.copy(alpha = 0.2f),
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
-                topLeft = Offset(inset, inset),
-                size = Size(size.width - stroke, size.height - stroke),
+                topLeft = topLeft,
+                size = ring,
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
             // Sayacın kalan kısmı hâleyle: kod okunurken göz zaten oraya
@@ -110,8 +119,8 @@ fun CountdownRing(
                 color = color,
                 startAngle = -90f,
                 sweepAngle = 360f * progress.coerceIn(0f, 1f),
-                topLeft = Offset(inset, inset),
-                arcSize = Size(size.width - stroke, size.height - stroke),
+                topLeft = topLeft,
+                arcSize = ring,
                 width = stroke
             )
         }
