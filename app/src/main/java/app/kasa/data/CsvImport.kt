@@ -1,6 +1,7 @@
 package app.kasa.data
 
 import app.kasa.core.crypto.SecretText
+import app.kasa.core.util.Totp
 import app.kasa.data.model.Category
 import app.kasa.data.model.VaultItem
 
@@ -167,11 +168,10 @@ object CsvImport {
      * Kasa Base32 anahtar bekliyor; adresten anahtarı çıkarmak, kullanıcıyı
      * kaydı elle düzeltmekten kurtarıyor.
      */
-    private fun normalizeTotp(value: String): String {
-        if (value.isBlank()) return ""
-        if (!value.startsWith("otpauth://", ignoreCase = true)) return value
-        val secret = Regex("[?&]secret=([^&]+)", RegexOption.IGNORE_CASE).find(value)
-        return secret?.groupValues?.getOrNull(1).orEmpty()
+    private fun normalizeTotp(value: String): String = when (val read = Totp.read(value)) {
+        is Totp.Input.Uri -> read.config.secret
+        is Totp.Input.Secret -> read.text
+        else -> ""
     }
 
     private fun hostOf(url: String): String {

@@ -3,6 +3,11 @@ package app.kasa.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,7 +74,9 @@ import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.KasaTextField
 import app.kasa.ui.components.SectionLabel
+import app.kasa.ui.components.TotpDisplay
 import app.kasa.ui.components.WavyProgress
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
@@ -183,8 +190,16 @@ fun ItemEditorScreen(
                 Category.OTP -> OtpHero(
                     item = item,
                     onScanQr = onScanQr,
-                    onSecretScanned = { secret ->
-                        item = item.copy(totpSecret = secret.uppercase().filter { !it.isWhitespace() })
+                    // Karekod bir `otpauth://` bağlantısı taşıyorsa hane
+                    // sayısı ve periyot da oradan geliyor; yalnızca anahtarı
+                    // almak, sekiz haneli kod üreten bir servisi sessizce
+                    // altı haneye düşürüyordu.
+                    onSecretScanned = { scanned ->
+                        item = when (val read = Totp.read(scanned)) {
+                            is Totp.Input.Uri -> item.withTotp(read.config)
+                            is Totp.Input.Secret -> item.copy(totpSecret = read.text)
+                            else -> item
+                        }
                     },
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
@@ -421,6 +436,29 @@ private fun PasswordEditor(
     }
 }
 
+/**
+ * İkinci faktör anahtarı.
+ *
+ * ### Yapıştırılan her biçim kabul ediliyor
+ *
+ * Servisler anahtarı üç ayrı biçimde veriyor ve hangisinin geleceğine
+ * kullanıcı karar vermiyor: karekodun altındaki `otpauth://` bağlantısı,
+ * dörtlü gruplara ayrılmış bir Base32 anahtarı, ya da onaltılık bir tohum.
+ * Alan eskiden yalnızca boşluksuz Base32 kabul ediyordu; ötekini yapıştıran
+ * kullanıcı kırmızı bir çerçeve görüyor ve kaydı hiç ekleyemiyordu.
+ *
+ * Bağlantı yapıştırıldığında yalnızca anahtar değil hane sayısı, periyot ve
+ * özet algoritması da doluyor. Bunlar ayrı alanlar olsaydı kullanıcı bir
+ * karekodun içindeki `digits=8`i elle taşımak zorunda kalırdı — ve
+ * taşımadığında kodlar sessizce yanlış çıkardı.
+ *
+ * ### Neden kodu burada gösteriyor
+ *
+ * Anahtarın doğru olup olmadığı ancak ürettiği kod servisinkiyle
+ * karşılaştırılınca anlaşılıyor. Önizleme olmadan kullanıcı kaydı kaydedip
+ * ayrıntı sayfasını açmak, orada yanlışsa geri dönmek zorundaydı; yani
+ * denemek için kaydetmek gerekiyordu.
+ */
 @Composable
 private fun TotpEditor(
     item: VaultItem,
@@ -428,34 +466,53 @@ private fun TotpEditor(
     onScanQr: ((String) -> Unit) -> Unit,
     expanded: Boolean = false
 ) {
-    val invalid = item.totpSecret.isNotBlank() && !VaultStore.isValidTotpSecret(item.totpSecret)
+    // Toplu dışa aktarma bağlantısı geçerli bir şey — yalnızca başka bir şey.
+    // "Geçersiz anahtar" demek, kullanıcıya elindekinin bozuk olduğunu
+    // söylemek olurdu.
+    var migration by remember { mutableStateOf(false) }
+    val invalid = !migration && item.totpSecret.isNotBlank() &&
+        !VaultStore.isValidTotpSecret(item.totpSecret)
+    val valid = item.totpSecret.isNotBlank() && VaultStore.isValidTotpSecret(item.totpSecret)
 
     Column {
         KasaTextField(
             value = item.totpSecret,
-            onValueChange = { onChange(item.copy(totpSecret = it.uppercase().filter { c -> !c.isWhitespace() })) },
+            onValueChange = { raw ->
+                val read = Totp.read(raw)
+                migration = read is Totp.Input.Migration
+                when (read) {
+                    is Totp.Input.Uri -> onChange(item.withTotp(read.config))
+                    is Totp.Input.Secret -> onChange(item.copy(totpSecret = read.text))
+                    // Yarım yazılmış bir bağlantı da alanda durabilmeli:
+                    // metin olduğu gibi giriyor, geçerliliği kırmızıyla
+                    // söyleniyor ve tamamlandığı anda alanlara açılıyor.
+                    else -> onChange(item.copy(totpSecret = raw.trim()))
+                }
+            },
             label = stringResource(R.string.editor_totp_secret),
+            placeholder = stringResource(R.string.editor_totp_hint),
             textStyle = KasaTheme.text.mono,
             isError = invalid,
-            supportingText = if (invalid) stringResource(R.string.editor_totp_invalid) else null,
+            supportingText = when {
+                migration -> stringResource(R.string.editor_totp_migration)
+                invalid -> stringResource(R.string.editor_totp_invalid)
+                else -> null
+            },
             trailing = {
                 KasaIconButton(
                     onClick = {
                         onScanQr { raw ->
-                            val config = Totp.parseUri(raw)
-                            if (config != null) {
-                                onChange(
-                                    item.copy(
-                                        totpSecret = config.secret,
-                                        totpDigits = config.digits,
-                                        totpPeriod = config.period,
-                                        totpAlgorithm = config.algorithm,
-                                        name = item.name.ifBlank { config.issuer },
-                                        username = item.username.ifBlank { config.account }
-                                    )
-                                )
-                            } else {
-                                onChange(item.copy(totpSecret = raw.uppercase()))
+                            when (val read = Totp.read(raw)) {
+                                is Totp.Input.Uri -> {
+                                    migration = false
+                                    onChange(item.withTotp(read.config))
+                                }
+                                is Totp.Input.Secret -> {
+                                    migration = false
+                                    onChange(item.copy(totpSecret = read.text))
+                                }
+                                Totp.Input.Migration -> migration = true
+                                else -> Unit
                             }
                         }
                     },
@@ -472,8 +529,75 @@ private fun TotpEditor(
                 }
             }
         )
+
+        // Anahtar okunur okunmaz kod görünüyor: kullanıcı kaydetmeden önce
+        // servisin gösterdiğiyle karşılaştırabiliyor.
+        //
+        // OTP türünde gösterilmiyor: orada kodu zaten başlıktaki kart
+        // taşıyor ve aynı sayı iki kez yazılırdı.
+        AnimatedVisibility(
+            visible = valid && !expanded,
+            enter = fadeIn(KasaMotion.enter()) + expandVertically(KasaMotion.medium()),
+            exit = fadeOut(KasaMotion.exit()) + shrinkVertically(KasaMotion.medium())
+        ) {
+            Column(Modifier.padding(top = 10.dp, start = 6.dp, end = 6.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.editor_totp_preview),
+                        style = KasaTheme.text.sectionLabel,
+                        color = KasaTheme.colors.ink3
+                    )
+                    // Varsayılan dışı bir ayar varsa görünür olmalı: aynı
+                    // anahtardan sekiz haneli kod bekleyen bir servis, altı
+                    // hane gösteren bir uygulamayla hiç eşleşmiyor.
+                    if (item.totpDigits != 6 || item.totpPeriod != 30 || item.totpAlgorithm != "SHA1") {
+                        Text(
+                            stringResource(
+                                R.string.editor_totp_params,
+                                item.totpDigits,
+                                item.totpPeriod,
+                                item.totpAlgorithm
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KasaTheme.colors.ink3
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                TotpDisplay(
+                    secret = item.totpSecret,
+                    digits = item.totpDigits,
+                    period = item.totpPeriod,
+                    algorithm = item.totpAlgorithm
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.editor_totp_check),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KasaTheme.colors.ink3
+                )
+            }
+        }
     }
 }
+
+/**
+ * Bağlantıdan gelen yapılandırmayı kayda uygular.
+ *
+ * Ad ve hesap yalnızca **boşsa** doluyor: kullanıcının yazdığı adı bir
+ * karekodun etiketiyle değiştirmek, onun kararını geri almak olurdu.
+ */
+private fun VaultItem.withTotp(config: Totp.Config): VaultItem = copy(
+    totpSecret = config.secret,
+    totpDigits = config.digits,
+    totpPeriod = config.period,
+    totpAlgorithm = config.algorithm,
+    name = name.ifBlank { config.issuer },
+    username = username.ifBlank { config.account }
+)
 
 @Composable
 private fun AddCustomFieldRow(onAdd: (String, Boolean) -> Unit) {

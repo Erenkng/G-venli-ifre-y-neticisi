@@ -2,12 +2,12 @@ package app.kasa.data
 
 import android.content.Context
 import app.kasa.core.crypto.AeadSuite
-import app.kasa.core.crypto.Base32
 import app.kasa.core.crypto.Crypto
 import app.kasa.core.crypto.Kdf
 import app.kasa.core.crypto.KeystoreKeys
 import app.kasa.core.crypto.RecoveryKey
 import app.kasa.core.crypto.SecretBytes
+import app.kasa.core.util.Totp
 import app.kasa.data.model.VaultData
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
@@ -1415,10 +1415,15 @@ class VaultStore(private val context: Context) {
         fun looksLikeExport(head: ByteArray): Boolean =
             head.size >= MAGIC_LEN && head.copyOfRange(0, MAGIC_LEN).contentEquals(MAGIC_EXPORT)
 
-        /** TOTP anahtarının biçimsel geçerliliği. */
-        fun isValidTotpSecret(secret: String): Boolean {
-            val bytes = Base32.decodeRfc4648(secret) ?: return false
-            return bytes.size >= 10
-        }
+        /**
+         * TOTP anahtarının biçimsel geçerliliği.
+         *
+         * Karar [Totp] tarafında: anahtarı çözen kod ile onu geçerli sayan
+         * kod ayrı yerlerde durursa biri ötekinin kabul ettiğini reddediyor.
+         * Burada iki bilgi vardı — yalnızca Base32 ve en az on bayt — ve
+         * ikisi de gerçekte dağıtılan anahtarların bir bölümünü dışarıda
+         * bırakıyordu.
+         */
+        fun isValidTotpSecret(secret: String): Boolean = Totp.isValidSecret(secret)
     }
 }

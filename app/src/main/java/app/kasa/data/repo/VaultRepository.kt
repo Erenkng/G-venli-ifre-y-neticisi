@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 import javax.crypto.Cipher
 
 /**
@@ -1121,6 +1122,31 @@ class VaultRepository(
         }
     }
 
+    /**
+     * Sızmış kayıt kümesinin parmak izi.
+     *
+     * Ana ekrandaki sızıntı uyarısı kapatılabiliyor ve kapatma kalıcı. Ama
+     * kalıcı olan şey "uyarıyı bir daha gösterme" değil, **bu** bulgunun
+     * kapatılmış olması: yalnızca bir bayrak yazsaydık sonradan sızan yeni bir
+     * parola da sessizce gizlenirdi ve kullanıcı kendi kapattığı bir uyarının
+     * artık başka bir şeyi anlattığını hiç öğrenemezdi.
+     *
+     * İz kayıt kimliklerinden türüyor: küme değişince — yeni bir kayıt sızınca
+     * ya da düzeltilen bir kayıt kümeden çıkınca — iz de değişiyor ve uyarı
+     * kendiliğinden geri geliyor.
+     *
+     * Kimlikler özetleniyor. Tercih dosyası düz metin ve orada kasanın
+     * içeriğine dair hiçbir şey durmamalı; özet, kimlikleri geri vermeden
+     * "aynı küme mi" sorusunu yanıtlıyor.
+     */
+    fun leakedFingerprint(): String {
+        val ids = _data.value.liveItems.filter { it.breached }.map { it.id }.sorted()
+        if (ids.isEmpty()) return ""
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(ids.joinToString("\u0000").toByteArray(Charsets.UTF_8))
+        return digest.take(FINGERPRINT_BYTES).joinToString("") { "%02x".format(it) }
+    }
+
     fun folderCounts(): Map<String, Int> =
         _data.value.liveItems.mapNotNull { it.folderId }.groupingBy { it }.eachCount()
 
@@ -1446,6 +1472,15 @@ class VaultRepository(
 
         /** "Bir yıldan eski" eşiği; güvenlik tarayıcısıyla aynı değer. */
         const val OLD_PASSWORD_MILLIS = 365L * 24 * 60 * 60 * 1000
+
+        /**
+         * Sızıntı izinin uzunluğu (bayt).
+         *
+         * İz bir kimlik doğrulama değil, "aynı küme mi" sorusunun yanıtı;
+         * çakışma olasılığı 64 bitte bu iş için fazlasıyla küçük ve tercih
+         * dosyasında duran dize kısa kalıyor.
+         */
+        private const val FINGERPRINT_BYTES = 8
 
         val TR: java.util.Locale = java.util.Locale("tr", "TR")
     }

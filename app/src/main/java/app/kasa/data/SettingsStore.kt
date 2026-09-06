@@ -190,7 +190,16 @@ class SettingsStore(private val context: Context) {
         val generatorSyllables: Int = 6,
         val generatorWordCount: Int = 5,
         val generatorSeparator: String = "-",
-        val generatorCapitalize: Boolean = true
+        val generatorCapitalize: Boolean = true,
+        /**
+         * Kapatılmış sızıntı uyarısının parmak izi.
+         *
+         * Boş = kapatılmış bir uyarı yok. Değer, uyarının kapatıldığı andaki
+         * sızmış kayıt kümesinin özeti; küme değişince eşleşme bozuluyor ve
+         * uyarı geri geliyor. Bir boole olsaydı sonradan sızan parola da aynı
+         * "kapatıldı" bayrağının altında kalırdı.
+         */
+        val dismissedLeakAlert: String = ""
     )
 
     val settings: Flow<Settings> = context.dataStore.data.map { prefs ->
@@ -245,7 +254,8 @@ class SettingsStore(private val context: Context) {
             generatorEntropyTarget = prefs[KEY_GEN_ENTROPY] ?: 0,
             generatorWordCount = prefs[KEY_GEN_WORDS] ?: 5,
             generatorSeparator = prefs[KEY_GEN_SEPARATOR] ?: "-",
-            generatorCapitalize = prefs[KEY_GEN_CAPITALIZE] ?: true
+            generatorCapitalize = prefs[KEY_GEN_CAPITALIZE] ?: true,
+            dismissedLeakAlert = prefs[KEY_LEAK_DISMISSED] ?: ""
         )
     }
 
@@ -288,6 +298,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setGeneratorBatch(value: Boolean) = put(KEY_GEN_BATCH, value)
     suspend fun setGeneratorEntropyTarget(value: Int) = put(KEY_GEN_ENTROPY, value)
     suspend fun setGeneratorCapitalize(value: Boolean) = put(KEY_GEN_CAPITALIZE, value)
+    suspend fun setDismissedLeakAlert(value: String) = put(KEY_LEAK_DISMISSED, value)
 
     /** Kasa silindiğinde tercihler de sıfırlanır. */
     suspend fun clear() {
@@ -347,6 +358,7 @@ class SettingsStore(private val context: Context) {
         val KEY_GRADIENT = stringPreferencesKey("gradient_theme")
         val KEY_GRADIENT_TIME = booleanPreferencesKey("gradient_follows_time")
         val KEY_GEN_MODE = stringPreferencesKey("gen_mode")
+        val KEY_LEAK_DISMISSED = stringPreferencesKey("dismissed_leak_alert")
         val KEY_GEN_PIN_LEN = intPreferencesKey("gen_pin_length")
         val KEY_GEN_HEX_BITS = intPreferencesKey("gen_hex_bits")
         val KEY_GEN_BATCH = booleanPreferencesKey("gen_batch")

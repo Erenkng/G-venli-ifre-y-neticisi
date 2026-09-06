@@ -92,6 +92,37 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         repository.data.map { repository.smartCounts() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /**
+     * Ana ekrandaki sızıntı uyarısının göstereceği sayı; 0 = gösterme.
+     *
+     * Uyarı iki nedenle kaybolabiliyor: sızmış kayıt kalmamıştır ya da
+     * kullanıcı kartı kaydırıp kapatmıştır. İkincisi kalıcı ve **o günkü
+     * bulguya** bağlı — kapatılan izle şimdiki iz eşleşmiyorsa uyarı geri
+     * geliyor. Böylece kapatma "bir daha hiç uyarma" anlamına gelmiyor:
+     * kullanıcı gördüğü şeyi kapatıyor, göreceği şeyi değil.
+     */
+    val leakAlertCount: StateFlow<Int> =
+        combine(repository.data, container.settingsStore.settings) { data, settings ->
+            val leaked = data.liveItems.count { it.breached }
+            when {
+                leaked == 0 -> 0
+                repository.leakedFingerprint() == settings.dismissedLeakAlert -> 0
+                else -> leaked
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /**
+     * Uyarıyı kapat.
+     *
+     * Kaydedilen şey o anki bulgunun izi, bir bayrak değil.
+     */
+    fun dismissLeakAlert() {
+        val fingerprint = repository.leakedFingerprint()
+        if (fingerprint.isEmpty()) return
+        container.haptics.play(Haptics.Kind.MEDIUM)
+        viewModelScope.launch { container.settingsStore.setDismissedLeakAlert(fingerprint) }
+    }
+
     val folderCounts: StateFlow<Map<String, Int>> =
         repository.data.map { repository.folderCounts() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())

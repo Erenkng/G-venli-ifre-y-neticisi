@@ -155,7 +155,12 @@
     <string name="editor_generate">Üret</string>
     <string name="editor_scan_qr">QR kodu tara</string>
     <string name="editor_totp_secret">TOTP gizli anahtarı</string>
-    <string name="editor_totp_invalid">Bu anahtar geçerli bir Base32 değeri değil</string>
+    <string name="editor_totp_invalid">Bu anahtar okunamadı. Base32 anahtarı ya da otpauth:// bağlantısı yapıştırın.</string>
+    <string name="editor_totp_hint">Anahtar ya da otpauth:// bağlantısı</string>
+    <string name="editor_totp_migration">Bu bağlantı birden çok hesabı birlikte taşıyor. Hesapları tek tek ekleyin.</string>
+    <string name="editor_totp_preview">Şimdiki kod</string>
+    <string name="editor_totp_check">Servisin gösterdiği kodla aynıysa anahtar doğru.</string>
+    <string name="editor_totp_params">%1$d hane · %2$d sn · %3$s</string>
     <string name="editor_expiry_hint">AA/YY</string>
 
     <!-- Üretici -->

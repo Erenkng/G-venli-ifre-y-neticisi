@@ -117,7 +117,12 @@
     <string name="editor_generate">Generate</string>
     <string name="editor_scan_qr">Scan QR code</string>
     <string name="editor_totp_secret">TOTP secret</string>
-    <string name="editor_totp_invalid">That is not a valid Base32 secret</string>
+    <string name="editor_totp_invalid">Could not read that secret. Paste a Base32 key or an otpauth:// link.</string>
+    <string name="editor_totp_hint">Secret or otpauth:// link</string>
+    <string name="editor_totp_migration">That link carries several accounts at once. Add them one by one.</string>
+    <string name="editor_totp_preview">Current code</string>
+    <string name="editor_totp_check">If it matches the code the service shows, the secret is right.</string>
+    <string name="editor_totp_params">%1$d digits · %2$ds · %3$s</string>
     <string name="editor_expiry_hint">MM/YY</string>
 
     <string name="gen_title">Generate</string>

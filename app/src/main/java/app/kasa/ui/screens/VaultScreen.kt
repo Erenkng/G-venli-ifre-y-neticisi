@@ -9,7 +9,13 @@ import app.kasa.ui.components.HeaderCollapse
 import app.kasa.ui.components.headerHandoff
 import app.kasa.ui.components.SkeletonRows
 import app.kasa.ui.components.edgeDepth
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -24,6 +30,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -42,27 +49,36 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
+import app.kasa.core.util.Haptics
 import app.kasa.core.util.PasswordStrength
+import app.kasa.core.util.rememberHapticPlayer
 import app.kasa.data.SettingsStore
 import app.kasa.data.model.Category
 import app.kasa.data.model.SmartFolder
@@ -84,6 +100,9 @@ import app.kasa.ui.components.groupPositionOf
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Kasa ekranı: arama, koleksiyonlar, kategori süzgeci, son kullanılanlar
@@ -114,6 +133,7 @@ fun VaultScreen(
     val view by viewModel.view.collectAsStateWithLifecycle()
     val folders by viewModel.folders.collectAsStateWithLifecycle()
     val smartCounts by viewModel.smartCounts.collectAsStateWithLifecycle()
+    val leakAlertCount by viewModel.leakAlertCount.collectAsStateWithLifecycle()
     val folderCounts by viewModel.folderCounts.collectAsStateWithLifecycle()
 
     val categories = remember { listOf<Category?>(null) + Category.entries.toList() }
@@ -217,12 +237,16 @@ fun VaultScreen(
         // elinde olduğu anlamına geliyor ve listenin başında durmayı hak eden
         // tek bulgu bu. Her bulguyu buraya koymak, hiçbirinin okunmamasıyla
         // sonuçlanırdı.
-        val leakedCount = smartCounts[SmartFolder.LEAKED] ?: 0
-        if (leakedCount > 0 && !inTrash && view == VaultFilter.All) {
+        //
+        // Kart kaydırılarak kapatılabiliyor ve kapatma kalıcı; hangi bulgunun
+        // kapatıldığı hatırlanıyor, "uyarma" değil. Gerekçesi
+        // VaultViewModel.leakAlertCount üzerinde yazılı.
+        if (leakAlertCount > 0 && !inTrash && view == VaultFilter.All) {
             item(key = "leak-alert") {
                 LeakAlert(
-                    count = leakedCount,
+                    count = leakAlertCount,
                     onOpen = { viewModel.setView(VaultFilter.Smart(SmartFolder.LEAKED)) },
+                    onDismiss = viewModel::dismissLeakAlert,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
             }
@@ -495,15 +519,141 @@ private fun SelectionMark(selected: Boolean) {
  * sakin, yalnızca işaret ve sayı güç renginde. Uyarının işi korkutmak değil,
  * bir yere **götürmek**.
  *
- * ### Neden kapatılamıyor
+ * ### Kapatma
  *
- * Kapatılabilir bir uyarı, kapatıldığı anda sorunun kendisini de gizliyor.
- * Kart bulgunun kendisi çözüldüğünde kendiliğinden gidiyor: sayı sıfıra
- * indiğinde çizilmiyor. Yani "kapat" düğmesinin yerini parolayı değiştirmek
- * alıyor.
+ * Kart iki yöne de kaydırılarak kapatılıyor; kapatma kalıcı. Bir "kapat"
+ * düğmesi yok: düğme kartın içinde yer kaplar ve asıl işi olan "buraya bas,
+ * seni oraya götüreyim" ile aynı yüzeyde iki hedef oluştururdu. Kaydırma
+ * kartın tamamını hedef yapıyor ve yanlışlıkla kapatmayı zorlaştırıyor —
+ * yolun üçte birini geçmek gerekiyor ve eşiği geçince parmağa tıkırtı geliyor.
+ *
+ * Kapatılan şey uyarının kendisi değil **o günkü bulgu**: hangi kayıtların
+ * sızmış olduğu hatırlanıyor. Sonradan başka bir parola sızarsa kart geri
+ * geliyor. Aksi hâlde kullanıcı bir kez kapatarak, henüz duymadığı bir haberi
+ * de kapatmış olurdu. Bulgu çözüldüğünde kart zaten kendiliğinden gidiyor.
  */
 @Composable
 private fun LeakAlert(
+    count: Int,
+    onOpen: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = KasaTheme.colors
+    val scope = rememberCoroutineScope()
+    val play = rememberHapticPlayer()
+
+    // Kaydırma yolu ve eşiği kartın kendi genişliğinden geliyor: sabit bir
+    // piksel değeri dar ekranda kartın yarısı, geniş ekranda beşte biri olurdu.
+    var width by remember { mutableFloatStateOf(0f) }
+    val slide = remember { Animatable(0f) }
+    var armed by remember { mutableStateOf(false) }
+
+    // Kart önce yana kayıyor, sonra kapladığı yer kapanıyor. Yalnızca kaysaydı
+    // arkasında kendi boyunda bir boşluk kalır ve altındaki satırlar bir kare
+    // sonra yukarı zıplardı.
+    val present = remember { MutableTransitionState(true) }
+    LaunchedEffect(present.isIdle, present.currentState) {
+        if (present.isIdle && !present.currentState) onDismiss()
+    }
+
+    // Yay ve süre bileşim sırasında çözülüyor: animasyonu başlatan kod bir eş
+    // yordamın içinde ve orada @Composable bir işlev çağrılamaz.
+    val settleSpec = KasaMotion.medium<Float>()
+    val flingSpec = KasaMotion.exit<Float>()
+
+    AnimatedVisibility(
+        visibleState = present,
+        exit = shrinkVertically(KasaMotion.exit()) + fadeOut(KasaMotion.exit()),
+        modifier = modifier
+    ) {
+        Box(Modifier.onSizeChanged { width = it.width.toFloat() }) {
+            // Kartın altındaki ipucu, kartın **çıktığı** yönde duruyor: yani
+            // parmağın açtığı boşlukta. Kaydırma ilerledikçe beliriyor.
+            //
+            // Yol oranı burada değil çizim sırasında okunuyor. Bileşim
+            // gövdesinde okunsaydı sürüklemenin her karesi bütün kartı
+            // yeniden birleştirirdi; graphicsLayer'ın bloğu ise animasyonlu
+            // değer değişince yalnızca katmanı yeniden çiziyor.
+            Row(
+                modifier = Modifier.matchParentSize().padding(horizontal = 22.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                SwipeHint(tint = colors.ink3) { if (slide.value > 0f) swipeFraction(slide.value, width) else 0f }
+                SwipeHint(tint = colors.ink3) { if (slide.value < 0f) swipeFraction(slide.value, width) else 0f }
+            }
+
+            LeakAlertCard(
+                count = count,
+                onOpen = onOpen,
+                modifier = Modifier
+                    .offset { IntOffset(slide.value.roundToInt(), 0) }
+                    // Kart uzaklaştıkça soluyor: kapanmanın henüz
+                    // tamamlanmadığı, kartın hâlâ orada olmasından okunuyor.
+                    .graphicsLayer { alpha = 1f - swipeFraction(slide.value, width) * FADE_ON_SWIPE }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                val past = armed
+                                scope.launch {
+                                    if (past) {
+                                        val edge = if (slide.value < 0f) -width else width
+                                        slide.animateTo(edge * OVERSHOOT, flingSpec)
+                                        present.targetState = false
+                                    } else {
+                                        armed = false
+                                        slide.animateTo(0f, settleSpec)
+                                    }
+                                }
+                            },
+                            onDragCancel = {
+                                armed = false
+                                scope.launch { slide.animateTo(0f, settleSpec) }
+                            }
+                        ) { change, drag ->
+                            change.consume()
+                            val next = slide.value + drag
+                            scope.launch { slide.snapTo(next) }
+                            // Eşik parmak hâlâ ekrandayken bildiriliyor:
+                            // kullanıcı bırakmadan önce ne olacağını biliyor.
+                            val past = width > 0f && abs(next) > width * DISMISS_FRACTION
+                            if (past != armed) {
+                                armed = past
+                                if (past) play(Haptics.Kind.THRESHOLD)
+                            }
+                        }
+                    }
+            )
+        }
+    }
+}
+
+/** Kaydırma yolunun ne kadarının kat edildiği (0..1). */
+private fun swipeFraction(slide: Float, width: Float): Float =
+    if (width > 0f) (abs(slide) / width).coerceIn(0f, 1f) else 0f
+
+/**
+ * Kaydırınca beliren ipucu.
+ *
+ * Saydamlık bir değer değil bir **işlev** olarak geliyor: çağıran taraf onu
+ * bileşim sırasında okumak zorunda kalmıyor, blok çizim sırasında çalışıyor.
+ */
+@Composable
+private fun SwipeHint(tint: Color, alpha: () -> Float) {
+    Icon(
+        Icons.Rounded.VisibilityOff,
+        contentDescription = null,
+        tint = tint,
+        modifier = Modifier
+            .size(22.dp)
+            .graphicsLayer { this.alpha = alpha() }
+    )
+}
+
+/** Uyarının kendisi; kaydırma kabuğu [LeakAlert] tarafında. */
+@Composable
+private fun LeakAlertCard(
     count: Int,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier
@@ -735,3 +885,18 @@ private fun CollectionChip(
         )
     }
 }
+
+/**
+ * Sızıntı uyarısının kapanması için kartın kat etmesi gereken yolun oranı.
+ *
+ * Üçte bir: kaza eseri geçilmeyecek kadar uzun, bilerek yapıldığında tek bir
+ * hareketle bitecek kadar kısa. Yarıya çıkarılsaydı kullanıcı parmağını
+ * ekranın kenarına kadar götürmek zorunda kalırdı.
+ */
+private const val DISMISS_FRACTION = 0.33f
+
+/** Kart tam kenardan değil, biraz ötesinden çıkıyor: sonu görünmüyor. */
+private const val OVERSHOOT = 1.15f
+
+/** Kaydırıldıkça sönme miktarı; tamamen kaybolmuyor, geri gelebilir. */
+private const val FADE_ON_SWIPE = 0.8f
