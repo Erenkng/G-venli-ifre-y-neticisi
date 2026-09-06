@@ -338,26 +338,56 @@ fun KasaSwitch(
     val interaction = interactionSource ?: own
     val pressed by interaction.collectIsPressedAsState()
 
-    val thumbSize by animateDpAsState(
+    // Tutamak parmağın altında **yana doğru** esniyor: eni boyundan hızlı
+    // büyüyor ve daire bir hapa dönüşüyor. İki ölçü birlikte büyüseydi
+    // tutamak yalnızca büyük görünürdü; esneme hissini veren şey ikisinin
+    // ayrışması — nesne parmağın gideceği yöne doğru uzuyor.
+    val thumbWidth by animateDpAsState(
         when {
-            pressed -> 26.dp
+            pressed -> 30.dp
             checked -> 22.dp
             else -> 16.dp
         },
-        KasaMotion.small(), label = "thumbSize"
+        KasaMotion.small(), label = "thumbWidth"
     )
+    val thumbHeight by animateDpAsState(
+        when {
+            pressed -> 22.dp
+            checked -> 22.dp
+            else -> 16.dp
+        },
+        KasaMotion.small(), label = "thumbHeight"
+    )
+    // Basılıyken tutamak enine büyüdüğü için sağ ucu taşmasın diye konum da
+    // geri çekiliyor: 18 + 30, rayın 54'lük eninde iki yanda 6'şar boşluk
+    // bırakıyor — kapalıdaki boşlukla aynı.
     val offsetX by animateDpAsState(
         when {
-            checked && pressed -> 22.dp
+            checked && pressed -> 18.dp
             checked -> 26.dp
             else -> 6.dp
         },
         KasaMotion.small(), label = "thumbOffset"
     )
     val alpha = if (enabled) 1f else 0.38f
-    val trackColor = if (checked) MaterialTheme.colorScheme.primary
-    else MaterialTheme.colorScheme.surfaceContainerHigh
-    val borderColor = if (checked) MaterialTheme.colorScheme.primary else KasaTheme.colors.ink3
+
+    // Renk de animasyonlu. Tutamak yayla giderken rayın rengi tek karede
+    // değişiyordu: göz önce rengin atladığını görüyor, tutamağın yolculuğu
+    // ondan sonra bitiyordu. İkisi ayrı ayrı doğruydu ama birlikte tek bir
+    // hareket olarak okunmuyordu.
+    val trackColor by animateColorAsState(
+        if (checked) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.surfaceContainerHigh,
+        KasaMotion.effect(), label = "trackColor"
+    )
+    val borderColor by animateColorAsState(
+        if (checked) MaterialTheme.colorScheme.primary else KasaTheme.colors.ink3,
+        KasaMotion.effect(), label = "trackBorder"
+    )
+    val thumbColor by animateColorAsState(
+        if (checked) Color.White else KasaTheme.colors.ink3,
+        KasaMotion.effect(), label = "thumbColor"
+    )
 
     Box(
         modifier = modifier
@@ -375,11 +405,9 @@ fun KasaSwitch(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .offset(x = offsetX)
-                .size(thumbSize)
+                .size(width = thumbWidth, height = thumbHeight)
                 .clip(RoundedCornerShape(KasaRadius.full))
-                .background(
-                    (if (checked) Color.White else KasaTheme.colors.ink3).copy(alpha = alpha)
-                )
+                .background(thumbColor.copy(alpha = thumbColor.alpha * alpha))
         )
     }
 }
@@ -652,7 +680,25 @@ fun KasaIconButton(
     )
 }
 
-/** Satır içi eylem çubuğu düğmesi (kayıt ayrıntısındaki kopyala/düzenle/sil). */
+/**
+ * Satır içi eylem çubuğu düğmesi (kayıt ayrıntısındaki kopyala/düzenle/sil).
+ *
+ * ### Basılan düğme yer kaplıyor
+ *
+ * Düğmeler çubuğu eşit bölüyor. Basılan düğmenin ağırlığı [PRESSED_WEIGHT]'e
+ * çıkıyor ve `Row` alanı ağırlık **oranına** göre dağıttığı için komşular
+ * kendiliğinden daralıyor: aralarında paylaşılan bir durum yok, her düğme
+ * yalnızca kendi ağırlığını biliyor.
+ *
+ * Bunun tek başına ölçek küçültmekten farkı, hareketin komşulara da
+ * değmesi. Çubuk esneyen tek bir nesne gibi davranıyor; dört ayrı düğme
+ * gibi değil.
+ *
+ * Küçülme yine de duruyor, yalnızca hafifledi (0,90 → 0,94): basılan şeyin
+ * içeri gitmesi uygulamanın her yerindeki basış dili ve tek bir bileşende
+ * ondan ayrılmak, o bileşeni yabancı gösterirdi. Genişleyen ama aynı anda
+ * hafifçe basılan bir yüzey ikisini birden söylüyor.
+ */
 @Composable
 fun RowScope.ToolbarAction(
     onClick: () -> Unit,
@@ -662,11 +708,17 @@ fun RowScope.ToolbarAction(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, KasaMotion.small(), label = "tbScale")
+    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, KasaMotion.small(), label = "tbScale")
+    // Yay hedefi aşıyor; dönüşte 1'in biraz altına iniyor. `weight` sıfır ya
+    // da negatif bir değerde çöktüğü için taban açıkça konuyor.
+    val weight by animateFloatAsState(
+        if (pressed) PRESSED_WEIGHT else 1f,
+        KasaMotion.medium(), label = "tbWeight"
+    )
 
     Box(
         modifier = Modifier
-            .weight(1f)
+            .weight(weight.coerceAtLeast(MIN_WEIGHT))
             .height(48.dp)
             .scale(scale)
             .clip(RoundedCornerShape(KasaRadius.full))
@@ -681,3 +733,15 @@ fun RowScope.ToolbarAction(
         content = { content() }
     )
 }
+
+/**
+ * Basılan eylem çubuğu düğmesinin ağırlığı.
+ *
+ * Dörtlü bir çubukta basılan düğme genişliğin dörtte birinden üçte birine
+ * çıkıyor; komşuların her biri karşılığında yaklaşık yüzde sekiz veriyor.
+ * Daha büyük bir değer komşuları simgeleri sığmayacak kadar daraltıyordu.
+ */
+private const val PRESSED_WEIGHT = 1.34f
+
+/** Yayın aşma payı `weight`i geçersiz bir değere düşüremesin diye. */
+private const val MIN_WEIGHT = 0.05f

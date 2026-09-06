@@ -13,7 +13,14 @@ import app.kasa.ui.components.KasaChip
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.theme.KasaRadius
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -49,6 +56,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
@@ -102,10 +111,6 @@ fun GeneratorScreen(
     // var. Kullanıcı adı ve onaltılık anahtar kendi uzunluklarını kendileri
     // belirliyor; oraya kaydırıcı koymak, hiçbir şeyi değiştirmeyen bir
     // denetim göstermek olurdu.
-    val hasLengthSlider = mode == GeneratorMode.PASSWORD ||
-        mode == GeneratorMode.PASSPHRASE ||
-        mode == GeneratorMode.PRONOUNCEABLE ||
-        mode == GeneratorMode.PIN
     val strength by animateFloatAsState(
         targetValue = state.strength,
         animationSpec = KasaMotion.large(),
@@ -246,165 +251,208 @@ fun GeneratorScreen(
                     }
                 }
 
-                if (hasLengthSlider) {
-                    // Entropi hedefi açıkken uzunluk kullanıcının değil hedefin
-                    // sonucu; kaydırıcıyı etkin bırakmak, dokunulduğunda hiçbir
-                    // şey değiştirmeyen bir denetim olurdu.
-                    val lengthLocked = mode == GeneratorMode.PASSWORD &&
-                        state.settings.generatorEntropyTarget > 0
+                // ── kipin kendi seçenekleri ──────────────────────────
+                //
+                // Kipler arasında geçerken panelin içeriği bütünüyle
+                // değişiyor: paroladan UUID'ye geçmek dört anahtar satırını ve
+                // entropi seçeneklerini tek bir açıklama satırıyla
+                // değiştiriyor. Bu, yüzlerce dp'lik bir boy farkı ve tek
+                // karede oluyordu — panel çöküyor, altındaki her şey yukarı
+                // sıçrıyordu. Kullanıcının gördüğü şey bir geçiş değil bir
+                // kesme.
+                //
+                // Eski içerik yerinde solarken yenisi hafifçe yükselerek
+                // geliyor ve panelin boyu ikisi arasında yayla yürüyor.
+                // Kaydırıcı da bu geçişin içinde: kip anahtarı olduğu için
+                // dışarıda kalsaydı, çıkan içerik yeni kipin değerlerini
+                // gösterirdi ("Uzunluk" yazarken hece sayısını).
+                val optionsFadeIn: FiniteAnimationSpec<Float> = KasaMotion.enter()
+                val optionsFadeOut: FiniteAnimationSpec<Float> = KasaMotion.exit()
+                val optionsSlide: FiniteAnimationSpec<IntOffset> = KasaMotion.medium()
+                val optionsSize: FiniteAnimationSpec<IntSize> = KasaMotion.medium()
 
-                    Row(
-                        Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Text(
-                            stringResource(generatorAmountLabel(mode)),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = if (lengthLocked) KasaTheme.colors.ink3 else KasaTheme.colors.ink
+                AnimatedContent(
+                    targetState = mode,
+                    transitionSpec = {
+                        ContentTransform(
+                            targetContentEnter = fadeIn(optionsFadeIn) +
+                                slideInVertically(optionsSlide) { it / 10 },
+                            initialContentExit = fadeOut(optionsFadeOut),
+                            sizeTransform = SizeTransform { _, _ -> optionsSize }
                         )
-                        Text(
-                            text = generatorAmount(state.settings, mode).toString(),
-                            style = KasaTheme.text.mono,
-                            color = if (lengthLocked) KasaTheme.colors.ink3
-                            else MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    },
+                    label = "generatorOptions"
+                ) { current ->
+                    Column(Modifier.fillMaxWidth()) {
+                        // Kaydırıcı yalnızca sayılabilir bir niceliği olan
+                        // kiplerde var. UUID'nin biçimi sabit, kurtarma
+                        // kodunun öbeklemesi seçilmiş; ikisinde de
+                        // ayarlanacak bir uzunluk yok.
+                        val hasLengthSlider = current == GeneratorMode.PASSWORD ||
+                            current == GeneratorMode.PASSPHRASE ||
+                            current == GeneratorMode.PRONOUNCEABLE ||
+                            current == GeneratorMode.PIN
+                        if (hasLengthSlider) {
+                            // Entropi hedefi açıkken uzunluk kullanıcının değil hedefin
+                            // sonucu; kaydırıcıyı etkin bırakmak, dokunulduğunda hiçbir
+                            // şey değiştirmeyen bir denetim olurdu.
+                            val lengthLocked = current == GeneratorMode.PASSWORD &&
+                                state.settings.generatorEntropyTarget > 0
 
-                    if (!lengthLocked) {
-                        ExpressiveSlider(
-                            value = generatorAmount(state.settings, mode),
-                            range = generatorAmountRange(mode),
-                            onValueChange = {
-                                when (mode) {
-                                    GeneratorMode.PASSPHRASE -> viewModel.setWordCount(it)
-                                    GeneratorMode.PRONOUNCEABLE -> viewModel.setSyllables(it)
-                                    GeneratorMode.PIN -> viewModel.setPinLength(it)
-                                    else -> viewModel.setLength(it)
-                                }
-                            },
-                            onStep = { viewModel.haptic(Haptics.Kind.TICK) },
-                            onDragEnd = { viewModel.haptic(Haptics.Kind.TOGGLE) }
-                        )
-                    } else {
-                        Text(
-                            stringResource(R.string.gen_length_from_target),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = KasaTheme.colors.ink3
-                        )
-                    }
-                }
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Text(
+                                    stringResource(generatorAmountLabel(current)),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = if (lengthLocked) KasaTheme.colors.ink3 else KasaTheme.colors.ink
+                                )
+                                Text(
+                                    text = generatorAmount(state.settings, current).toString(),
+                                    style = KasaTheme.text.mono,
+                                    color = if (lengthLocked) KasaTheme.colors.ink3
+                                    else MaterialTheme.colorScheme.primary
+                                )
+                            }
 
-                Spacer(Modifier.height(10.dp))
-
-                if (mode == GeneratorMode.PRONOUNCEABLE) {
-                    ToggleRow(
-                        title = stringResource(R.string.gen_append_digits),
-                        subtitle = stringResource(R.string.gen_append_digits_sub),
-                        checked = state.settings.generatorDigits,
-                        onCheckedChange = viewModel::setDigits,
-                        first = true
-                    )
-                } else if (mode == GeneratorMode.PASSPHRASE) {
-                    ToggleRow(
-                        title = stringResource(R.string.gen_capitalize),
-                        checked = state.settings.generatorCapitalize,
-                        onCheckedChange = viewModel::setCapitalize,
-                        first = true
-                    )
-                    ToggleRow(
-                        title = stringResource(R.string.gen_num),
-                        subtitle = stringResource(R.string.gen_num_sub),
-                        checked = state.settings.generatorDigits,
-                        onCheckedChange = viewModel::setDigits
-                    )
-                    SeparatorRow(
-                        selected = state.settings.generatorSeparator,
-                        onSelect = viewModel::setSeparator
-                    )
-                } else if (mode == GeneratorMode.HEX) {
-                    // Onaltılık anahtarda tek anlamlı seçenek bit sayısı.
-                    // Karakter kümesi diye bir şey yok: hex, tanımı gereği
-                    // 0-9a-f.
-                    SectionLabel(stringResource(R.string.gen_hex_bits))
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        PasswordGenerator.HEX_BIT_CHOICES.forEach { bits ->
-                            KasaChip(
-                                text = "$bits bit",
-                                selected = state.settings.generatorHexBits == bits,
-                                onClick = { viewModel.setHexBits(bits) }
-                            )
+                            if (!lengthLocked) {
+                                ExpressiveSlider(
+                                    value = generatorAmount(state.settings, current),
+                                    range = generatorAmountRange(current),
+                                    onValueChange = {
+                                        when (current) {
+                                            GeneratorMode.PASSPHRASE -> viewModel.setWordCount(it)
+                                            GeneratorMode.PRONOUNCEABLE -> viewModel.setSyllables(it)
+                                            GeneratorMode.PIN -> viewModel.setPinLength(it)
+                                            else -> viewModel.setLength(it)
+                                        }
+                                    },
+                                    onStep = { viewModel.haptic(Haptics.Kind.TICK) },
+                                    onDragEnd = { viewModel.haptic(Haptics.Kind.TOGGLE) }
+                                )
+                            } else {
+                                Text(
+                                    stringResource(R.string.gen_length_from_target),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = KasaTheme.colors.ink3
+                                )
+                            }
                         }
-                    }
-                } else if (mode == GeneratorMode.UUID || mode == GeneratorMode.RECOVERY) {
-                    // İkisinin de ayarı yok: UUID'nin biçimi RFC'de sabit,
-                    // kurtarma kodlarının alfabesi ve öbeklemesi okunabilirlik
-                    // için seçildi. Ayar sunmak, değiştirilmemesi gereken bir
-                    // şeyi değiştirilebilir göstermek olurdu.
-                    Text(
-                        stringResource(
-                            if (mode == GeneratorMode.UUID) R.string.gen_uuid_hint
-                            else R.string.gen_recovery_hint
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KasaTheme.colors.ink3
-                    )
-                } else if (mode == GeneratorMode.USERNAME || mode == GeneratorMode.PIN) {
-                    // İkisinin de ayarı yok: kullanıcı adı sözlükten geliyor,
-                    // PIN'in tek değişkeni uzunluk ve o yukarıda.
-                    Text(
-                        stringResource(
-                            if (mode == GeneratorMode.PIN) R.string.gen_pin_hint
-                            else R.string.gen_username_hint
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KasaTheme.colors.ink3
-                    )
-                } else {
-                    ToggleRow(
-                        title = stringResource(R.string.gen_upper),
-                        subtitle = stringResource(R.string.gen_upper_sub),
-                        checked = state.settings.generatorUpper,
-                        onCheckedChange = viewModel::setUpper,
-                        first = true
-                    )
-                    ToggleRow(
-                        title = stringResource(R.string.gen_num),
-                        subtitle = stringResource(R.string.gen_num_sub),
-                        checked = state.settings.generatorDigits,
-                        onCheckedChange = viewModel::setDigits
-                    )
-                    ToggleRow(
-                        title = stringResource(R.string.gen_sym),
-                        subtitle = stringResource(R.string.gen_sym_sub),
-                        checked = state.settings.generatorSymbols,
-                        onCheckedChange = viewModel::setSymbols
-                    )
-                    ToggleRow(
-                        title = stringResource(R.string.gen_clear),
-                        subtitle = stringResource(R.string.gen_clear_sub),
-                        checked = state.settings.generatorAvoidLookalikes,
-                        onCheckedChange = viewModel::setAvoidLookalikes
-                    )
 
-                    // Entropi hedefi: "20 karakter" bir güç ölçüsü değil.
-                    Spacer(Modifier.height(14.dp))
-                    SectionLabel(stringResource(R.string.gen_entropy_target))
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        PasswordGenerator.ENTROPY_TARGETS.forEach { target ->
-                            KasaChip(
-                                text = if (target == 0) stringResource(R.string.gen_entropy_off)
-                                else "$target bit",
-                                selected = state.settings.generatorEntropyTarget == target,
-                                onClick = { viewModel.setEntropyTarget(target) }
+                        Spacer(Modifier.height(10.dp))
+
+                        if (current == GeneratorMode.PRONOUNCEABLE) {
+                            ToggleRow(
+                                title = stringResource(R.string.gen_append_digits),
+                                subtitle = stringResource(R.string.gen_append_digits_sub),
+                                checked = state.settings.generatorDigits,
+                                onCheckedChange = viewModel::setDigits,
+                                first = true
                             )
+                        } else if (current == GeneratorMode.PASSPHRASE) {
+                            ToggleRow(
+                                title = stringResource(R.string.gen_capitalize),
+                                checked = state.settings.generatorCapitalize,
+                                onCheckedChange = viewModel::setCapitalize,
+                                first = true
+                            )
+                            ToggleRow(
+                                title = stringResource(R.string.gen_num),
+                                subtitle = stringResource(R.string.gen_num_sub),
+                                checked = state.settings.generatorDigits,
+                                onCheckedChange = viewModel::setDigits
+                            )
+                            SeparatorRow(
+                                selected = state.settings.generatorSeparator,
+                                onSelect = viewModel::setSeparator
+                            )
+                        } else if (current == GeneratorMode.HEX) {
+                            // Onaltılık anahtarda tek anlamlı seçenek bit sayısı.
+                            // Karakter kümesi diye bir şey yok: hex, tanımı gereği
+                            // 0-9a-f.
+                            SectionLabel(stringResource(R.string.gen_hex_bits))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                PasswordGenerator.HEX_BIT_CHOICES.forEach { bits ->
+                                    KasaChip(
+                                        text = "$bits bit",
+                                        selected = state.settings.generatorHexBits == bits,
+                                        onClick = { viewModel.setHexBits(bits) }
+                                    )
+                                }
+                            }
+                        } else if (current == GeneratorMode.UUID || current == GeneratorMode.RECOVERY) {
+                            // İkisinin de ayarı yok: UUID'nin biçimi RFC'de sabit,
+                            // kurtarma kodlarının alfabesi ve öbeklemesi okunabilirlik
+                            // için seçildi. Ayar sunmak, değiştirilmemesi gereken bir
+                            // şeyi değiştirilebilir göstermek olurdu.
+                            Text(
+                                stringResource(
+                                    if (current == GeneratorMode.UUID) R.string.gen_uuid_hint
+                                    else R.string.gen_recovery_hint
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KasaTheme.colors.ink3
+                            )
+                        } else if (current == GeneratorMode.USERNAME || current == GeneratorMode.PIN) {
+                            // İkisinin de ayarı yok: kullanıcı adı sözlükten geliyor,
+                            // PIN'in tek değişkeni uzunluk ve o yukarıda.
+                            Text(
+                                stringResource(
+                                    if (current == GeneratorMode.PIN) R.string.gen_pin_hint
+                                    else R.string.gen_username_hint
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KasaTheme.colors.ink3
+                            )
+                        } else {
+                            ToggleRow(
+                                title = stringResource(R.string.gen_upper),
+                                subtitle = stringResource(R.string.gen_upper_sub),
+                                checked = state.settings.generatorUpper,
+                                onCheckedChange = viewModel::setUpper,
+                                first = true
+                            )
+                            ToggleRow(
+                                title = stringResource(R.string.gen_num),
+                                subtitle = stringResource(R.string.gen_num_sub),
+                                checked = state.settings.generatorDigits,
+                                onCheckedChange = viewModel::setDigits
+                            )
+                            ToggleRow(
+                                title = stringResource(R.string.gen_sym),
+                                subtitle = stringResource(R.string.gen_sym_sub),
+                                checked = state.settings.generatorSymbols,
+                                onCheckedChange = viewModel::setSymbols
+                            )
+                            ToggleRow(
+                                title = stringResource(R.string.gen_clear),
+                                subtitle = stringResource(R.string.gen_clear_sub),
+                                checked = state.settings.generatorAvoidLookalikes,
+                                onCheckedChange = viewModel::setAvoidLookalikes
+                            )
+
+                            // Entropi hedefi: "20 karakter" bir güç ölçüsü değil.
+                            Spacer(Modifier.height(14.dp))
+                            SectionLabel(stringResource(R.string.gen_entropy_target))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                PasswordGenerator.ENTROPY_TARGETS.forEach { target ->
+                                    KasaChip(
+                                        text = if (target == 0) stringResource(R.string.gen_entropy_off)
+                                        else "$target bit",
+                                        selected = state.settings.generatorEntropyTarget == target,
+                                        onClick = { viewModel.setEntropyTarget(target) }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
