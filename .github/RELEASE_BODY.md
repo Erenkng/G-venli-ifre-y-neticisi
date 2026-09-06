@@ -18,6 +18,93 @@ Android 16 (API 36) ve üstü, 64 bit cihaz.
 
 ---
 
+## 2.1'de yenilikler
+
+Karekodu okutup ikinci faktörü ekleyebilme bu sürümün ekseni. Yanında
+güvenlik ekranındaki halkanın geometrisi, açık temada görünen bir çizim
+kusuru ve hiç hissedilmeyen dokunsal geri bildirim düzeltildi.
+
+### Karekod okutunca ikinci faktör ekleniyor — düzeltme
+
+Karekod okunuyordu ama okunan metin ayrıştırılmıyordu: `otpauth://TOTP/...`
+bağlantısının tamamı anahtar alanına yazılıyor, `/ : ? = &` karakterleri
+Base32 alfabesinde olmadığı için alan geçersiz sayılıyor ve kayıt hiç
+eklenemiyordu.
+
+Alan artık üç biçimi de tanıyor: `otpauth://` bağlantısı, boşluk ya da tire
+ile gruplanmış Base32 anahtarı, onaltılık tohum. Bağlantı geldiğinde hane
+sayısı, periyot, algoritma, servis adı ve hesap adı da doluyor.
+
+Ayrıştırma elle yapılıyor. `java.net.URI` etiketinde boşluk geçen
+bağlantılarda ("Acme Corp:ali@ornek.com") istisna atıp bütün bağlantıyı çöpe
+atıyordu ve o etiketler gerçek karekodlarda çıkıyor.
+
+Geçerlilik alt sınırı on bayttan beş bayta indi. Anahtarın uzunluğuna karar
+veren servis; kısa bir anahtarı reddetmek, kullanıcının hesabını hiç
+ekleyememesi demekti.
+
+Google Authenticator'ın toplu dışa aktarma karekodu ayrı olarak tanınıyor:
+elindeki şey geçerli, yalnızca tek bir hesap değil bir liste.
+
+**Kod artık kaydetmeden görünüyor.** Anahtar okunur okunmaz düzenleyicide
+canlı bir önizleme çıkıyor; servisin gösterdiğiyle karşılaştırıp doğru
+eklendiğini kaydetmeden anlayabiliyorsun.
+
+### Skor halkası kutusuna sığıyor — düzeltme
+
+Halka yalnızca çekirdek çizgiye göre daraltılıyordu, hâlenin dış katmanı
+tuvalin dışında kalıp kırpılıyordu. Yayılma katsayısı da ince kenar
+çizgilerine göre ayarlıydı ve 14 dp'lik halka çizgisinde 50 dp'lik bir bulut
+üretiyordu. Halkalar artık kendi katsayısını kullanıyor, çember kutunun kısa
+kenarına oturuyor ve içindeki rakam büyük yazı tipi ölçeğinde de halkanın
+içinde kalıyor.
+
+### İç dolgudaki keskin dikdörtgen — düzeltme
+
+Yüzeylerin kenar ışığı sabit bir köşe yarıçapıyla ve içeri doğru
+çiziliyordu. Grup ortasındaki keskin köşeli satırın üstüne yuvarlak bir
+dikdörtgen biniyor, aradaki fark iç dolguda kare köşeli bir şerit
+bırakıyordu — açık temada kontrast yüksek olduğu için orada daha görünürdü.
+Işık artık yüzeyin gerçek şekli üzerinden ve kenarın üzerinde çiziliyor.
+
+### Sızıntı uyarısı kapatılabiliyor
+
+Taramadan sonra ana sayfada çıkan sızıntı kartı sağa ya da sola kaydırılıp
+kapatılıyor. Kapatılan şey uyarı değil **o günkü bulgu**: sızmış kayıtların
+özeti saklanıyor, sonradan başka bir parola sızarsa kart geri geliyor.
+
+### Dokunsal geri bildirim — düzeltme
+
+İki ayrı neden vardı. Motor düşük yoğunlukları algı eşiğinin altına
+düşürüyordu: tipik bir dokunuş 39/255 genlikle sürülüyordu, artık 149/255.
+Tekrar sönümlemesi de dokunuş **sayısına** bakıyordu ve 1,2 saniyelik
+sıfırlama penceresi yüzünden saniyede bir dokunan kullanıcıda sayaç tavana
+yapışıyordu; artık dokunuş sıklığına bakıyor.
+
+### Ayarlar ekranı dokunuşa yanıt veriyor
+
+Ayar satırının tamamı hedef oldu — eskiden yalnızca sağdaki anahtar
+tıklanabiliyordu, yüzeyin çoğu ölüydü. Basınca satır küçülüyor, zemini
+koyulaşıyor, anahtarın tutamağı büyüyor; üçü aynı etkileşim kaynağını
+paylaşıyor. Kategori satırları kasa listesindeki hareketi aldı ve ekran
+açılırken sırayla beliriyor.
+
+### Anahtar, eylem çubuğu ve üretici paneli
+
+Anahtarın tutamağı basılınca yana esneyip hapa dönüşüyor; ray, kenar ve
+tutamak renkleri de artık animasyonlu — önceden tutamak yayla giderken renk
+tek karede atlıyordu.
+
+Kayıt ayrıntısındaki eylem çubuğunda basılan düğme yer kaplıyor, komşuları
+kendiliğinden daralıyor: çubuk dört ayrı düğme gibi değil, esneyen tek bir
+nesne gibi davranıyor.
+
+Üretici panelinde kip değişimi tek karede oluyordu — paroladan UUID'ye
+geçmek paneli yüzlerce dp çökertiyor, altındaki her şey sıçrıyordu. Eski
+içerik solarken yenisi yükselerek geliyor ve panelin boyu yayla yürüyor.
+
+---
+
 ## 2.0'da yenilikler
 
 Otomatik doldurma bu sürümün ekseni: üç alan tanıyan bir servisten dört form
