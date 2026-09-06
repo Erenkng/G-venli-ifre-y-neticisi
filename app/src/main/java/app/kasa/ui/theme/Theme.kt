@@ -129,6 +129,7 @@ fun KasaTheme(
     pureBlack: Boolean = false,
     gradientTheme: GradientTheme = GradientTheme.JADE,
     gradientFollowsTime: Boolean = true,
+    gradientGrain: Boolean = false,
     experimentalEffects: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -163,11 +164,18 @@ fun KasaTheme(
     // kipinde gradyan hiç değiştirilmiyor: o kip zaten "hiç ışık olmasın"
     // demek ve AMOLED'de piksel söndürmenin bütün kazancı oradan geliyor.
     val stops = rememberGradientStops(gradientTheme, dark, gradientFollowsTime)
+    // Tane her zaman var ama görünmeyecek kadar az: gradyanın bant
+    // oluşturmasını (banding) engellemek için konmuştu, bir doku olsun diye
+    // değil. Açık ayar onu görülecek bir dokuya çıkarıyor — filmden gelen o
+    // taneli zemin — ve tam siyah kipinde hiç uygulanmıyor, çünkü orada
+    // zemin zaten çizilmiyor.
+    val grain = if (gradientGrain) GRAIN_VISIBLE else 1f
     val kasaColors = if (dark && pureBlack) baseColors else baseColors.copy(
         gradientTopLeft = stops.topLeft,
         gradientTopRight = stops.topRight,
         gradientBottom = stops.bottom,
-        gradientBase = stops.base
+        gradientBase = stops.base,
+        grainAlpha = (baseColors.grainAlpha * grain).coerceAtMost(0.34f)
     )
 
     val view = LocalView.current
@@ -207,3 +215,13 @@ object KasaTheme {
     val text: KasaTextStyles
         @Composable get() = LocalKasaTextStyles.current
 }
+
+/**
+ * Tane ayarı açıkken taban saydamlığın kaç katına çıkacağı.
+ *
+ * Beş kat, taneyi bant engelleyici bir hileden görünür bir dokuya çıkarıyor
+ * ama zemindeki rengi hâlâ okunur bırakıyor. Üst sınır ayrıca konuyor:
+ * karanlık temada taban zaten düşük, açık temada yüksek ve aynı çarpan
+ * ikisinde iki farklı sonuç veriyordu.
+ */
+private const val GRAIN_VISIBLE = 5f

@@ -73,6 +73,7 @@ class MainActivity : FragmentActivity() {
                 pureBlack = settings.pureBlack,
                 gradientTheme = settings.gradientTheme,
                 gradientFollowsTime = settings.gradientFollowsTime,
+                gradientGrain = settings.gradientGrain,
                 experimentalEffects = settings.experimentalEffects
             ) {
                 CompositionLocalProvider(

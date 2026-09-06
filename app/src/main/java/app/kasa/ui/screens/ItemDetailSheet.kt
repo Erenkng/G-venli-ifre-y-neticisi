@@ -182,11 +182,21 @@ fun ItemDetailSheet(
                         Spacer(Modifier.height(6.dp))
                     }
 
-                    Category.LOGIN -> {
-                        Spacer(Modifier.height(6.dp))
-                        LoginHero(item)
-                        Spacer(Modifier.height(6.dp))
-                    }
+                    // Girişin başlığı yok: aşağıdaki başlık satırı zaten aynı
+                    // şeyi söylüyor.
+                    //
+                    // Şerit, kaydın simgesini ve adını gösteriyordu; hemen
+                    // altındaki başlık da aynı simgeyi 60dp olarak ve aynı adı
+                    // büyük puntoyla gösteriyor. Adresi de üçüncü kez
+                    // aşağıdaki ADRES alanı taşıyor. Üç kopya, sayfanın en
+                    // üstündeki iki satırı kaydın kendisine değil kendini
+                    // tekrar etmeye harcıyordu.
+                    //
+                    // Kartta ve kimlikte durum başka: oradaki başlık bilgiyi
+                    // **tanınacak bir biçimde** gösteriyor (kartın yüzü,
+                    // belgenin yerleşimi) ve aşağıdaki alan listesiyle aynı
+                    // şey değil. Girişin öyle bir biçimi yok.
+                    Category.LOGIN -> Unit
 
                     Category.IDENTITY -> {
                         Spacer(Modifier.height(6.dp))

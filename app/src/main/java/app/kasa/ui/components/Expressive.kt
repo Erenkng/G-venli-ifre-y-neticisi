@@ -233,6 +233,45 @@ fun MorphDial(
         label = "rotation"
     )
 
+    // ── güce göre iki ayrı karakter ────────────────────────────────────────
+    //
+    // Kadran eskiden güçten yalnızca **ölçü** alıyordu: zayıfta biraz daha
+    // dikenli, biraz daha hızlı; güçlüde biraz daha yuvarlak, biraz daha
+    // yavaş. Aynı hareketin iki ayarı olduğu için "zayıf" ile "güçlü"
+    // arasındaki fark ancak ikisini yan yana görünce anlaşılıyordu — oysa
+    // kullanıcı hiçbir zaman ikisini yan yana görmüyor.
+    //
+    // Artık iki ayrı döngü var ve güç, hangisinin duyulacağını seçiyor:
+    //
+    //  - [unrest] **huzursuzluk**. Dikenler kendi başına büyüyüp küçülüyor ve
+    //    biçimin merkezi yerinde duramıyor. Zayıf parolada bütün ağırlık
+    //    burada: kadran titreyen, oturmamış bir şey.
+    //  - [breath] **nefes**. Biçim yavaşça büyüyüp küçülüyor, başka hiçbir
+    //    şey yapmıyor. Güçlü parolada ağırlık buraya geçiyor: kadran duran,
+    //    sakin, canlı bir şey.
+    //
+    // Aradaki geçiş sürekli, yani orta güçte ikisi de az miktarda duyuluyor.
+    // İki uçta ise ortak hiçbir şey kalmıyor: biri titriyor, öteki nefes
+    // alıyor.
+    val unrest by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = UNREST_MILLIS, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "unrest"
+    )
+    val breath by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = BREATH_MILLIS, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "breath"
+    )
+
     // Şeklin kendisi net, uçları dağılıyor.
     //
     // Düz dolgu, dönen bir biçimi kâğıttan kesilmiş gibi gösteriyordu: kenarı
@@ -255,19 +294,38 @@ fun MorphDial(
     Canvas(modifier = modifier) {
         // Dönüş açısı çizim aşamasında okunuyor: bestede okunsaydı kadran
         // ekranda durduğu sürece kare başına bir yeniden besteleme olurdu.
-        val angle = if (spin && !reduced) rotation * (1.2f - 0.85f * strength) else 0.4f
-        val center = Offset(size.width / 2f, size.height / 2f)
+        val calm = strength.coerceIn(0f, 1f)
+        val agitation = 1f - calm
+        val moving = spin && !reduced
+
+        val angle = if (moving) rotation * (1.2f - 0.85f * calm) else 0.4f
         val radius = min(size.width, size.height) / 2f * 0.88f
+
+        // Huzursuzluk: merkez yerinde duramıyor ve dikenler kendi ritminde
+        // büyüyüp küçülüyor. İki eksende farklı faz kullanılıyor; aynı fazla
+        // merkez bir doğru üzerinde gidip gelirdi ve bu, titremekten çok
+        // sallanmak gibi görünürdü.
+        val shudder = if (moving) agitation * agitation * radius * SHUDDER_FRACTION else 0f
+        val center = Offset(
+            size.width / 2f + cos(unrest * 3f) * shudder,
+            size.height / 2f + sin(unrest * 2f) * shudder
+        )
+
+        // Nefes: yalnızca güçlüde duyuluyor ve yalnızca ölçekte.
+        val breathScale = if (moving) 1f + BREATH_DEPTH * calm * sin(breath) else 1f
+
+        val spikeNow = SPIKE_BASE * agitation *
+            (1f + SPIKE_SWELL * agitation * sin(unrest * 1.7f))
 
         fun shape(scale: Float): Path {
             buildMorphPathInto(
                 path = scratchPath,
                 centerX = center.x,
                 centerY = center.y,
-                radius = radius * scale,
+                radius = radius * scale * breathScale,
                 points = points,
-                spike = 0.30f * (1f - strength),
-                round = 0.14f + 0.36f * strength,
+                spike = spikeNow.coerceAtLeast(0f),
+                round = 0.14f + 0.36f * calm,
                 rotation = angle,
                 vertices = scratchVertices
             )
@@ -288,6 +346,24 @@ fun MorphDial(
         drawPath(shape(1f), dialBrush)
     }
 }
+
+/** Huzursuzluk döngüsü: titremenin fark edilmesi için kısa. */
+private const val UNREST_MILLIS = 2600
+
+/** Nefes döngüsü: sayılabilecek kadar yavaş, yani sakin. */
+private const val BREATH_MILLIS = 5200
+
+/** Zayıfta merkezin yarıçapın kaçta kaçı kadar kayacağı. */
+private const val SHUDDER_FRACTION = 0.035f
+
+/** Güçlüde biçimin nefesle büyüyüp küçülme payı. */
+private const val BREATH_DEPTH = 0.045f
+
+/** Dikenlerin taban yüksekliği. */
+private const val SPIKE_BASE = 0.30f
+
+/** Dikenlerin kendi ritminde ne kadar kabarıp söneceği. */
+private const val SPIKE_SWELL = 0.55f
 
 /** Kenarın çözüldüğü halka sayısı. Üçün üstü fark edilmiyor, altı sert kalıyor. */
 private const val GLOW_LAYERS = 3

@@ -198,7 +198,11 @@ fun MainScaffold(
 
     // Ayarlarda açık olan kategori. Ekranın kendisi bildiriyor: çubuk ekranın
     // dışında duruyor ve kategori gezinmesi ekranın içinde.
-    var settingsSection by remember { mutableStateOf<String?>(null) }
+    //
+    // Kaydedilebilir: kilit açıldıktan sonra kullanıcı açtığı kategoriye
+    // dönüyor. Ötekiler (sekme, arama, çöp kutusu) zaten öyleydi, bu tek
+    // başına kalmıştı ve kilitten sonra ayarlar hep en baştan açılıyordu.
+    var settingsSection by rememberSaveable { mutableStateOf<String?>(null) }
 
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 

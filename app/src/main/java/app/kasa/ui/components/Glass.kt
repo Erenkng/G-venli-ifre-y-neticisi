@@ -97,13 +97,48 @@ import app.kasa.ui.theme.KasaTheme
  * @param radius bulanıklık yarıçapı; 0 ise bayrak hiç eklenmiyor
  * @param dimAmount arkadaki içeriğin ne kadar karartılacağı
  */
+/**
+ * Sistem pencere bulanıklığını **şu anda** veriyor mu.
+ *
+ * Kurulumda bir kez okunuyor. Değer çalışma sırasında değişebiliyor (pil
+ * tasarrufuna girmek kapatıyor) ama her karede sistem servisi sorgulamak,
+ * yılda birkaç kez değişen bir bayrak için ödenecek bir bedel değil —
+ * `LocalReducedMotion` da aynı sebeple böyle okunuyor.
+ */
 @Composable
-fun DialogBlurBehind(radius: Dp = DIALOG_BLUR, dimAmount: Float = 0.32f) {
+fun rememberWindowBlurEnabled(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        runCatching {
+            context.getSystemService(WindowManager::class.java)?.isCrossWindowBlurEnabled == true
+        }.getOrDefault(false)
+    }
+}
+
+@Composable
+fun DialogBlurBehind(
+    radius: Dp = DIALOG_BLUR,
+    dimAmount: Float = 0.32f,
+    /**
+     * Bulanıklık yokken kullanılacak karartma.
+     *
+     * Ayrı bir parametre, çünkü çağıranların ikisi iki farklı şey istiyor.
+     * Pencereler bulanıklıkla birlikte zaten karartıyor ve bulanıklık
+     * kalkınca biraz daha karartmaları yetiyor. Alt sayfalar ise bulanıklık
+     * varken **hiç** karartmıyor — Material'ın kendi örtüsü altı zaten
+     * karartıyor ve ikinci bir kat, bulanıklığın gösterecek bir şeyini
+     * bırakmıyor. Aynı sayfa bulanıklık yokken karartmasız kalınca geriye
+     * yalnızca o ince örtü kalıyor ve arkadaki liste okunmaya devam ediyor.
+     *
+     * Varsayılan eski davranış: istenenin biraz üstü.
+     */
+    fallbackDim: Float = (dimAmount + 0.14f).coerceAtMost(0.6f)
+) {
     val view = LocalView.current
     val density = LocalDensity.current
     val context = LocalContext.current
 
-    DisposableEffect(view, radius, dimAmount) {
+    DisposableEffect(view, radius, dimAmount, fallbackDim) {
         // Compose penceresi bir DialogWindowProvider üzerinden geliyor;
         // değilse bu bileşen ana pencerede çağrılmış demektir ve orada
         // pencere bayrağı ayarlamak bütün uygulamayı bulanıklaştırırdı.
@@ -118,9 +153,8 @@ fun DialogBlurBehind(radius: Dp = DIALOG_BLUR, dimAmount: Float = 0.32f) {
         runCatching {
             window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             window.setDimAmount(
-                // Bulanıklık yoksa karartma biraz daha güçlü: derinliği
-                // taşıyan tek şey o kalıyor.
-                if (blurEnabled) dimAmount else (dimAmount + 0.14f).coerceAtMost(0.6f)
+                // Bulanıklık yoksa derinliği taşıyan tek şey karartma kalıyor.
+                if (blurEnabled) dimAmount else fallbackDim.coerceIn(0f, 0.85f)
             )
             if (blurEnabled && radius > 0.dp) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
@@ -221,7 +255,11 @@ fun GlassScrim(
  */
 @Composable
 fun SheetBlurBehind() {
-    DialogBlurBehind(radius = SHEET_BLUR, dimAmount = 0f)
+    DialogBlurBehind(
+        radius = SHEET_BLUR,
+        dimAmount = 0f,
+        fallbackDim = SHEET_FALLBACK_DIM
+    )
 }
 
 /**
@@ -249,8 +287,14 @@ fun SheetBlurBehind() {
  * geçirgenlik derinlik ekliyor, kontrast taşımıyor.
  */
 @Composable
-fun sheetGlassColor(): Color =
-    MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = SHEET_GLASS_ALPHA)
+fun sheetGlassColor(): Color {
+    // Geçirgenliğin tek gerekçesi arkadaki **bulanık** kopyanın görünmesi.
+    // Bulanıklık kapalıysa arkada bulanık bir şey yok; geçirgen bırakmak,
+    // sayfanın yazısının altından keskin bir liste geçirmek demek. O durumda
+    // levha kendi rengiyle kapatıyor.
+    val alpha = if (rememberWindowBlurEnabled()) SHEET_GLASS_ALPHA else SHEET_OPAQUE_ALPHA
+    return MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = alpha)
+}
 
 /**
  * Alt sayfa levhasının örtücülüğü.
@@ -259,6 +303,24 @@ fun sheetGlassColor(): Color =
  * yüzeye çevirip pencere bulanıklığına ödenen bedeli boşa çıkarıyor.
  */
 private const val SHEET_GLASS_ALPHA = 0.88f
+
+/**
+ * Pencere bulanıklığı kapalıyken alt sayfa levhasının örtücülüğü.
+ *
+ * Tam 1 değil: kenarda kalan çok ince bir geçirgenlik, levhanın ayrı bir
+ * düzlem olduğunu söylemeye yetiyor ve altındaki yazıyı okunur bırakmıyor.
+ */
+private const val SHEET_OPAQUE_ALPHA = 0.985f
+
+/**
+ * Pencere bulanıklığı kapalıyken alt sayfanın arkasına uygulanan karartma.
+ *
+ * Bulanıklık bir ayrıcalık değil istek: üretici kapatmış olabiliyor, pil
+ * tasarrufu kapatıyor, geliştirici seçenekleri kapatıyor. Kapalıyken sayfanın
+ * arkası hiç karartılmıyordu ve altındaki liste okunmaya devam ediyordu —
+ * dikkat için sayfayla yarışan bir arka plan.
+ */
+private const val SHEET_FALLBACK_DIM = 0.42f
 
 private val SHEET_BLUR = 26.dp
 

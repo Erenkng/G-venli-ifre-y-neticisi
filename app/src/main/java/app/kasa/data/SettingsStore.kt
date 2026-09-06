@@ -93,6 +93,7 @@ class SettingsStore(private val context: Context) {
         val theme: ThemeMode = ThemeMode.SYSTEM,
         val dynamicColor: Boolean = false,
         val pureBlack: Boolean = false,
+        val gradientGrain: Boolean = false,
         val haptics: Boolean = true,
         val biometricUnlock: Boolean = false,
         /** Biyometri yerine/yanında telefonun kendi ekran kilidi de kabul edilsin. */
@@ -208,6 +209,7 @@ class SettingsStore(private val context: Context) {
                 .getOrDefault(ThemeMode.SYSTEM),
             dynamicColor = prefs[KEY_DYNAMIC] ?: false,
             pureBlack = prefs[KEY_PURE_BLACK] ?: false,
+            gradientGrain = prefs[KEY_GRADIENT_GRAIN] ?: false,
             haptics = prefs[KEY_HAPTICS] ?: true,
             biometricUnlock = prefs[KEY_BIOMETRIC] ?: false,
             deviceCredentialUnlock = prefs[KEY_DEVICE_CRED] ?: false,
@@ -262,6 +264,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setTheme(mode: ThemeMode) = put(KEY_THEME, mode.name)
     suspend fun setDynamicColor(value: Boolean) = put(KEY_DYNAMIC, value)
     suspend fun setPureBlack(value: Boolean) = put(KEY_PURE_BLACK, value)
+    suspend fun setGradientGrain(value: Boolean) = put(KEY_GRADIENT_GRAIN, value)
     suspend fun setHaptics(value: Boolean) = put(KEY_HAPTICS, value)
     suspend fun setBiometricUnlock(value: Boolean) = put(KEY_BIOMETRIC, value)
     suspend fun setDeviceCredentialUnlock(value: Boolean) = put(KEY_DEVICE_CRED, value)
@@ -325,6 +328,7 @@ class SettingsStore(private val context: Context) {
         val KEY_THEME = stringPreferencesKey("theme")
         val KEY_DYNAMIC = booleanPreferencesKey("dynamic_color")
         val KEY_PURE_BLACK = booleanPreferencesKey("pure_black")
+        val KEY_GRADIENT_GRAIN = booleanPreferencesKey("gradient_grain")
         val KEY_HAPTICS = booleanPreferencesKey("haptics")
         val KEY_BIOMETRIC = booleanPreferencesKey("biometric")
         val KEY_DEVICE_CRED = booleanPreferencesKey("device_credential")

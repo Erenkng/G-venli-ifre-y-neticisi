@@ -540,6 +540,10 @@
     <string name="duress_body">Bu parola girildiğinde gerçek kasan değil, ayrı bir kasa açılır. İçinde örnek kayıtlar bulunur; onları kendine benzeyecek şekilde düzenlemen en inandırıcısıdır. Gerçek kasan aynı dosyada durur ve bu paroladan etkilenmez.</string>
     <string name="duress_note">Zorlama parolasının kurulu olup olmadığı dosyaya bakılarak anlaşılamaz: sarmalayıcı her kasada aynı boyutta bulunur. Buna karşın Kasa\'nın bu özelliğe sahip olduğu herkesçe bilinebilir; "ikinci parolayı da ver" diyen birine karşı hiçbir yazılım koruma sağlayamaz.</string>
     <string name="duress_set">Zorlama parolası belirle</string>
+    <!-- Diyaloğun içindeki kısa karşılıklar: başlık bağlamı zaten kuruyor. -->
+    <string name="duress_set_action">Belirle</string>
+    <string name="duress_clear_action">Kaldır</string>
+    <string name="duress_field">Yeni parola</string>
     <string name="duress_clear">Zorlama parolasını kaldır</string>
     <string name="duress_saved">Zorlama parolası kaydedildi</string>
     <string name="duress_cleared">Zorlama parolası kaldırıldı</string>
@@ -547,11 +551,13 @@
 
     <!-- Anahtar rotasyonu ve ölçüm -->
     <string name="rotate_title">Kasa anahtarını yenile</string>
+    <string name="rotate_confirm">Yenile</string>
     <string name="rotate_sub">Yeni anahtar üret ve kasayı baştan şifrele</string>
     <string name="rotate_body">Ana parolayı değiştirmek yalnızca sarmalayıcıyı yeniler; kasa anahtarı kurulumdan beri aynıdır. Yedeğin sızdıysa ya da cihazın elden çıktıysa gereken bu: yeni anahtar üretilir, kasa baştan şifrelenir ve eski kopya bir daha açılamaz.\n\nBiyometrik kilit sıfırlanır, yeniden kurman gerekir. Yeni bir kurtarma kodu verilir; eskisi geçersiz olur.</string>
     <string name="rotate_done">Kasa anahtarı yenilendi</string>
     <string name="rotate_failed">Ana parola doğrulanamadı</string>
     <string name="calib_title">Anahtar türetmeyi yeniden ölçümle</string>
+    <string name="calib_confirm">Ölçümle</string>
     <string name="calib_sub">%1$s</string>
     <string name="calib_body">Anahtar türetme maliyeti bu cihazda ölçülür ve kasa başlığına yazılır. Ölçüm birkaç saniye sürer; sonuçta kilit açma yaklaşık 0,8 saniyeye ayarlanır.</string>
     <string name="calib_running">Ölçülüyor…</string>
@@ -667,6 +673,8 @@
     <string name="set_group_gradient">Gradyan teması</string>
     <string name="set_gradient_time">Günün saatine göre</string>
     <string name="set_gradient_time_sub">Zemin sabahtan geceye doğru yavaşça kayıyor.</string>
+    <string name="set_gradient_grain">Tanecikli zemin</string>
+    <string name="set_gradient_grain_sub">Gradyanın üzerine filmden gelen ince bir doku bindirir.</string>
     <string name="gradient_jade">Jade</string>
     <string name="gradient_sunset">Gün batımı</string>
     <string name="gradient_deep">Derin</string>

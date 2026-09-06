@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,6 +39,7 @@ fun KasaApp(
     val factory = rememberKasaViewModelFactory()
     val authViewModel: AuthViewModel = viewModel(factory = factory)
     val lockState by authViewModel.lockState.collectAsStateWithLifecycle()
+    val stateHolder = rememberSaveableStateHolder()
 
     KasaBackground(modifier = Modifier.fillMaxSize()) {
         // transitionSpec @Composable değil; belirteçler beste içinde okunup
@@ -64,16 +66,47 @@ fun KasaApp(
                     VaultRepository.LockState.Locked ->
                         UnlockScreen(viewModel = authViewModel, settings = settings)
 
+                    // Kilit açıldığında kullanıcı bıraktığı yere dönüyor.
+                    //
+                    // ### Neden ayrı bir tutucu gerekti
+                    //
+                    // Kilitlenince [MainScaffold] besteden bütünüyle çıkıyor:
+                    // uygulamadan çıkıp bir parolayı yapıştırıp geri dönen
+                    // kullanıcı, parmağını okuttuktan sonra kendini kasa
+                    // listesinin en başında buluyordu. Açık olan kayıt
+                    // kapanmıyordu — o bilgi görünüm modelinde duruyor — ama
+                    // hangi sekmede olduğu, listenin nereye kaydırıldığı ve
+                    // ayarların hangi kategorisinin açık olduğu kayboluyordu,
+                    // çünkü `rememberSaveable` bir bileşen ağaçtan çıkınca
+                    // onu tutacak bir yer olmadığında değerini atıyor.
+                    //
+                    // [rememberSaveableStateHolder] o yeri kuruyor: ağaçtan
+                    // çıkan içeriğin kaydedilebilir durumu anahtarıyla
+                    // saklanıyor ve geri geldiğinde aynı yerden devam ediyor.
+                    //
+                    // ### Neden yalnızca bellekte
+                    //
+                    // Tutucu süreç ölümünü aşmıyor ve bu bilerek böyle:
+                    // saklanan şeyin içinde açık kaydın kimliği de var ve onu
+                    // sistemin örnek durumu olarak diske yazdırmak, kasanın
+                    // içindekine dair bir izi uygulamanın dışına taşımak
+                    // olurdu. Uygulama bellekten düştüğünde baştan başlamak
+                    // doğru davranış.
                     VaultRepository.LockState.Unlocked ->
-                        MainScaffold(
-                            settings = settings,
-                            factory = factory,
-                            startAction = startAction,
-                            startItemId = startItemId,
-                            onActionConsumed = onActionConsumed
-                        )
+                        stateHolder.SaveableStateProvider(MAIN_STATE_KEY) {
+                            MainScaffold(
+                                settings = settings,
+                                factory = factory,
+                                startAction = startAction,
+                                startItemId = startItemId,
+                                onActionConsumed = onActionConsumed
+                            )
+                        }
                 }
             }
         }
     }
 }
+
+/** Ana iskelenin kaydedilebilir durumunun anahtarı. */
+private const val MAIN_STATE_KEY = "main"

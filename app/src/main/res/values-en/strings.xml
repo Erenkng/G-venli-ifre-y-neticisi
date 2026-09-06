@@ -491,6 +491,9 @@
     <string name="duress_body">Entering this password opens a separate vault, not your real one. It comes with sample entries; editing them to look like your own life makes it most convincing. Your real vault stays in the same file and is unaffected.</string>
     <string name="duress_note">Whether a duress password is set cannot be told from the file: the wrapper is present in every vault, at the same size. That said, the fact that Kasa has this feature is public; no software can protect you from someone who says \"give me the second password too\".</string>
     <string name="duress_set">Set duress password</string>
+    <string name="duress_set_action">Set</string>
+    <string name="duress_clear_action">Remove</string>
+    <string name="duress_field">New password</string>
     <string name="duress_clear">Remove duress password</string>
     <string name="duress_saved">Duress password saved</string>
     <string name="duress_cleared">Duress password removed</string>
@@ -498,11 +501,13 @@
 
     <!-- Key rotation and calibration -->
     <string name="rotate_title">Renew vault key</string>
+    <string name="rotate_confirm">Rotate</string>
     <string name="rotate_sub">Generate a new key and re-encrypt the vault</string>
     <string name="rotate_body">Changing the master password only rewraps the key; the vault key itself has been the same since setup. If a backup leaked or a device was lost, this is what you need: a new key is generated, the vault is re-encrypted, and the old copy can never be opened again.\n\nBiometric unlock is reset and must be set up again. You get a new recovery code; the old one stops working.</string>
     <string name="rotate_done">Vault key renewed</string>
     <string name="rotate_failed">Could not verify the master password</string>
     <string name="calib_title">Re-measure key derivation</string>
+    <string name="calib_confirm">Measure</string>
     <string name="calib_sub">%1$s</string>
     <string name="calib_body">The key derivation cost is measured on this device and written into the vault header. It takes a few seconds; the result targets roughly 0.8 seconds per unlock.</string>
     <string name="calib_running">Measuring…</string>
@@ -613,6 +618,8 @@
     <string name="set_group_gradient">Gradient theme</string>
     <string name="set_gradient_time">Follow the time of day</string>
     <string name="set_gradient_time_sub">The background drifts slowly from morning to night.</string>
+    <string name="set_gradient_grain">Grainy backdrop</string>
+    <string name="set_gradient_grain_sub">Lays a fine film-like texture over the gradient.</string>
     <string name="gradient_jade">Jade</string>
     <string name="gradient_sunset">Sunset</string>
     <string name="gradient_deep">Deep</string>

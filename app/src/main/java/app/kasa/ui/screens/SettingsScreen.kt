@@ -461,6 +461,16 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setGradientFollowsTime,
                     first = true
                 )
+                // Tane, gradyanın bant oluşturmasını engellemek için zaten
+                // hep vardı ama görünmeyecek kadar azdı. Bu anahtar onu
+                // görülecek bir dokuya çıkarıyor: aynı gradyan, filmden gelen
+                // taneli bir zemin üzerinde.
+                ToggleRow(
+                    title = stringResource(R.string.set_gradient_grain),
+                    subtitle = stringResource(R.string.set_gradient_grain_sub),
+                    checked = settings.gradientGrain,
+                    onCheckedChange = viewModel::setGradientGrain
+                )
 
                 // Deneysel efektler.
                 //
@@ -962,7 +972,7 @@ fun SettingsScreen(
             title = stringResource(R.string.calib_title),
             description = stringResource(R.string.calib_body),
             label = stringResource(R.string.lock_master),
-            confirmText = stringResource(R.string.calib_title),
+            confirmText = stringResource(R.string.calib_confirm),
             minLength = 1,
             onConfirm = { password ->
                 showRecalibrate = false
@@ -977,7 +987,7 @@ fun SettingsScreen(
             title = stringResource(R.string.rotate_title),
             description = stringResource(R.string.rotate_body),
             label = stringResource(R.string.lock_master),
-            confirmText = stringResource(R.string.rotate_title),
+            confirmText = stringResource(R.string.rotate_confirm),
             minLength = 1,
             onConfirm = { password ->
                 showRotate = false
@@ -1548,7 +1558,7 @@ private fun DuressDialog(
             KasaPasswordField(
                 value = password,
                 onValueChange = { password = it },
-                label = stringResource(R.string.duress_set),
+                label = stringResource(R.string.duress_field),
                 revealed = revealed,
                 onRevealToggle = { revealed = !revealed }
             )
@@ -1570,7 +1580,7 @@ private fun DuressDialog(
             )
             Spacer(Modifier.height(18.dp))
             KasaButton(
-                text = stringResource(R.string.duress_set),
+                text = stringResource(R.string.duress_set_action),
                 onClick = {
                     val chars = password.toCharArray()
                     password = ""
@@ -1592,7 +1602,7 @@ private fun DuressDialog(
                     height = 46.dp
                 )
                 KasaButton(
-                    text = stringResource(R.string.duress_clear),
+                    text = stringResource(R.string.duress_clear_action),
                     onClick = onClear,
                     tone = ButtonTone.TONAL,
                     height = 46.dp
