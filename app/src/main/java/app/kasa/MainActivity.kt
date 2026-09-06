@@ -83,7 +83,10 @@ class MainActivity : FragmentActivity() {
                     pressBloom = settings.effectPressBloom,
                     shimmer = settings.effectShimmer,
                     edgeDepth = settings.effectEdgeDepth,
-                    parallax = settings.effectParallax
+                    parallax = settings.effectParallax,
+                    holdCharge = settings.effectHoldCharge,
+                    tiltDepth = settings.effectTiltDepth,
+                    focusGlow = settings.effectFocusGlow
                 )
             ) {
                 CompositionLocalProvider(

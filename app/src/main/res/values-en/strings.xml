@@ -659,6 +659,12 @@
     <string name="set_effect_edge_sub">Rows nearing the screen edge shrink and fade.</string>
     <string name="set_effect_parallax">Backdrop parallax</string>
     <string name="set_effect_parallax_sub">The gradient\'s light sources stay put as the device turns.</string>
+    <string name="set_effect_hold">Hold to charge</string>
+    <string name="set_effect_hold_sub">An arc fills along the edge as you hold a row; the menu opens when it completes.</string>
+    <string name="set_effect_depth">Depth under glass</string>
+    <string name="set_effect_depth_sub">Card content lags slightly behind the surface as the device turns.</string>
+    <string name="set_effect_focus">Focus glow</string>
+    <string name="set_effect_focus_sub">The edge of the field awaiting input breathes softly.</string>
     <string name="gen_regenerate">Generate again</string>
     <string name="gen_mode_uuid">UUID</string>
     <string name="gen_mode_recovery">Backup codes</string>

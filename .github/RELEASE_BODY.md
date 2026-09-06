@@ -19,19 +19,24 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 2.2'de yenilikler
+## 2.3'te yenilikler
 
-- **Keskin dikdörtgen düzeltildi.** Yüzeylerin içindeki o bant, platformun
-  gölge çekirdeğiydi; saydam yüzeyler artık gölge atmıyor.
-- **Listede kaydırma.** Sağa çek → sık kullanılan, sola çek → çöp.
-- **Satırda kopyalama.** Kaydı açmadan parolayı panoya al.
-- **Arama boş açılmıyor.** Son aramalar ve son kullanılan kayıtlar duruyor.
-  Terimler diske yazılmıyor, bellekte kalıyor.
-- **Kilit sonrası devamlılık.** Parmağını okutunca bıraktığın yere dönüyorsun.
-- **Dokunuş geri bildirimi** her denetimde var; başlık geçişi tek bir
-  nesnenin hareketi oldu.
-- Güç bloğu tekrar/sızıntı listesine götürüyor · güvenlik puanı belirerek
-  geliyor · boş kasada ilk kayıt yolu · tanecikli zemin seçeneği.
+- **Basış animasyonu takılmıyor.** İki sebep vardı: titreşim arayüz iş
+  parçacığında çalınıyordu (binder çağrısı, tam animasyonun ilk karesinde) ve
+  basış ölçeği beste aşamasında okunuyordu — parmak düğmede durduğu sürece
+  düğmenin bütün iskeleti her karede yeniden kuruluyordu.
+- **Titreşimin kendi ayarları.** Güç kademesi (dokununca örneği hemen çalıyor)
+  ve ayrı bir dokunuş tıkırtısı anahtarı.
+- **Yüzey efektleri kendi sayfasında**, sekizi tek tek kapatılabiliyor. Üçü
+  yeni: basılı tutma dolumu, cam altı derinlik, odak ışığı. Zemin manzarası da
+  eklendi.
+- **Artı düğmesinin bulanıklığı** aşağıdan yukarı açılıyor ve iki ayrı
+  yarıçapla çiziliyor — tek bir bulanıklığı soldurmak hayalet çift görüntü
+  üretiyordu.
+- **Tanecikli zemin** artık gradyanı griye yıkamıyor (Overlay karışımı) ve dört
+  kademesi var.
+- Aramada geçmişi temizleme · uzun basış menüsü sırayla açılıyor · ayarların
+  kategori başlıkları hizalandı · kayıt satırındaki kopyalama düğmesi kaldırıldı.
 
 Gezinme çubuğuna yine dokunulmadı.
 

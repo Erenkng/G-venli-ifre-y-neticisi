@@ -715,6 +715,12 @@
     <string name="set_effect_edge_sub">Ekranın kenarına yaklaşan satırlar küçülüp soluyor.</string>
     <string name="set_effect_parallax">Zeminin eğimle kayması</string>
     <string name="set_effect_parallax_sub">Gradyanın ışık kaynakları cihaz döndükçe yerinde duruyor gibi oluyor.</string>
+    <string name="set_effect_hold">Basılı tutma dolumu</string>
+    <string name="set_effect_hold_sub">Satırı basılı tutarken kenarda bir yay doluyor; dolduğunda menü açılıyor.</string>
+    <string name="set_effect_depth">Cam altı derinlik</string>
+    <string name="set_effect_depth_sub">Kartın içeriği cihaz döndükçe yüzeyden biraz geride kalıyor.</string>
+    <string name="set_effect_focus">Odak ışığı</string>
+    <string name="set_effect_focus_sub">Yazmayı bekleyen alanın kenarı yavaşça parlayıp sönüyor.</string>
     <string name="gen_regenerate">Yeniden üret</string>
     <string name="gen_mode_uuid">UUID</string>
     <string name="gen_mode_recovery">Yedek kod</string>

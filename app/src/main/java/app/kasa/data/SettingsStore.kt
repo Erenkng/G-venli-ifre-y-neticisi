@@ -198,6 +198,9 @@ class SettingsStore(private val context: Context) {
         val effectShimmer: Boolean = true,
         val effectEdgeDepth: Boolean = true,
         val effectParallax: Boolean = false,
+        val effectHoldCharge: Boolean = true,
+        val effectTiltDepth: Boolean = false,
+        val effectFocusGlow: Boolean = true,
         val gradientTheme: GradientTheme = GradientTheme.JADE,
         /**
          * Gradyan günün saatine göre kaysın mı.
@@ -301,6 +304,9 @@ class SettingsStore(private val context: Context) {
             effectShimmer = prefs[KEY_EFFECT_SHIMMER] ?: true,
             effectEdgeDepth = prefs[KEY_EFFECT_EDGE] ?: true,
             effectParallax = prefs[KEY_EFFECT_PARALLAX] ?: false,
+            effectHoldCharge = prefs[KEY_EFFECT_HOLD] ?: true,
+            effectTiltDepth = prefs[KEY_EFFECT_DEPTH] ?: false,
+            effectFocusGlow = prefs[KEY_EFFECT_FOCUS] ?: true,
             gradientTheme = runCatching { GradientTheme.valueOf(prefs[KEY_GRADIENT] ?: GradientTheme.JADE.name) }
                 .getOrDefault(GradientTheme.JADE),
             gradientFollowsTime = prefs[KEY_GRADIENT_TIME] ?: true,
@@ -364,6 +370,9 @@ class SettingsStore(private val context: Context) {
     suspend fun setEffectShimmer(value: Boolean) = put(KEY_EFFECT_SHIMMER, value)
     suspend fun setEffectEdgeDepth(value: Boolean) = put(KEY_EFFECT_EDGE, value)
     suspend fun setEffectParallax(value: Boolean) = put(KEY_EFFECT_PARALLAX, value)
+    suspend fun setEffectHoldCharge(value: Boolean) = put(KEY_EFFECT_HOLD, value)
+    suspend fun setEffectTiltDepth(value: Boolean) = put(KEY_EFFECT_DEPTH, value)
+    suspend fun setEffectFocusGlow(value: Boolean) = put(KEY_EFFECT_FOCUS, value)
     suspend fun setGradientTheme(value: GradientTheme) = put(KEY_GRADIENT, value.name)
     suspend fun setGradientFollowsTime(value: Boolean) = put(KEY_GRADIENT_TIME, value)
     suspend fun setGeneratorMode(value: GeneratorMode) = put(KEY_GEN_MODE, value.name)
@@ -439,6 +448,9 @@ class SettingsStore(private val context: Context) {
         val KEY_EFFECT_SHIMMER = booleanPreferencesKey("effect_shimmer")
         val KEY_EFFECT_EDGE = booleanPreferencesKey("effect_edge")
         val KEY_EFFECT_PARALLAX = booleanPreferencesKey("effect_parallax")
+        val KEY_EFFECT_HOLD = booleanPreferencesKey("effect_hold_charge")
+        val KEY_EFFECT_DEPTH = booleanPreferencesKey("effect_tilt_depth")
+        val KEY_EFFECT_FOCUS = booleanPreferencesKey("effect_focus_glow")
         val KEY_GRADIENT = stringPreferencesKey("gradient_theme")
         val KEY_GRADIENT_TIME = booleanPreferencesKey("gradient_follows_time")
         val KEY_GEN_MODE = stringPreferencesKey("gen_mode")

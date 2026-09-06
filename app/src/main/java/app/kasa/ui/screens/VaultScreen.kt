@@ -1,11 +1,9 @@
 package app.kasa.ui.screens
 
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import app.kasa.ui.components.SwipeAction
 import app.kasa.ui.components.SwipeActions
-import app.kasa.ui.components.KasaIconButton
 import app.kasa.ui.components.staggeredReveal
 import app.kasa.ui.components.REVEAL_WINDOW_MILLIS
 import androidx.compose.runtime.LaunchedEffect
@@ -451,9 +449,6 @@ fun VaultScreen(
                     compact = compact,
                     selectable = selecting,
                     selected = entry.id in selection,
-                    onCopy = if (entry.primarySecret.isNotBlank()) {
-                        { viewModel.copySecret(entry.primarySecret, settings.clipboardClearSeconds) }
-                    } else null,
                     // Seçim kipindeyken dokunuş kaydı açmıyor, seçiyor:
                     // aynı hareketin iki farklı sonucu olması kipin kendisi.
                     onClick = {
@@ -769,19 +764,7 @@ fun VaultRow(
      * olmayan satır sıradan bir satırdan ayırt edilemezdi.
      */
     selectable: Boolean = false,
-    selected: Boolean = false,
-    /**
-     * Kaydı açmadan gizli değerini panoya alma.
-     *
-     * Kullanıcının listede yaptığı en sık iş bu: kaydı aç, parolayı kopyala,
-     * çık. Üç adımın ortadaki ikisi satırın kendisinde yapılabiliyorsa, sayfa
-     * yalnızca **bakmak** için açılıyor.
-     *
-     * Seçim kipinde ve gizli değeri olmayan türlerde çizilmiyor: her satıra
-     * konan ama çoğunda çalışmayan bir düğme, çalıştığı yerlerde de
-     * güvenilmez oluyor.
-     */
-    onCopy: (() -> Unit)? = null
+    selected: Boolean = false
 ) {
     val tone = toneOf(item)
     val breachMark = stringResource(R.string.breach_mark)
@@ -831,20 +814,6 @@ fun VaultRow(
             }
         }
         StrengthDot(tone)
-        if (onCopy != null && !selectable) {
-            KasaIconButton(
-                onClick = onCopy,
-                size = 40.dp,
-                contentDescription = stringResource(R.string.copy)
-            ) {
-                Icon(
-                    Icons.Rounded.ContentCopy,
-                    contentDescription = null,
-                    tint = KasaTheme.colors.ink2,
-                    modifier = Modifier.size(17.dp)
-                )
-            }
-        }
     }
 }
 

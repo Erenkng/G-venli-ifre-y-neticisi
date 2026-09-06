@@ -571,6 +571,24 @@ fun SettingsScreen(
                             checked = settings.effectParallax,
                             onCheckedChange = viewModel::setEffectParallax
                         )
+                        ToggleRow(
+                            title = stringResource(R.string.set_effect_hold),
+                            subtitle = stringResource(R.string.set_effect_hold_sub),
+                            checked = settings.effectHoldCharge,
+                            onCheckedChange = viewModel::setEffectHoldCharge
+                        )
+                        ToggleRow(
+                            title = stringResource(R.string.set_effect_depth),
+                            subtitle = stringResource(R.string.set_effect_depth_sub),
+                            checked = settings.effectTiltDepth,
+                            onCheckedChange = viewModel::setEffectTiltDepth
+                        )
+                        ToggleRow(
+                            title = stringResource(R.string.set_effect_focus),
+                            subtitle = stringResource(R.string.set_effect_focus_sub),
+                            checked = settings.effectFocusGlow,
+                            onCheckedChange = viewModel::setEffectFocusGlow
+                        )
                     }
                 }
             }

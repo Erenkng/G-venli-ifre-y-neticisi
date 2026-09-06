@@ -112,6 +112,17 @@ fun KasaTile(
                 shape = groupShape(position, tight, loose),
                 color = MaterialTheme.colorScheme.primary
             )
+            // Uzun basış eşiğine doğru dolan yay. Yalnızca uzun basışı olan
+            // satırlarda: olmayan bir beklemeyi göstermek, kullanıcıya
+            // olmayan bir şeyi vaat etmek olurdu.
+            .then(
+                if (onLongClick == null) Modifier
+                else Modifier.holdCharge(
+                    interactionSource = interaction,
+                    shape = groupShape(position, tight, loose),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            )
             .combinedClickableNoRipple(
                 interactionSource = interaction,
                 role = Role.Button,
@@ -253,6 +264,7 @@ fun KasaCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colors = KasaTheme.colors
+    val tilt = rememberDeviceTiltState()
     val background = if (tinted) {
         androidx.compose.ui.graphics.Brush.linearGradient(
             0f to (if (colors.isDark) Color(0xFF13302B) else Color(0xFFE9F8F2)),
@@ -285,9 +297,13 @@ fun KasaCard(
                 ),
                 RoundedCornerShape(KasaRadius.xl)
             )
-            .padding(padding),
-        content = content
-    )
+            .padding(padding)
+    ) {
+        // İçerik camın **altında** duruyor: cihaz döndükçe yüzeyden biraz
+        // geride kalıyor ve aradaki fark kalınlık olarak okunuyor.
+        // Gerekçesi tiltDepth üzerinde yazılı.
+        Column(Modifier.tiltDepth(tilt), content = content)
+    }
 }
 
 /** "Son kullanılan" şeridindeki küçük kart. */

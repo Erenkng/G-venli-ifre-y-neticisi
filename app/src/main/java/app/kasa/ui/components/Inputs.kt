@@ -59,6 +59,9 @@ import app.kasa.core.util.Haptics
 import app.kasa.core.util.rememberHapticPlayer
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.kasa.ui.theme.KasaTheme
 
 /**
@@ -268,11 +271,23 @@ fun KasaTextField(
     contentBlur: Dp = 0.dp
 ) {
     val style = (textStyle ?: MaterialTheme.typography.bodyLarge).copy(color = KasaTheme.colors.ink)
+    // Odak alanın **kendisinden** okunuyor: dışarıdan bir bayrak geçirmek,
+    // her çağrı yerine ilgilenmediği bir durum eklemek olurdu.
+    var focused by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Column(
             Modifier
                 .fillMaxWidth()
+                .onFocusChanged { focused = it.isFocused }
+                // Odaktaki alanın kenarı nefes alıyor; gerekçesi focusGlow
+                // üzerinde yazılı. Hata durumunda çizilmiyor: orada kenarın
+                // söylediği şey uyarı ve ikisi aynı yeri paylaşıyor.
+                .focusGlow(
+                    focused = focused && !isError,
+                    shape = RoundedCornerShape(KasaRadius.m),
+                    color = MaterialTheme.colorScheme.primary
+                )
                 .glassSurface(
                     shape = RoundedCornerShape(KasaRadius.m),
                     tint = MaterialTheme.colorScheme.surfaceContainerLow,

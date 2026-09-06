@@ -44,6 +44,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.SolidColor
 import app.kasa.ui.theme.LocalSurfaceEffects
 import app.kasa.ui.theme.LocalReducedMotion
 import kotlin.math.abs
@@ -576,3 +581,170 @@ private val RIM_WIDTH = 2.dp
 private const val FALLOFF_FRACTION = 0.10f
 private const val DEPTH_SCALE = 0.06f
 private const val DEPTH_ALPHA = 0.55f
+
+/**
+ * Uzun basışın **dolması**.
+ *
+ * ### Neden
+ *
+ * Uzun basmanın ekranda hiçbir karşılığı yoktu: parmak yüzeyde duruyor, bir
+ * şey olup olmadığı belli değil, sonra bir anda sayfa açılıyordu. O aralıkta
+ * kullanıcı iki şeyi bilmiyor — basışın tanınıp tanınmadığını ve ne kadar
+ * daha tutması gerektiğini. Tutup erken bırakan kullanıcı, hareketin
+ * çalışmadığını sanıyor ve bir daha denemiyor.
+ *
+ * Şimdi kenar boyunca bir yay doluyor. Dolduğunda menü açılıyor, yani
+ * ekrandaki şey beklemenin kendisi: ne kadar kaldığı görülüyor ve erken
+ * bırakınca yayın geri boşalması "olmadı" diyor.
+ *
+ * ### Neden ayrı bir hareket dinleyicisi yok
+ *
+ * Etkileşim kaynağı zaten basışın başladığını ve bittiğini söylüyor. İkinci
+ * bir `pointerInput`, aynı dokunuş için yarışan iki dinleyici demek olurdu
+ * ve hangisinin olayı tükettiği kaydırmayla birlikte belirsizleşirdi.
+ *
+ * ### Süre neden platformdan alınmıyor
+ *
+ * Compose uzun basış eşiğini dışarı vermiyor. [HOLD_MILLIS] platformun
+ * varsayılanına yakın tutuluyor; birkaç milisaniyelik fark, dolan yayın
+ * menü açıldığı anda tam dolmuş görünmesi için yeterli.
+ */
+fun Modifier.holdCharge(
+    interactionSource: MutableInteractionSource,
+    shape: Shape,
+    color: Color = Color.White,
+    width: Dp = RIM_WIDTH
+): Modifier = composed {
+    if (!LocalSurfaceEffects.current.holdCharge || LocalReducedMotion.current) return@composed this
+
+    val pressed by interactionSource.collectIsPressedAsState()
+    val charge = remember { Animatable(0f) }
+
+    LaunchedEffect(pressed) {
+        if (pressed) {
+            charge.animateTo(1f, tween(durationMillis = HOLD_MILLIS, easing = LinearEasing))
+        } else {
+            // Geri boşalma dolmadan hızlı: bırakılan bir bekleme oyalanmamalı.
+            charge.animateTo(0f, tween(durationMillis = HOLD_RELEASE_MILLIS))
+        }
+    }
+
+    drawWithContent {
+        drawContent()
+        val filled = charge.value
+        if (filled <= 0.02f) return@drawWithContent
+        drawGlowOutline(
+            brush = SolidColor(color.copy(alpha = HOLD_ALPHA * filled)),
+            shape = shape,
+            width = width.toPx(),
+            intensity = filled
+        )
+    }
+}
+
+/**
+ * Camın **altındaki** içeriğin eğimle geri kalması.
+ *
+ * ### Ne anlatıyor
+ *
+ * [tiltRim] yüzeyin kenarını aydınlatıyor, yani camın kendisinin nerede
+ * olduğunu söylüyor. Bu ise camın **arkasında** bir şey olduğunu söylüyor:
+ * cihaz döndükçe içerik yüzeyden biraz geride kalıyor ve aradaki fark
+ * kalınlık olarak okunuyor. Gerçek bir vitrinde de arkadaki nesne öne göre
+ * geç hareket ediyor.
+ *
+ * Yön ters: yüzey sağa dönerken içerik sola kalıyor. Aynı yöne gitseydi
+ * ikisi tek bir düzlem olurdu ve efekt yalnızca "her şey kayıyor" olurdu.
+ *
+ * ### Mesafe neden küçük
+ *
+ * Birkaç piksel yetiyor. Büyük bir kayma, içeriğin kabına sığmadığı ya da
+ * hizanın bozulduğu izlenimi veriyor; oysa anlatılmak istenen şey hizanın
+ * bozulması değil, derinlik.
+ */
+fun Modifier.tiltDepth(tilt: State<DeviceTilt>, depth: Dp = TILT_DEPTH): Modifier = composed {
+    if (!LocalSurfaceEffects.current.tiltDepth) return@composed this
+
+    // Değer çizim aşamasında okunuyor: bestede okunsaydı her sensör örneği
+    // kabın bütün içeriğini yeniden bestelerdi.
+    graphicsLayer {
+        val reach = depth.toPx()
+        translationX = -tilt.value.x * reach
+        translationY = -tilt.value.y * reach * TILT_DEPTH_VERTICAL
+    }
+}
+
+/**
+ * Odaktaki alanın nefes alması.
+ *
+ * ### Neden
+ *
+ * Odaklanmış bir metin alanının tek işareti imlecin yanıp sönmesiydi ve
+ * imleç, alanın **içinde** duran ince bir çizgi: uzun bir formda hangi alanın
+ * yazmayı beklediğini bulmak için göz tek tek alanlara bakmak zorundaydı.
+ *
+ * Kenarın yavaşça parlayıp sönmesi o bilgiyi alanın **sınırına** taşıyor.
+ * Nefes ritminde, çünkü yanıp sönen bir kenar uyarı gibi okunuyor; yavaş
+ * bir salınım ise "burası açık, bekliyor" diyor.
+ *
+ * ### Neden yalnızca odakta
+ *
+ * Odak kalktığında animasyon duruyor. Ekranda duran her alanın sürekli bir
+ * animasyon çalıştırması, kare bütçesini hiçbir şey söylemeyen bir harekete
+ * harcamak olurdu.
+ */
+fun Modifier.focusGlow(
+    focused: Boolean,
+    shape: Shape,
+    color: Color,
+    width: Dp = RIM_WIDTH
+): Modifier = composed {
+    if (!LocalSurfaceEffects.current.focusGlow || LocalReducedMotion.current) return@composed this
+    if (!focused) return@composed this
+
+    val breath = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        breath.animateTo(
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = FOCUS_BREATH_MILLIS, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            )
+        )
+    }
+
+    drawWithContent {
+        drawContent()
+        val lit = FOCUS_MIN + (1f - FOCUS_MIN) * breath.value
+        drawGlowOutline(
+            brush = SolidColor(color.copy(alpha = FOCUS_ALPHA * lit)),
+            shape = shape,
+            width = width.toPx(),
+            intensity = lit
+        )
+    }
+}
+
+/** Yayın dolma süresi; platformun uzun basış eşiğine yakın. */
+private const val HOLD_MILLIS = 480
+
+/** Bırakıldığında boşalma süresi. */
+private const val HOLD_RELEASE_MILLIS = 160
+
+/** Dolan yayın en parlak hâli. */
+private const val HOLD_ALPHA = 0.7f
+
+/** İçeriğin eğimle geri kalma mesafesi. */
+private val TILT_DEPTH = 5.dp
+
+/** Dikeydeki pay yatayın altında: telefon dikey tutuluyor ve dikey eğim daha az geziniyor. */
+private const val TILT_DEPTH_VERTICAL = 0.6f
+
+/** Odak nefesinin tek yönlü süresi. */
+private const val FOCUS_BREATH_MILLIS = 1500
+
+/** Nefesin en sönük anı; tamamen sönmüyor, yoksa yanıp sönüyor gibi olurdu. */
+private const val FOCUS_MIN = 0.45f
+
+/** Odak ışığının en parlak hâli. */
+private const val FOCUS_ALPHA = 0.55f

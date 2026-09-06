@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
 import app.kasa.ui.theme.KasaMotion
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.graphics.SolidColor
 import app.kasa.ui.theme.KasaTheme
 
 /**
@@ -528,8 +530,7 @@ fun GlassBackdropScrim(
      * Kaydedilmiş kopya gezinme çubuğunu **içermiyor** — çubuk kayıttan sonra
      * çiziliyor. O kopyayı çubuğun üstüne tam güçte çizmek, çubuğun yerine
      * altındaki listenin bulanık hâlini koymak, yani çubuğu görünmez yapmak
-     * demek. Bulanıklık çubuğun üstünde bitiyor; karartma bütün ekranı
-     * kaplamaya devam ediyor, çünkü onun çubuğu gizlemek gibi bir etkisi yok.
+     * demek.
      */
     blurBottomInset: Dp = 0.dp
 ) {
@@ -537,32 +538,131 @@ fun GlassBackdropScrim(
     // CompositionLocal'dan aldığı için yalnızca beste içinde çağrılabiliyor ve
     // koşula bağlı çağırmak, açılış ile kapanış arasında beste ağacının
     // biçimini değiştirirdi.
-    val enterSpec = KasaMotion.enter<Float>()
+    val enterSpec = KasaMotion.large<Float>()
     val exitSpec = KasaMotion.exit<Float>()
-    val progress by animateFloatAsState(
+    val progress = animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = if (visible) enterSpec else exitSpec,
         label = "glassScrim"
     )
-
-    if (progress > 0.01f) {
-        Box(
-            modifier.then(
-                if (visible) Modifier.clickableNoRipple(onClick = onDismiss) else Modifier
-            )
-        ) {
-            BackdropBlur(
-                backdrop = backdrop,
-                modifier = Modifier.matchParentSize().padding(bottom = blurBottomInset),
-                strength = progress,
-                // Alt kenar sert bitmesin: çubuğun kendi degradesi orada
-                // saydam başlıyor ve sert bir kenar iki cam arasında bir
-                // dikiş gibi görünüyordu.
-                fadeBottom = SCRIM_FADE
-            )
-            Box(Modifier.matchParentSize().background(SCRIM_TINT.copy(alpha = SCRIM_DIM * progress)))
-        }
+    // Yalnızca eşik geçilirken yeniden besteleniyor: ilerlemenin kendisi
+    // çizim aşamasında okunuyor, yoksa tam ekran bir örtü her karede
+    // yeniden kurulurdu.
+    val present by remember(progress) {
+        derivedStateOf { progress.value > 0.004f }
     }
+
+    if (!present || backdrop == null) return
+
+    Box(
+        modifier.then(
+            if (visible) Modifier.clickableNoRipple(onClick = onDismiss) else Modifier
+        )
+    ) {
+        // İki geçiş, iki ayrı yarıçap. Gerekçesi [ScrimBlurPass] üzerinde.
+        ScrimBlurPass(
+            backdrop = backdrop,
+            modifier = Modifier.matchParentSize().padding(bottom = blurBottomInset),
+            radius = SCRIM_BLUR_FAR,
+            band = SCRIM_BAND_FAR,
+            reveal = { progress.value }
+        )
+        ScrimBlurPass(
+            backdrop = backdrop,
+            modifier = Modifier.matchParentSize().padding(bottom = blurBottomInset),
+            radius = SCRIM_BLUR_NEAR,
+            band = SCRIM_BAND_NEAR,
+            reveal = { progress.value }
+        )
+        // Karartma da aynı maskeyle yükseliyor: bulanıklık aşağıdan
+        // gelirken karartmanın bütün ekranda hazır beklemesi, iki ayrı
+        // olay gibi okunurdu.
+        Box(
+            Modifier.matchParentSize().drawBehind {
+                drawRect(brush = riseMask(progress.value, SCRIM_BAND_FAR, SCRIM_TINT.copy(alpha = SCRIM_DIM)))
+            }
+        )
+    }
+}
+
+/**
+ * Örtünün tek bir bulanıklık geçişi.
+ *
+ * ### Neden iki geçiş var
+ *
+ * Tek bir bulanıklığı saydamlıkla soldurmak yumuşak bir geçiş **üretmiyor**:
+ * yarı saydam her pikselde hem keskin içerik hem bulanık kopyası birden
+ * görünüyor ve göz bunu yumuşaklık değil, hayalet bir çift görüntü olarak
+ * okuyor. Örtünün "yarım yamalak" görünmesinin sebebi buydu.
+ *
+ * Gerçek buzlu cam saydamlıkta değil **kalınlıkta** değişiyor. Aynı şey iki
+ * geçişle kuruluyor: geniş yarıçaplı uzak geçiş ve dar yarıçaplı yakın
+ * geçiş, her biri kendi maskesiyle. Yakın geçişin söndüğü yerde uzak geçiş
+ * çoktan devralmış oluyor, yani geçiş **yarıçapta** sürekli — gözün okuduğu
+ * şey de bu.
+ *
+ * Gezinme çubuğu da aynı ikiliyi kullanıyor ve iyi görünmesinin sebebi bu.
+ *
+ * ### Maske neden aşağıdan yukarı
+ *
+ * Menü alttaki düğmeden açılıyor. Cam da oradan gelmeli: yukarıdan inen ya da
+ * her yerde birden beliren bir örtü, menünün nereden çıktığını söylemiyor.
+ * Maskenin kendisi bir bant, sert bir çizgi değil — sert bir sınır camı
+ * ekrana yapıştırılmış bir dikdörtgen gibi gösterirdi.
+ */
+@Composable
+private fun ScrimBlurPass(
+    backdrop: GraphicsLayer,
+    modifier: Modifier,
+    radius: Dp,
+    band: Float,
+    reveal: () -> Float
+) {
+    val blurLayer = rememberGraphicsLayer()
+    val blurRadius = with(LocalDensity.current) { radius.toPx() }
+    var origin by remember { mutableStateOf(Offset.Zero) }
+
+    Box(
+        modifier
+            .onGloballyPositioned { origin = it.positionInRoot() }
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawBehind {
+                val shown = reveal().coerceIn(0f, 1f)
+                if (shown <= 0.004f) return@drawBehind
+                // Katman kaydı beste dağıtılırken serbest bırakılmış olabilir;
+                // o durumda bu geçiş sessizce atlanıyor, ekran kaybolmuyor.
+                runCatching {
+                    blurLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
+                    blurLayer.clip = true
+                    blurLayer.record {
+                        translate(left = -origin.x, top = -origin.y) { drawLayer(backdrop) }
+                    }
+                    drawLayer(blurLayer)
+                    drawRect(brush = riseMask(shown, band, Color.Black), blendMode = BlendMode.DstIn)
+                }
+            }
+    )
+}
+
+/**
+ * Aşağıdan yukarı açılan maske.
+ *
+ * [shown] 0 iken hiçbir yer görünmüyor, 1 iken her yer. Sınır sert değil:
+ * [band] kadarlık bir şeritte saydamdan doluya geçiyor.
+ */
+private fun riseMask(shown: Float, band: Float, color: Color): Brush {
+    val progress = shown.coerceIn(0f, 1f)
+    if (progress >= 0.999f) return SolidColor(color)
+    val edge = 1f - progress
+    // Duraklar kesin artan olmalı; eşitlenen uçlar bilerek ayrılıyor.
+    val top = (edge - band).coerceIn(0f, 0.997f)
+    val mid = edge.coerceIn(top + 0.002f, 0.999f)
+    return Brush.verticalGradient(
+        0f to Color.Transparent,
+        top to Color.Transparent,
+        mid to color,
+        1f to color
+    )
 }
 
 /** Örtü rengi: iki temada da koyu, çünkü işi ışığı azaltmak. */
@@ -578,7 +678,17 @@ private val SCRIM_TINT = Color(0xFF09201B)
 private const val SCRIM_DIM = 0.22f
 
 /** Örtü bulanıklığının alt kenarındaki yumuşama bölgesi. */
-private const val SCRIM_FADE = 0.06f
+/** Örtünün uzak geçişi: geniş yarıçap, geniş bant. */
+private val SCRIM_BLUR_FAR = 30.dp
+
+/** Örtünün yakın geçişi: dar yarıçap, dar bant. */
+private val SCRIM_BLUR_NEAR = 9.dp
+
+/** Uzak geçişin yükselirken bıraktığı yumuşak şerit, yüksekliğin oranı olarak. */
+private const val SCRIM_BAND_FAR = 0.34f
+
+/** Yakın geçişin şeridi; dar, çünkü yalnızca sınırın hemen içini dolduruyor. */
+private const val SCRIM_BAND_NEAR = 0.14f
 
 /**
  * Menü örtüsünün bulanıklık yarıçapı.

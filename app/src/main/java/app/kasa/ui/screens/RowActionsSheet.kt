@@ -1,5 +1,13 @@
 package app.kasa.ui.screens
 
+import app.kasa.ui.components.staggeredReveal
+import app.kasa.ui.components.REVEAL_WINDOW_MILLIS
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import app.kasa.ui.components.SheetBlurBehind
 import app.kasa.ui.components.sheetGlassColor
 import androidx.compose.foundation.verticalScroll
@@ -183,6 +191,12 @@ fun RowActionsSheet(
         dragHandle = null
     ) {
         SheetBlurBehind()
+        // Sıralı beliriş penceresi: sayfa açıldığında bir kez.
+        var settled by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            delay(REVEAL_WINDOW_MILLIS)
+            settled = true
+        }
         Column(
             Modifier
                 .fillMaxWidth()
@@ -214,10 +228,25 @@ fun RowActionsSheet(
             }
             Spacer(Modifier.height(16.dp))
 
+            // Eylemler sırayla yükseliyor.
+            //
+            // Sayfanın kendi kayışı Material'ın: kaydırılabilir bir yüzeyin
+            // alttan gelmesi ve o hareketi değiştirmek, kullanıcının bütün
+            // sistemde tanıdığı bir davranışı bozmak olurdu. Ama sayfa
+            // yerine oturduğunda içindeki altı satır tek bir blok olarak
+            // beliriyordu: hangi eylemin nerede olduğu ancak okununca
+            // anlaşılıyor ve göz listeyi baştan taramak zorunda kalıyordu.
+            //
+            // Sırayla gelince liste bir yığın değil bir **sıra** oluyor: en
+            // sık kullanılan eylem en üstte ve ilk o geliyor, göz onu
+            // hareketin kendisinden buluyor. Gecikme küçük; toplamı sayfanın
+            // kayışının içinde kalıyor, yani sayfa oturduğunda liste de
+            // yerleşmiş oluyor.
             actions.forEachIndexed { index, action ->
                 ActionRow(
                     action = action,
                     position = groupPositionOf(index, actions.size),
+                    modifier = Modifier.staggeredReveal(step = index, play = !settled),
                     onRun = {
                         action.run()
                         onDismiss()
@@ -250,10 +279,15 @@ private data class RowAction(
 )
 
 @Composable
-private fun ActionRow(action: RowAction, position: GroupPosition, onRun: () -> Unit) {
+private fun ActionRow(
+    action: RowAction,
+    position: GroupPosition,
+    onRun: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val tint: Color =
         if (action.destructive) KasaTheme.colors.badgeWeakFg else KasaTheme.colors.ink
-    KasaTile(position = position, onClick = onRun) {
+    KasaTile(position = position, onClick = onRun, modifier = modifier) {
         Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
         Text(action.label, style = KasaTheme.text.tileName, color = tint)
     }
