@@ -3,6 +3,21 @@ package app.kasa.ui.screens
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import app.kasa.ui.components.HeaderCollapse
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.IntOffset
+import app.kasa.ui.components.staggeredReveal
+import app.kasa.ui.components.REVEAL_WINDOW_MILLIS
+import kotlinx.coroutines.delay
+import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.components.headerHandoff
 import app.kasa.ui.components.glassSurface
 import app.kasa.ui.components.ScoreRing
@@ -107,6 +122,21 @@ fun SecurityScreen(
 
     val listState = rememberLazyListState()
 
+    // Bulguların sıralı beliriş penceresi.
+    //
+    // Tarama bittiğinde liste tek karede doluyordu: kullanıcı "tarıyor"dan
+    // "on dört bulgu"ya hiçbir ara olmadan geçiyor ve neyin ne zaman geldiğini
+    // göremiyordu. Sırayla gelince olan şey tek bir olay — tarama sonucunu
+    // yazıyor. Pencere her taramada yeniden açılıyor, çünkü her tarama yeni
+    // bir sonuç.
+    var revealed by remember { mutableStateOf(false) }
+    LaunchedEffect(state.lastScanAt, state.scanning) {
+        if (state.scanning) return@LaunchedEffect
+        revealed = false
+        delay(REVEAL_WINDOW_MILLIS)
+        revealed = true
+    }
+
     HeaderCollapse(listState, onHeaderCollapse)
 
     LazyColumn(
@@ -149,27 +179,52 @@ fun SecurityScreen(
                         modifier = Modifier.size(184.dp)
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                buildAnnotatedString {
-                                    withStyle(
-                                        KasaTheme.text.score.toSpanStyle()
-                                            .copy(color = KasaTheme.colors.ink)
-                                    ) {
-                                        // Tarama sürerken bilinmeyen bir sayı
-                                        // göstermek yerine hiç göstermemek.
-                                        append(if (state.scanning) "—" else score.toString())
-                                    }
-                                    if (!state.scanning) {
-                                        withStyle(
-                                            MaterialTheme.typography.titleMedium.toSpanStyle()
-                                                .copy(color = KasaTheme.colors.ink3)
-                                        ) {
-                                            append("/100")
-                                        }
-                                    }
+                            // Puan tek karede belirmiyor.
+                            //
+                            // Halka tarama boyunca dönüyor ve bittiğinde
+                            // ortasındaki tire bir anda sayıya dönüşüyordu:
+                            // halkanın yaptığı bütün hazırlık, sayının
+                            // gelişinde hiçbir karşılık bulmuyordu. Sayı artık
+                            // alttan yükselerek geliyor, tire yukarı çıkıyor —
+                            // yön "bir sonuç geldi" diyor.
+                            val scoreIn: FiniteAnimationSpec<Float> = KasaMotion.enter()
+                            val scoreOut: FiniteAnimationSpec<Float> = KasaMotion.exit()
+                            val scoreSlide: FiniteAnimationSpec<IntOffset> = KasaMotion.medium()
+                            AnimatedContent(
+                                targetState = if (state.scanning) null else score,
+                                transitionSpec = {
+                                    (fadeIn(scoreIn) +
+                                        slideInVertically(scoreSlide) { it / 2 })
+                                        .togetherWith(
+                                            fadeOut(scoreOut) +
+                                                slideOutVertically(scoreSlide) { -it / 2 }
+                                        )
                                 },
-                                style = KasaTheme.text.score
-                            )
+                                label = "securityScore"
+                            ) { shown ->
+                                Text(
+                                    buildAnnotatedString {
+                                        withStyle(
+                                            KasaTheme.text.score.toSpanStyle()
+                                                .copy(color = KasaTheme.colors.ink)
+                                        ) {
+                                            // Tarama sürerken bilinmeyen bir
+                                            // sayı göstermek yerine hiç
+                                            // göstermemek.
+                                            append(shown?.toString() ?: "—")
+                                        }
+                                        if (shown != null) {
+                                            withStyle(
+                                                MaterialTheme.typography.titleMedium.toSpanStyle()
+                                                    .copy(color = KasaTheme.colors.ink3)
+                                            ) {
+                                                append("/100")
+                                            }
+                                        }
+                                    },
+                                    style = KasaTheme.text.score
+                                )
+                            }
                             Text(
                                 stringResource(R.string.sec_score),
                                 style = KasaTheme.text.sectionLabel,
@@ -297,7 +352,8 @@ fun SecurityScreen(
                     position = groupPositionOf(index, findings.size),
                     // Bulgu artık bir sayı değil: dokununca o kurala uyan
                     // kayıtların listesine götürüyor.
-                    onAction = { onOpenCollection(finding.type.asSmartFolder()) }
+                    onAction = { onOpenCollection(finding.type.asSmartFolder()) },
+                    modifier = Modifier.staggeredReveal(step = index, play = !revealed)
                 )
             }
         }
@@ -366,7 +422,8 @@ private fun StatCell(value: String, label: String) {
 private fun FindingRow(
     finding: SecurityAnalyzer.Finding,
     position: GroupPosition,
-    onAction: () -> Unit
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = KasaTheme.colors
     val (icon, background, foreground) = when (finding.type) {
@@ -428,7 +485,7 @@ private fun FindingRow(
     }
 
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .glassSurface(shape, KasaTheme.colors.tile)
             .padding(16.dp),

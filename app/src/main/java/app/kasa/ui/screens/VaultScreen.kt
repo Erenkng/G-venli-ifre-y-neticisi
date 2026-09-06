@@ -119,6 +119,15 @@ fun VaultScreen(
     viewModel: VaultViewModel,
     settings: SettingsStore.Settings,
     onOpenSearch: () -> Unit,
+    /**
+     * Boş kasada ilk kaydı ekleme yolu.
+     *
+     * Yeni kayıt düğmesi ekranın sağ alt köşesinde duruyor ve kasayı ilk kez
+     * açan kullanıcının oraya bakması için bir sebep yok: ekranın ortasında
+     * "kasan boş" yazıyor ve gözü orada. Çıkış yolunu boş durumun kendisi
+     * göstermeli.
+     */
+    onCreate: () -> Unit = {},
     /** Arama çubuğunun kök koordinatlardaki yeri; açılış oradan büyüyor. */
     onSearchBounds: ((androidx.compose.ui.geometry.Rect, Float) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -374,11 +383,13 @@ fun VaultScreen(
                     // temizlemek; boş kasada ise ilk kaydı eklemek. İkisi
                     // aynı ekranda ama aynı şey değil.
                     actionLabel = when {
-                        inTrash || emptyVault -> null
+                        inTrash -> null
+                        emptyVault -> stringResource(R.string.vault_empty_action)
                         else -> stringResource(R.string.vault_clear_filters)
                     },
                     onAction = when {
-                        inTrash || emptyVault -> null
+                        inTrash -> null
+                        emptyVault -> onCreate
                         else -> ({
                             viewModel.setCategory(null)
                             viewModel.setView(VaultFilter.All)

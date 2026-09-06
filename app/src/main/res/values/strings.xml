@@ -67,9 +67,14 @@
     <string name="vault_search">Kasada ara</string>
     <string name="vault_search_hint">Site, kullanıcı adı veya etiket</string>
     <string name="vault_recent">Son kullanılan</string>
+    <!-- Arama ekranının boş durumu -->
+    <string name="search_recent_queries">Son aramalar</string>
+    <string name="search_blank_title">Kasada ara</string>
+    <string name="search_blank_sub">Kayıt adı, kullanıcı adı ya da adres yazmaya başla.</string>
     <string name="vault_all">Tüm kayıtlar</string>
     <string name="vault_empty_title">Kasan henüz boş</string>
     <string name="vault_empty_sub">Sağ alttaki artı ile ilk kaydını ekle.</string>
+    <string name="vault_empty_action">İlk kaydını ekle</string>
     <string name="vault_no_match_title">Eşleşen kayıt yok</string>
     <string name="vault_no_match_sub">Farklı bir ad ya da kullanıcı adı dene.</string>
     <string name="vault_subtitle">%1$d kayıt · %2$s</string>

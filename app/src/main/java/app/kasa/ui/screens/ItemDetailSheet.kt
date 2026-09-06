@@ -63,6 +63,7 @@ import app.kasa.data.model.Attachment
 import app.kasa.data.model.Category
 import app.kasa.data.model.CategorySchema
 import app.kasa.data.model.FieldKind
+import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.VaultViewModel
@@ -95,7 +96,16 @@ fun ItemDetailSheet(
     viewModel: VaultViewModel,
     settings: SettingsStore.Settings,
     onDismiss: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    /**
+     * Bulgu koleksiyonuna gitme yolu.
+     *
+     * Güç bloğu "aynı parolayı 1 kayıtta daha kullanıyorsun" diyordu ama o
+     * kayıtların hangileri olduğunu söylemiyordu ve oraya giden bir yol
+     * yoktu. Bir sorunu bildirip çözümüne götürmeyen bir satır, kullanıcıyı
+     * yalnızca huzursuz ediyor.
+     */
+    onOpenCollection: ((SmartFolder) -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var revealed by remember(item.id) { mutableStateOf(false) }
@@ -342,7 +352,24 @@ fun ItemDetailSheet(
             // ── güç göstergesi ────────────────────────────────────────────
             if (item.primarySecret.isNotBlank() && item.category != Category.OTP) {
                 Spacer(Modifier.height(8.dp))
-                FieldBlock(label = stringResource(R.string.field_strength, toneLabel(tone))) {
+                // Sızıntı ve tekrar, kaydın kendisinde çözülemeyen iki
+                // bulgu: ikisi de **başka** kayıtlarla ilgili. Blok o
+                // durumlarda listeye götürüyor; güçlü bir parolada
+                // götürecek bir yer olmadığı için tıklanabilir de değil.
+                val collection = when {
+                    item.breached -> SmartFolder.LEAKED
+                    reuse > 0 -> SmartFolder.REUSED
+                    else -> null
+                }
+                FieldBlock(
+                    label = stringResource(R.string.field_strength, toneLabel(tone)),
+                    onClick = if (collection != null && onOpenCollection != null) {
+                        {
+                            onDismiss()
+                            onOpenCollection(collection)
+                        }
+                    } else null
+                ) {
                     WavyProgress(
                         progress = strength,
                         color = strengthColor(tone),

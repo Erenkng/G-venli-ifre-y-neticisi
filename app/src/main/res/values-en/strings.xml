@@ -59,9 +59,13 @@
     <string name="vault_search">Search the vault</string>
     <string name="vault_search_hint">Site, username or tag</string>
     <string name="vault_recent">Recently used</string>
+    <string name="search_recent_queries">Recent searches</string>
+    <string name="search_blank_title">Search the vault</string>
+    <string name="search_blank_sub">Start typing a name, username or address.</string>
     <string name="vault_all">All entries</string>
     <string name="vault_empty_title">Your vault is empty</string>
     <string name="vault_empty_sub">Tap the plus button to add your first entry.</string>
+    <string name="vault_empty_action">Add your first entry</string>
     <string name="vault_no_match_title">No matching entry</string>
     <string name="vault_no_match_sub">Try a different name or username.</string>
     <string name="vault_subtitle">%1$d entries · %2$s</string>

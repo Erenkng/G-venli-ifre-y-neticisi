@@ -30,6 +30,12 @@ import app.kasa.R
 import app.kasa.data.SettingsStore
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.VaultViewModel
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import app.kasa.ui.components.KasaChip
+import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.readablePane
 import app.kasa.ui.components.SearchTopBar
@@ -43,6 +49,7 @@ import kotlinx.coroutines.delay
  * Kapanırken sorgu temizlenir: arama metni de bir ipucudur ("banka" yazdıysan
  * kasada banka kaydın var demektir) ve ekranın açık kalması gerekmez.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchOverlay(
     viewModel: VaultViewModel,
@@ -52,6 +59,8 @@ fun SearchOverlay(
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.visibleItems.collectAsStateWithLifecycle()
+    val recentQueries by viewModel.recentQueries.collectAsStateWithLifecycle()
+    val recentItems by viewModel.recents.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -110,7 +119,66 @@ fun SearchOverlay(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 40.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            if (results.isEmpty()) {
+            if (query.isBlank()) {
+                // ── boş arama ────────────────────────────────────────────
+                //
+                // Arama boş açılıyordu: kutuya dokunan kullanıcı bomboş bir
+                // ekranla karşılaşıyor ve yazmaya başlayana kadar ekranda
+                // hiçbir şey olmuyordu. Oysa o anda söylenebilecek iki şey
+                // var — az önce ne aradığı ve az önce neyi açtığı. İkisi de
+                // aradığı şeyin **büyük ihtimalle** o olduğunu söylüyor.
+                if (recentQueries.isNotEmpty()) {
+                    item(key = "recent-queries-label") {
+                        SectionLabel(stringResource(R.string.search_recent_queries))
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    item(key = "recent-queries") {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            recentQueries.forEach { term ->
+                                KasaChip(
+                                    text = term,
+                                    onClick = { viewModel.setQuery(term) }
+                                )
+                            }
+                        }
+                    }
+                }
+                if (recentItems.isNotEmpty()) {
+                    item(key = "recent-items-label") {
+                        Spacer(Modifier.height(10.dp))
+                        SectionLabel(stringResource(R.string.vault_recent))
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    itemsIndexed(
+                        items = recentItems,
+                        key = { _, item -> "recent-" + item.id },
+                        contentType = { _, _ -> "vaultRow" }
+                    ) { index, item ->
+                        VaultRow(
+                            item = item,
+                            position = groupPositionOf(index, recentItems.size),
+                            folderName = viewModel.folderName(item.folderId),
+                            onClick = {
+                                viewModel.select(item.id)
+                                onClose()
+                            }
+                        )
+                    }
+                }
+                if (recentQueries.isEmpty() && recentItems.isEmpty()) {
+                    item(key = "search-blank") {
+                        EmptyState(
+                            title = stringResource(R.string.search_blank_title),
+                            subtitle = stringResource(R.string.search_blank_sub),
+                            icon = Icons.Rounded.SearchOff
+                        )
+                    }
+                }
+            } else if (results.isEmpty()) {
                 item {
                     EmptyState(
                         title = stringResource(R.string.vault_no_match_title),
@@ -132,6 +200,9 @@ fun SearchOverlay(
                         position = groupPositionOf(index, results.size),
                         folderName = viewModel.folderName(item.folderId),
                         onClick = {
+                            // Terim ancak bir kayda götürdüğünde işe yaramış
+                            // sayılıyor; geçmişe o an giriyor.
+                            viewModel.rememberQuery(query)
                             viewModel.select(item.id)
                             onClose()
                         },

@@ -377,6 +377,7 @@ fun MainScaffold(
                             settings = settings,
                             onHeaderCollapse = { headerCollapse.floatValue = it },
                             onOpenSearch = { searchOpen = true },
+                            onCreate = { typePickerOpen = true },
                             onSearchBounds = { rect, corner ->
                                 searchOrigin = rect
                                 searchOriginCorner = corner
@@ -655,6 +656,10 @@ fun MainScaffold(
                 onEdit = {
                     vaultViewModel.dismissDetail()
                     vaultViewModel.startEdit(item)
+                },
+                onOpenCollection = { kind ->
+                    vaultViewModel.setView(VaultFilter.Smart(kind))
+                    tab = TAB_VAULT
                 }
             )
         }

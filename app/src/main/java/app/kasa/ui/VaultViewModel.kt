@@ -44,6 +44,31 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
+    /**
+     * Son arama terimleri.
+     *
+     * ### Neden diske yazılmıyor
+     *
+     * Arama terimleri kasanın içeriğini ele veriyor: kullanıcı "instagram"
+     * ya da bankasının adını arıyor ve o sözcük, kasada o kaydın bulunduğunu
+     * söylüyor. Bu uygulamanın verdiği söz, kayıt adlarının ve hangi
+     * kategorilerin kullanıldığının **şifreli dosyanın içinde** kalması;
+     * aynı bilgiyi şifresiz bir tercih dosyasına yazmak o sözü tam da
+     * kaçınılan yerden bozardı.
+     *
+     * Bu yüzden liste bellekte duruyor: uygulama açık kaldığı sürece
+     * yaşıyor, kapanınca gidiyor. Kaybedilen şey, bir sonraki açılışta
+     * geçmişin boş olması; kazanılan şey, o geçmişin hiçbir zaman diskte
+     * durmaması.
+     *
+     * ### Neden yazarken değil, açarken kaydediliyor
+     *
+     * Her tuşa basışta kaydedilseydi geçmiş "ins", "insta", "instagram"
+     * olurdu. Kaydın açılması, o terimin işe yaradığını söyleyen tek işaret.
+     */
+    private val _recentQueries = MutableStateFlow<List<String>>(emptyList())
+    val recentQueries: StateFlow<List<String>> = _recentQueries.asStateFlow()
+
     private val _selectedId = MutableStateFlow<String?>(null)
     val selectedId: StateFlow<String?> = _selectedId.asStateFlow()
 
@@ -638,7 +663,30 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         if (item.password.isBlank()) 0
         else repository.data.value.liveItems.count { it.password == item.password } - 1
 
+    /**
+     * Terimi geçmişe alır.
+     *
+     * Tek harflik terimler atlanıyor: kullanıcının aradığı şeyi
+     * hatırlatmıyorlar, yalnızca listeyi dolduruyorlar.
+     */
+    fun rememberQuery(raw: String) {
+        val term = raw.trim()
+        if (term.length < MIN_REMEMBERED_QUERY) return
+        _recentQueries.value = buildList {
+            add(term)
+            // Aynı terim iki kez durmasın; büyük/küçük harf ayrımı da yok,
+            // çünkü arama zaten harf durumuna bakmıyor.
+            addAll(_recentQueries.value.filterNot { it.equals(term, ignoreCase = true) })
+        }.take(RECENT_QUERY_LIMIT)
+    }
+
     private companion object {
         val TR: java.util.Locale = java.util.Locale("tr", "TR")
+
+        /** Geçmişte tutulan terim sayısı. Fazlası listeyi sonuçlardan uzun yapıyor. */
+        const val RECENT_QUERY_LIMIT = 6
+
+        /** Bundan kısa terimler hatırlatıcı değil. */
+        const val MIN_REMEMBERED_QUERY = 2
     }
 }
