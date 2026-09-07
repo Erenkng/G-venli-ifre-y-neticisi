@@ -809,4 +809,11 @@ Bu dosyayı kasanın kendisiyle aynı yerde tutma. Yazdırıp kâğıt olarak sa
     <string name="gen_symbol_narrow">Dar</string>
     <string name="gen_symbol_custom">Simgeler</string>
     <string name="gen_symbol_custom_sub">Sitenin kabul etmediği simgeleri sil. Küme daraldıkça entropi de düşer; yukarıdaki sayı bunu gösteriyor.</string>
+    <string name="smart_renew_due">Yenileme zamanı</string>
+    <string name="sec_online_check_off">Kapalı. Sızıntı bulgusu yalnızca daha önce alınmış sonuçlardan üretiliyor; yeni sızmış bir parola görünmez.</string>
+    <string name="sec_online_check_not_run">Son tarama ağa çıkamadı; sızıntı bulgusu önceki sonuçlardan.</string>
+    <string name="sec_score_base">Ortalama parola gücü</string>
+    <string name="sec_score_scope">Puan %1$d kaydın ölçülebilir sırrından hesaplandı.</string>
+    <string name="sec_trend">Seyir</string>
+    <string name="sec_trend_range">%1$d – %2$d</string>
 </resources>

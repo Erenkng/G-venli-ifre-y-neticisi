@@ -118,7 +118,7 @@ data class Folder(
  * bulguları gezilebilir kılan şey bunlar: "3 parola sızıntıda" artık bir sayı
  * değil, dokunulabilen bir liste.
  */
-enum class SmartFolder { FAVORITES, PASSKEYS, LEAKED, REUSED, WEAK, OLD, NO_2FA, TRASH }
+enum class SmartFolder { FAVORITES, PASSKEYS, LEAKED, REUSED, WEAK, OLD, RENEW_DUE, NO_2FA, TRASH }
 
 /** Kasa listesinin etkin görünümü. */
 sealed interface VaultFilter {
@@ -225,6 +225,29 @@ data class VaultItem(
             else -> password.reveal()
         }
 
+    /**
+     * Gücü ölçülmesi **anlamlı** olan sır; yoksa `null`.
+     *
+     * [primarySecret] bu iş için yanlış kaynak: onun tanımı "kopyalanacak
+     * değer" ve her tür için bir tane var, ama hepsi kullanıcının seçtiği bir
+     * sır değil — kartta kart numarasını, banka kaydında IBAN'ı veriyor.
+     *
+     * Model katmanında duruyor çünkü iki ayrı yer soruyor: liste ve ayrıntı
+     * sayfası (güç noktası) ile güvenlik taraması (zayıflık ve tekrar
+     * kullanım). İkisi aynı cevabı almalı; ayrı ayrı yazılsalardı kaçınılmaz
+     * olarak ayrışırlardı.
+     */
+    val measuredSecret: String?
+        get() {
+            val value = when {
+                category.schemaDriven ->
+                    if (CategorySchema.primaryIsSecret(category)) CategorySchema.primaryValue(this) else ""
+                // Kartın numarası değil, varsa kartın parolası.
+                else -> password.reveal()
+            }
+            return value.ifBlank { null }
+        }
+
     /** Bu kayıt yalnızca passkey taşıyor mu? Liste rozetini bu belirliyor. */
     val hasPasskey: Boolean get() = passkeys.isNotEmpty()
 
@@ -255,6 +278,11 @@ data class VaultItem(
     }
 }
 
+/** Tek bir taramanın sonucu: ne zaman ve kaç puan. */
+@Immutable
+@Serializable
+data class ScoreEntry(val at: Long, val score: Int)
+
 /** Kasanın diske yazılan tüm içeriği. */
 @Immutable
 @Serializable
@@ -265,6 +293,18 @@ data class VaultData(
     /** Üreticide son üretilenler; parolalar burada da şifreli blob içindedir. */
     val generatorHistory: List<SecretText> = emptyList(),
     val lastScanAt: Long = 0L,
+    /**
+     * Geçmiş tarama puanları, eskiden yeniye.
+     *
+     * Ekran yalnızca son puanı gösteriyordu; on parolasını düzelten kullanıcı
+     * daha yüksek bir sayı görüyor ama **ne kadar yol aldığını** görmüyordu.
+     * Birkaç noktayı tutmak, yapılan işi görünür kılıyor.
+     *
+     * Kasanın içinde duruyor çünkü puanın kendisi kasanın içeriği hakkında bir
+     * bilgi: şifresiz bir yerde tutmak, "bu kullanıcının parolaları kötü"
+     * bilgisini dosyanın dışına taşımak olurdu.
+     */
+    val scoreHistory: List<ScoreEntry> = emptyList(),
     val createdAt: Long = System.currentTimeMillis()
 ) {
     /** Çöp kutusundakiler hariç, kullanıcıya görünen kayıtlar. */

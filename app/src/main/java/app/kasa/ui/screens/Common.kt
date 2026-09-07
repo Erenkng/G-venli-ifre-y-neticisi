@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.material.icons.rounded.CreditCard
+import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.History
@@ -91,25 +92,12 @@ fun HeroHeader(
 
 /** Bir kaydın parola gücü tonu. Parolası olmayan kayıtlar güçlü sayılır. */
 /**
- * Gücü ölçülmesi **anlamlı** olan sır; yoksa `null`.
+ * Gücü ölçülmesi anlamlı olan sır. Tanım [VaultItem.measuredSecret] üzerinde.
  *
- * [VaultItem.primarySecret] bu iş için yanlış kaynak. Onun tanımı
- * "kopyalanacak değer" ve her tür için bir tane var, ama hepsi kullanıcının
- * seçtiği bir sır değil: kartta kart numarasını, banka kaydında IBAN'ı
- * veriyor. On altı haneli bir kart numarasını parola gibi puanlamak (~53 bit,
- * yani "orta") kullanıcıya **değiştiremeyeceği** bir şey için uyarı vermek
- * demekti.
+ * Burada yalnızca ekran katmanının kullandığı kısa ad duruyor: aynı soruyu
+ * güvenlik taraması da soruyor ve cevabın tek yerden gelmesi gerekiyor.
  */
-fun measuredSecret(item: VaultItem): String? {
-    val value = when {
-        // Şema tabanlı türlerde yalnızca birincil alan gerçekten bir sırsa.
-        item.category.schemaDriven ->
-            if (CategorySchema.primaryIsSecret(item.category)) CategorySchema.primaryValue(item) else ""
-        // Kartın numarası değil, varsa kartın parolası.
-        else -> item.password.reveal()
-    }
-    return value.ifBlank { null }
-}
+fun measuredSecret(item: VaultItem): String? = item.measuredSecret
 
 /**
  * Kaydın güç tonu; ölçülemiyorsa `null`.
@@ -282,6 +270,7 @@ fun smartFolderLabel(kind: SmartFolder): String = stringResource(
         SmartFolder.REUSED -> R.string.smart_reused
         SmartFolder.WEAK -> R.string.smart_weak
         SmartFolder.OLD -> R.string.smart_old
+        SmartFolder.RENEW_DUE -> R.string.smart_renew_due
         SmartFolder.NO_2FA -> R.string.smart_no2fa
         SmartFolder.TRASH -> R.string.smart_trash
     }
@@ -294,6 +283,7 @@ fun smartFolderIcon(kind: SmartFolder): ImageVector = when (kind) {
     SmartFolder.REUSED -> Icons.Rounded.Repeat
     SmartFolder.WEAK -> Icons.Rounded.Warning
     SmartFolder.OLD -> Icons.Rounded.History
+    SmartFolder.RENEW_DUE -> Icons.Rounded.Autorenew
     SmartFolder.NO_2FA -> Icons.Rounded.Shield
     SmartFolder.TRASH -> Icons.Rounded.Delete
 }

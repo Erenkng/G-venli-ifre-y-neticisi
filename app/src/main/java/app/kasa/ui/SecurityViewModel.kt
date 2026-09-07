@@ -71,7 +71,11 @@ class SecurityViewModel(private val container: AppContainer) : ViewModel() {
             // Tarama yalnızca canlı kayıtlara bakar; çöp kutusundakiler
             // olduğu gibi korunur, yoksa geri yükleme onları kaybederdi.
             val trashed = container.vaultRepository.data.value.trashedItems
-            container.vaultRepository.recordScan(report.updatedItems + trashed, report.scannedAt)
+            container.vaultRepository.recordScan(
+                report.updatedItems + trashed,
+                report.scannedAt,
+                report.score
+            )
             container.settingsStore.setLastScanAt(report.scannedAt)
 
             _state.value = State(
@@ -102,6 +106,17 @@ class SecurityViewModel(private val container: AppContainer) : ViewModel() {
                 else UiMessage(R.string.sec_scan_done, listOf(count))
             )
         }
+    }
+
+    /**
+     * Sızıntı denetimini açıp kapatır.
+     *
+     * Ayarlar ekranında da duruyor ama asıl yeri burası: kullanıcı denetimin
+     * sonucuna bakarken kararı verir, ayarların derinliğinde değil. İki yer de
+     * aynı ayarı yazıyor.
+     */
+    fun setOnlineBreachCheck(value: Boolean) {
+        viewModelScope.launch { container.settingsStore.setOnlineBreachCheck(value) }
     }
 
     fun haptic(kind: Haptics.Kind) = container.haptics.play(kind)

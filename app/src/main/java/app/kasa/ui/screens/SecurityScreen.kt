@@ -62,6 +62,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import app.kasa.data.model.ScoreEntry
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
@@ -75,6 +82,8 @@ import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.GroupPosition
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaCard
+import androidx.compose.material.icons.rounded.CloudOff
+import app.kasa.ui.components.KasaSwitch
 import app.kasa.ui.components.KasaChip
 import app.kasa.ui.components.ScanShape
 import app.kasa.ui.components.SectionLabel
@@ -110,6 +119,7 @@ fun SecurityScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val vaultData by viewModel.items.collectAsStateWithLifecycle()
     val vaultItems = vaultData.liveItems
+    val history = vaultData.scoreHistory
     val report = state.report
     val score = report?.score ?: 0
     val animatedScore by animateFloatAsState(score / 100f, label = "score")
@@ -244,6 +254,18 @@ fun SecurityScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
+                // ── puanın dökümü ─────────────────────────────────────
+                //
+                // Sayı tek başına bir yargıydı: 62 neden 62, hangi bulgu ne
+                // kadar indiriyor, görünmüyordu. Hesap belirli olduğu için
+                // saklamanın gerekçesi de yok. Gösterilince puan bir liste
+                // oluyor ve kullanıcı hangi kolun sayıyı en çok oynatacağını
+                // görüyor.
+                if (report != null && report.scoredCount > 0 && !state.scanning) {
+                    Spacer(Modifier.height(14.dp))
+                    ScoreBreakdown(report = report)
+                }
+
                 Spacer(Modifier.height(16.dp))
                 KasaButton(
                     text = stringResource(if (state.scanning) R.string.sec_scanning else R.string.sec_scan),
@@ -254,32 +276,74 @@ fun SecurityScreen(
             }
         }
 
+        // ── eğilim ────────────────────────────────────────────────────────
+        //
+        // İki noktadan azı bir eğilim değil; tek bir puanı çizgi olarak
+        // göstermek, olmayan bir bilgiyi varmış gibi sunmak olurdu.
+        if (history.size > 1) {
+            item(key = "trend") {
+                Spacer(Modifier.height(14.dp))
+                SectionLabel(stringResource(R.string.sec_trend))
+                Spacer(Modifier.height(8.dp))
+                ScoreTrend(history = history, color = scoreTone)
+            }
+        }
+
         item(key = "online-note") {
+            // ── çevrimiçi denetim ─────────────────────────────────────────
+            //
+            // Bu kart k-anonimliğin nasıl çalıştığını anlatıyordu ve **açık mı
+            // kapalı mı** olduğunu söylemiyordu; ekranın aldığı `settings`
+            // parametresi hiçbir yerde okunmuyordu. Denetimi kapatmış bir
+            // kullanıcı, çalışmayan bir özelliğin açıklamasını okuyor ve puanı
+            // sızıntı verisi olmadan hesaplanmış olmasına rağmen aynı
+            // görünüyordu.
+            //
+            // `onlineCheckRan` da hesaplanıp hiçbir yere yazılmıyordu: uygulama
+            // son taramanın gerçekten ağa çıkıp çıkmadığını biliyor ama
+            // söylemiyordu. Ağ hatası ile "hiç denenmedi" arasındaki fark,
+            // sızıntı bulgusunun ne kadar güvenilir olduğunu belirleyen şey.
             Spacer(Modifier.height(14.dp))
-            Row(
+            val online = settings.onlineBreachCheck
+            Column(
                 Modifier
                     .fillMaxWidth()
                     .glassSurface(RoundedCornerShape(KasaRadius.m), MaterialTheme.colorScheme.surfaceContainerLow)
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(16.dp)
             ) {
-                Icon(
-                    Icons.Rounded.Shield,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Column {
-                    Text(
-                        stringResource(R.string.sec_online_check),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = KasaTheme.colors.ink
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(
+                        if (online) Icons.Rounded.Shield else Icons.Rounded.CloudOff,
+                        contentDescription = null,
+                        tint = if (online) MaterialTheme.colorScheme.primary else KasaTheme.colors.ink3,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Spacer(Modifier.height(3.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.sec_online_check),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = KasaTheme.colors.ink
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            stringResource(
+                                if (online) R.string.sec_online_check_sub
+                                else R.string.sec_online_check_off
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KasaTheme.colors.ink3
+                        )
+                    }
+                    KasaSwitch(checked = online, onCheckedChange = viewModel::setOnlineBreachCheck)
+                }
+
+                // Son taramanın ağa gerçekten çıkıp çıkmadığı.
+                if (online && report != null && !report.onlineCheckRan) {
+                    Spacer(Modifier.height(10.dp))
                     Text(
-                        stringResource(R.string.sec_online_check_sub),
+                        stringResource(R.string.sec_online_check_not_run),
                         style = MaterialTheme.typography.bodySmall,
-                        color = KasaTheme.colors.ink3
+                        color = KasaTheme.colors.badgeMidFg
                     )
                 }
             }
@@ -359,6 +423,138 @@ fun SecurityScreen(
         }
     }
 }
+
+/**
+ * Puanın dökümü: taban ve inen cezalar.
+ *
+ * Yüzde çubuğu ya da pasta değil, düz bir liste. Cezaların büyüklüğü zaten
+ * sayının kendisinde yazılı ve görsel bir ölçek, altı satırın hepsini
+ * kıyaslanabilir kılmak yerine en büyüğüne bakmayı kolaylaştırırdı — oysa
+ * kullanıcının merak ettiği "hangisi ne kadar", hepsi birlikte.
+ */
+@Composable
+private fun ScoreBreakdown(report: SecurityAnalyzer.Report) {
+    Column(Modifier.fillMaxWidth()) {
+        BreakdownRow(
+            label = stringResource(R.string.sec_score_base),
+            value = "+" + report.basePoints,
+            emphasis = true
+        )
+        report.deductions.forEach { deduction ->
+            // Etiket akıllı klasör adından geliyor: onlar zaten sayısız,
+            // düz isimler ("Sızmış", "Zayıf") ve bulgu satırlarıyla aynı
+            // sözcükleri kullanmak, iki listeyi birbirine bağlıyor.
+            BreakdownRow(
+                label = smartFolderLabel(deduction.type.asSmartFolder()),
+                value = "−" + deduction.points
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        // Puanın hangi kayıtlar üzerinden hesaplandığı.
+        //
+        // "Kasanın puanı" ile "kasanın ölçülebilir kısmının puanı" aynı şey
+        // değil ve fark, not ya da kart ağırlıklı bir kasada büyük.
+        Text(
+            stringResource(R.string.sec_score_scope, report.scoredCount),
+            style = MaterialTheme.typography.bodySmall,
+            color = KasaTheme.colors.ink3
+        )
+    }
+}
+
+@Composable
+private fun BreakdownRow(label: String, value: String, emphasis: Boolean = false) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (emphasis) KasaTheme.colors.ink2 else KasaTheme.colors.ink3
+        )
+        Text(
+            value,
+            style = KasaTheme.text.mono.copy(fontSize = MaterialTheme.typography.bodySmall.fontSize),
+            color = if (emphasis) KasaTheme.colors.ink2 else KasaTheme.colors.ink3
+        )
+    }
+}
+
+/**
+ * Puanın zaman içindeki seyri.
+ *
+ * ### Neden eksen yok
+ *
+ * Okunacak şey mutlak değer değil **yön**: yukarı mı gidiyor, aşağı mı. Puan
+ * zaten kartın ortasında büyük büyük yazılı. Eksen ve ızgara, üç santimetrelik
+ * bir çizgiye kendisinden fazla yer kaplayan bir çerçeve eklerdi.
+ *
+ * Ölçek 0-100'e değil **verinin kendi aralığına** oturuyor: 71'den 78'e çıkan
+ * bir kasa, 0-100 ölçeğinde düz bir çizgi olarak görünür ve o düzlük yanlış
+ * bir haber olurdu.
+ */
+@Composable
+private fun ScoreTrend(history: List<ScoreEntry>, color: Color) {
+    val track = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    val points = remember(history) { history.map { it.score } }
+    val low = remember(points) { points.min() }
+    val high = remember(points) { points.max() }
+
+    KasaCard {
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(TREND_HEIGHT)
+        ) {
+            if (points.size < 2) return@Canvas
+            // Tamamen düz bir dizide bölme sıfıra düşer; o durumda çizgi
+            // ortadan geçiyor, ki söylediği şey de bu: değişmemiş.
+            val span = (high - low).coerceAtLeast(1)
+            val stepX = size.width / (points.size - 1)
+            val path = Path()
+            points.forEachIndexed { index, value ->
+                val x = stepX * index
+                val y = size.height - (value - low).toFloat() / span * size.height
+                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawLine(
+                color = track,
+                start = Offset(0f, size.height),
+                end = Offset(size.width, size.height),
+                strokeWidth = 1.dp.toPx()
+            )
+            drawPath(
+                path = path,
+                color = color,
+                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
+            // Son nokta vurgulu: gözün "şu an buradayım" diye tutunduğu yer.
+            val lastX = size.width
+            val lastY = size.height - (points.last() - low).toFloat() / span * size.height
+            drawCircle(color = color, radius = 3.5.dp.toPx(), center = Offset(lastX, lastY))
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                relativeTime(history.first().at),
+                style = MaterialTheme.typography.labelSmall,
+                color = KasaTheme.colors.ink3
+            )
+            Text(
+                stringResource(R.string.sec_trend_range, low, high),
+                style = MaterialTheme.typography.labelSmall,
+                color = KasaTheme.colors.ink3
+            )
+        }
+    }
+}
+
+/** Eğilim çizgisinin yüksekliği: yön okunacak kadar, yer kaplamayacak kadar. */
+private val TREND_HEIGHT = 56.dp
 
 /**
  * Kasanın sayılarla özeti.
@@ -524,7 +720,7 @@ private fun SecurityAnalyzer.FindingType.asSmartFolder(): SmartFolder = when (th
     // Yenileme zamanı gelenler ayrı bir koleksiyon değil: kullanıcı "eski
     // parolalar" görünümünde zaten onları da görüyor ve ayrı bir liste,
     // birbirini büyük ölçüde kapsayan iki görünüm demek olurdu.
-    SecurityAnalyzer.FindingType.RENEW_DUE -> SmartFolder.OLD
+    SecurityAnalyzer.FindingType.RENEW_DUE -> SmartFolder.RENEW_DUE
     SecurityAnalyzer.FindingType.NO_2FA -> SmartFolder.NO_2FA
 }
 

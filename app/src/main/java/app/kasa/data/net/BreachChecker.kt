@@ -40,18 +40,76 @@ class BreachChecker {
     }
 
     /**
-     * @return parolanın sızıntılarda kaç kez görüldüğü, ağ hatasında `null`.
+     * Parolanın SHA-1 özeti (büyük harfli onaltılık).
+     *
+     * Dışarı açık çünkü ön eke göre gruplama çağıranın işi: aynı ön ekteki
+     * parolalar tek bir istekle çözülüyor ve bunu yapabilmek için özetin
+     * kendisine erişmek gerekiyor. Özet gizli değil — gizli olan hangi
+     * parolaya ait olduğu ve o bilgi cihazdan çıkmıyor.
      */
-    suspend fun timesSeen(password: SecretText): Int? = withContext(Dispatchers.IO) {
-        if (password.isBlank()) return@withContext 0
-        // Parola baytları özet alındıktan hemen sonra sıfırlanıyor; ağ katmanına
-        // giden tek şey özetin ilk beş onaltılık hanesi.
+    fun hashOf(password: SecretText): String {
+        // Parola baytları özet alındıktan hemen sonra sıfırlanıyor.
         val bytes = password.toSecretBytes()
-        val hash = try {
+        return try {
             Crypto.sha1Hex(bytes.raw())
         } finally {
             bytes.wipe()
         }
+    }
+
+    /**
+     * Bir ön ekin tamamını indirir: kalan özet → görülme sayısı.
+     *
+     * ### Neden parola başına değil ön ek başına
+     *
+     * Tarama her parola için ayrı bir istek atıyordu. Dört yüz kayıtlı bir
+     * kasada bu, ardışık dört yüz gidiş-dönüş demekti; üstelik aynı parola
+     * birden çok kayıtta olabildiği için (tekrar kullanım bulgusu bunu zaten
+     * söylüyor) çoğu istek aynı cevabı getiriyordu.
+     *
+     * Asıl mesele hız da değil: HIBP zaten k-anonimlik ile çalışıyor ve bir
+     * ön eki sorunca o ön ekle başlayan **bütün** özetler geliyor. Aynı ön eki
+     * on kez sormak sunucuya "bu kullanıcının bu ön ekte on parolası var"
+     * demek — k-anonimliğin sakladığı şeyi trafik deseni sızdırıyordu.
+     *
+     * @return kalan özet → sayı eşlemesi, ağ hatasında `null`
+     */
+    suspend fun range(prefix: String): Map<String, Int>? = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("https://api.pwnedpasswords.com/range/$prefix")
+            .header("Add-Padding", "true")
+            .header("User-Agent", "Kasa-Android")
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val body = response.body?.string() ?: return@withContext null
+                val map = HashMap<String, Int>()
+                for (line in body.lineSequence()) {
+                    val separator = line.indexOf(':')
+                    if (separator <= 0) continue
+                    val count = line.substring(separator + 1).trim().toIntOrNull() ?: continue
+                    // Dolgu satırlarının sayacı 0'dır; onlar eşleşme sayılmaz
+                    // ama haritada durmalarının da zararı yok — arayan taraf
+                    // bulamazsa zaten 0 kabul ediyor.
+                    map[line.substring(0, separator).uppercase()] = count
+                }
+                map
+            }
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
+    /**
+     * @return parolanın sızıntılarda kaç kez görüldüğü, ağ hatasında `null`.
+     *
+     * Tek bir parola için; toplu tarama [range] üzerinden gidiyor.
+     */
+    suspend fun timesSeen(password: SecretText): Int? = withContext(Dispatchers.IO) {
+        if (password.isBlank()) return@withContext 0
+        val hash = hashOf(password)
         val prefix = hash.substring(0, 5)
         val suffix = hash.substring(5)
 

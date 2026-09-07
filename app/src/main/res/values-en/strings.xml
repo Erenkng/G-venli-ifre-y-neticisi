@@ -755,4 +755,11 @@
     <string name="gen_symbol_narrow">Narrow</string>
     <string name="gen_symbol_custom">Symbols</string>
     <string name="gen_symbol_custom_sub">Delete the ones the site rejects. A narrower set means less entropy, and the number above shows it.</string>
+    <string name="smart_renew_due">Renewal due</string>
+    <string name="sec_online_check_off">Off. Breach findings come only from earlier results; a newly leaked password will not show up.</string>
+    <string name="sec_online_check_not_run">The last scan could not reach the network; breach findings are from earlier results.</string>
+    <string name="sec_score_base">Average password strength</string>
+    <string name="sec_score_scope">Scored from the measurable secrets of %1$d entries.</string>
+    <string name="sec_trend">Trend</string>
+    <string name="sec_trend_range">%1$d – %2$d</string>
 </resources>

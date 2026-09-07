@@ -21,6 +21,7 @@ import app.kasa.data.model.PasswordHistoryEntry
 import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultData
 import app.kasa.data.model.VaultFilter
+import app.kasa.data.model.ScoreEntry
 import app.kasa.data.model.VaultItem
 import app.kasa.core.util.PasswordGenerator
 import app.kasa.core.util.PasswordStrength
@@ -663,9 +664,26 @@ class VaultRepository(
 
     suspend fun clearGeneratorHistory(): Boolean = mutate { it.copy(generatorHistory = emptyList()) }
 
-    suspend fun recordScan(updated: List<VaultItem>, scannedAt: Long): Boolean = mutate { current ->
-        current.copy(items = updated, lastScanAt = scannedAt)
-    }
+    /**
+     * Taramanın sonucunu kasaya yazar: güncellenmiş kayıtlar, zaman ve puan.
+     *
+     * Puan geçmişi sınırlı: son [MAX_SCORE_HISTORY] nokta tutuluyor. Amaç bir
+     * grafik çizmek değil, "geçen ay neredeydim" sorusuna cevap vermek; sınırsız
+     * bir dizi de kasa dosyasını her taramada biraz daha büyütürdü.
+     *
+     * Aynı günün ikinci taraması öncekinin yerine geçiyor. Gün içinde beş kez
+     * tarayan kullanıcının geçmişi, beş noktası aynı güne düşen bir dizi
+     * olurdu ve ondan hiçbir eğilim okunmaz.
+     */
+    suspend fun recordScan(updated: List<VaultItem>, scannedAt: Long, score: Int): Boolean =
+        mutate { current ->
+            val day = scannedAt / SecurityAnalyzer.DAY_MILLIS
+            val history = current.scoreHistory
+                .filterNot { it.at / SecurityAnalyzer.DAY_MILLIS == day }
+                .plus(ScoreEntry(scannedAt, score))
+                .takeLast(MAX_SCORE_HISTORY)
+            current.copy(items = updated, lastScanAt = scannedAt, scoreHistory = history)
+        }
 
     /** İçe aktarma: aynı kimlikli kayıtlar yeni kimlikle eklenir, hiçbir şey ezilmez. */
     suspend fun merge(incoming: List<VaultItem>): Int {
@@ -1139,6 +1157,14 @@ class VaultRepository(
             PasswordStrength.evaluate(item.primarySecret).tone == PasswordStrength.Tone.WEAK
         SmartFolder.OLD -> item.password.isNotBlank() &&
             System.currentTimeMillis() - item.passwordChangedAt > OLD_PASSWORD_MILLIS
+        // Kullanıcının kendi koyduğu aralık. [SmartFolder.OLD]'dan ayrı:
+        // biri uygulamanın bir yıllık tabanı, öteki kullanıcının o kayıt için
+        // bilerek seçtiği süre. "Yenileme zamanı geldi" bulgusu eskiden
+        // OLD'a götürüyordu ve orası **başka** bir küme — kullanıcı doksan
+        // günlük kuralını arıyordu, bir yıldan eskileri buluyordu.
+        SmartFolder.RENEW_DUE -> item.renewEveryDays > 0 && item.password.isNotBlank() &&
+            System.currentTimeMillis() - item.passwordChangedAt >
+            item.renewEveryDays * SecurityAnalyzer.DAY_MILLIS
         SmartFolder.NO_2FA -> item.category == Category.LOGIN &&
             item.password.isNotBlank() && item.totpSecret.isBlank()
         SmartFolder.TRASH -> item.inTrash
@@ -1535,6 +1561,9 @@ class VaultRepository(
 
         const val MAX_HISTORY = 10
         const val MAX_GENERATOR_HISTORY = 30
+
+        /** Kaç tarama puanı saklanıyor. Bir grafik değil, bir eğilim yetiyor. */
+        const val MAX_SCORE_HISTORY = 24
 
         /** Çöp kutusunda bekleme süresi. */
         const val TRASH_RETENTION_DAYS = 30

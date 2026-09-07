@@ -51,7 +51,11 @@ class SecurityScanWorker(
         if (items.isEmpty()) return Result.success()
 
         val report = container.securityAnalyzer.analyze(items, onlineCheck = true)
-        repository.recordScan(report.updatedItems + repository.data.value.trashedItems, report.scannedAt)
+        repository.recordScan(
+            report.updatedItems + repository.data.value.trashedItems,
+            report.scannedAt,
+            report.score
+        )
         container.settingsStore.setLastScanAt(report.scannedAt)
 
         notifyFindings(report)
