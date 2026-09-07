@@ -19,31 +19,33 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 2.5'te yenilikler
+## 2.6'da yenilikler
 
-Bu sürüm baştan sona **Güvenlik** ekranı.
+Bu sürümde yeni özellik yok. Uygulamaya saldıran gözle bakıldı ve çıkan
+açıklar kapatıldı.
 
-- **Sızıntı taraması artık dakikalar değil saniyeler sürüyor.** Her parola için
-  ayrı ve ardışık bir istek atılıyordu — dört yüz kayıtlı bir kasada dört yüz
-  gidiş-dönüş. Artık ön eke göre gruplanıyor: her ayrı ön ek bir kez
-  indiriliyor, kalanı cihazda çözülüyor.
-- **Ve daha az bilgi sızdırıyor.** Aynı ön eki tekrar tekrar sormak, sunucuya
-  "bu kullanıcının bu ön ekte on parolası var" demekti; k-anonimliğin sakladığı
-  şeyi trafik deseni sızdırıyordu.
-- **Ekran denetimin kapalı olduğunu söylemiyordu.** Kart k-anonimliğin nasıl
-  çalıştığını anlatıyor ama açık mı kapalı mı olduğunu söylemiyordu. Artık
-  durumu gösteriyor, anahtarı taşıyor ve son tarama ağa çıkamadıysa bunu yazıyor.
-- **Puanın dökümü ekranda.** Taban ortalama güç, üstüne her bulgunun oranına
-  göre inen ceza. Puanın kaç kaydın ölçülebilir sırrından hesaplandığı da
-  yazılı — "kasanın puanı" ile "kasanın bir kısmının puanı" aynı şey değil.
-- **Seyir çizgisi.** Son yirmi dört tarama puanı kasada tutuluyor; on parolasını
-  düzelten kullanıcı artık ne kadar yol aldığını da görüyor.
-- **"Yenileme zamanı geldi" doğru listeye götürüyor.** Kendi klasörü yoktu ve
-  "bir yıldan eski" listesine bağlıydı: kullanıcı doksan günlük kuralını arıyor,
-  bir yıldan eskileri buluyordu. Bulgu artık puana da giriyor.
-- **SSH anahtarı, lisans ve banka kayıtları da taranıyor.** Sırlarını ayrı bir
-  alanda tuttukları için taramanın tamamen dışında kalıyorlardı; iki anahtara
-  aynı parolayı vermek artık görünüyor.
+- **Yanlış deneme engeli telefonun saatiyle atlatılabiliyordu.** Bekleme
+  süresi bir tarih damgası olarak yazılıyordu ve o tarihi kullanıcı
+  değiştirebiliyor: üç yanlış dene, Ayarlar'dan saati ileri al, üç yanlış
+  daha. Çalınmış bir telefonda ana parolayı sınırsız denemek demekti.
+  Engel artık değiştirilemeyen bir saate bakıyor; yeniden başlatmak da
+  süreyi silmiyor, baştan başlatıyor.
+- **Bozuk bir yedek dosyası uygulamayı düşürebiliyordu.** Dosya, kendisini
+  açmanın ne kadar bellek harcayacağını kendisi söylüyordu ve bu değer hiç
+  denetlenmiyordu; üstelik parola sorulmadan önce kullanılıyordu. Yani
+  "şunu bir açar mısın" diyen birinin parolayı bilmesine gerek yoktu.
+  Dosyadan okunan bütün boyutlar artık sınırlı.
+- **Güvenilen ağ ayarı ev adresini ele verebiliyordu.** Ağ adının özeti
+  şifresiz ayar dosyasında duruyordu. Özet geri çevrilemez ama Wi-Fi ağları
+  herkese açık veri tabanlarında konumlarıyla listeli — yani deneyerek
+  bulunabilirdi. Özet artık telefondan çıkamayan bir anahtarla alınıyor.
+  *Bu özelliği kullanıyorsan güvenilen ağını bir kez yeniden seçmen
+  gerekiyor; eski kayıt siliniyor.*
+- **Ana ekran aracı kaç kaydın olduğunu yazıyordu.** Kasanın sakladığını
+  söylediği bilgilerden biri de tam olarak buydu ve araç, ekran koruması
+  kapsamının dışında duruyor. Artık yalnızca kilit durumunu gösteriyor.
+- **Zorlama parolasıyla açılan kasada gerçek parola sınanabiliyordu.**
+  Artık sınanamıyor.
 
 Gezinme çubuğuna yine dokunulmadı.
 
