@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -403,13 +404,46 @@ fun ScanShape(
 }
 
 /**
+ * Bu zeminin üzerinde okunacak mürekkep rengi.
+ *
+ * ### Neden gerekti
+ *
+ * Üreteç ekranında kadranın üzerindeki etiket ve entropi `Color.White` olarak
+ * **sabit** yazılmıştı; zemin ise gücün rengi ve o renkler açık tonlar.
+ * Ölçülen kontrastlar:
+ *
+ *  - `#F2C14E` (koyu tema, orta güç) üzerine beyaz: **1,5 : 1**
+ *  - `#3FD9B4` (koyu tema, güçlü) üzerine beyaz: **1,8 : 1**
+ *  - `#0E8A6E` (açık tema, güçlü) üzerine beyaz: 4,3 : 1
+ *
+ * Gövde metni için gereken 4,5 : 1. Üstelik kadranın degradesi sol üstü
+ * [lift] ile daha da açıyor, yani yazının durduğu yer bu değerlerden bile
+ * parlak. Ekranın tek işi gücü söylemekti ve o cümle çoğu durumda
+ * okunmuyordu.
+ *
+ * ### Eşik nereden geliyor
+ *
+ * Beyaz ile koyu mürekkebin kontrastı, zeminin bağıl parlaklığı ~0,205'te
+ * eşitleniyor: `1,05 / (L + 0,05) = (L + 0,05) / 0,062`. Bunun üstünde koyu,
+ * altında açık mürekkep kazanıyor.
+ */
+fun inkOn(background: Color): Color =
+    if (background.luminance() > INK_CROSSOVER) INK_DARK else Color.White
+
+/** Beyaz ile koyu mürekkebin eşit kontrast verdiği bağıl parlaklık. */
+private const val INK_CROSSOVER = 0.205f
+
+/** Koyu mürekkep: saf siyah değil, uygulamanın kendi koyu jade'i. */
+private val INK_DARK = Color(0xFF07211C)
+
+/**
  * Rengi beyaza doğru çeker.
  *
  * Doygunluğu koruyarak açmanın (HSL üzerinden) görünür bir üstünlüğü yok ve
  * bir renk uzayı dönüşümü getiriyor; buradaki kullanım tek bir degradenin
  * açık ucunu üretmek ve doğrusal karışım o iş için yeterli.
  */
-private fun Color.lift(fraction: Float): Color = Color(
+fun Color.lift(fraction: Float): Color = Color(
     red = red + (1f - red) * fraction,
     green = green + (1f - green) * fraction,
     blue = blue + (1f - blue) * fraction,

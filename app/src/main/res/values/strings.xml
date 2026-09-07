@@ -800,4 +800,14 @@ Bu dosyayı kasanın kendisiyle aynı yerde tutma. Yazdırıp kâğıt olarak sa
     <string name="list_totp">İki adımlı kodlar</string>
     <string name="list_totp_show">Kodları listede göster</string>
     <string name="list_totp_sub">Kod satırın sonunda, geri sayımıyla birlikte durur; dokununca kopyalanır. Kapalıyken yalnızca kaydı açınca görünür.</string>
+
+    <string name="gen_crack">Saniyede yüz milyar deneme yapan bir saldırgan için: %1$s</string>
+    <string name="gen_use_username">Kullanıcı adı olarak ekle</string>
+    <string name="gen_use_note">Not olarak ekle</string>
+    <string name="gen_history_hint">Bir satıra dokunmak onu panoya alır.</string>
+    <string name="gen_symbol_set">Hangi simgeler</string>
+    <string name="gen_symbol_wide">Geniş</string>
+    <string name="gen_symbol_narrow">Dar</string>
+    <string name="gen_symbol_custom">Simgeler</string>
+    <string name="gen_symbol_custom_sub">Sitenin kabul etmediği simgeleri sil. Küme daraldıkça entropi de düşer; yukarıdaki sayı bunu gösteriyor.</string>
 </resources>

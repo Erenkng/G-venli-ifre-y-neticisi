@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.compose.runtime.Immutable
+import app.kasa.core.util.PasswordGenerator
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -225,6 +226,15 @@ class SettingsStore(private val context: Context) {
         val generatorSymbols: Boolean = true,
         val generatorAvoidLookalikes: Boolean = false,
         /**
+         * Üreteçte kullanılacak simgeler.
+         *
+         * Sitelerin simge kuralları birbirini tutmuyor ve kabul etmediği bir
+         * simge yüzünden reddedilen parola, kullanıcıyı elle bir şey yazmaya
+         * itiyor. Küme burada tutuluyor, entropi de ondan hesaplanıyor —
+         * daraltmanın bedeli görünür oluyor.
+         */
+        val generatorSymbolSet: String = PasswordGenerator.SYMBOLS,
+        /**
          * Deneysel yüzey efektleri.
          *
          * Eğim parlaması, basınç çiçeklenmesi, parıltı şeridi ve kenar
@@ -335,6 +345,7 @@ class SettingsStore(private val context: Context) {
             generatorDigits = prefs[KEY_GEN_DIGITS] ?: true,
             generatorSymbols = prefs[KEY_GEN_SYMBOLS] ?: true,
             generatorAvoidLookalikes = prefs[KEY_GEN_CLEAR] ?: false,
+            generatorSymbolSet = prefs[KEY_GEN_SYMBOL_SET] ?: PasswordGenerator.SYMBOLS,
             experimentalEffects = prefs[KEY_EXPERIMENTAL] ?: true,
             // Alt anahtarların varsayılanı açık: ana anahtar zaten hepsini
             // birden kapatıyor ve 2.2'den gelen kullanıcı, açık bıraktığı
@@ -417,6 +428,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setGeneratorDigits(value: Boolean) = put(KEY_GEN_DIGITS, value)
     suspend fun setGeneratorSymbols(value: Boolean) = put(KEY_GEN_SYMBOLS, value)
     suspend fun setGeneratorAvoidLookalikes(value: Boolean) = put(KEY_GEN_CLEAR, value)
+    suspend fun setGeneratorSymbolSet(value: String) = put(KEY_GEN_SYMBOL_SET, value)
     suspend fun setGeneratorWordCount(value: Int) = put(KEY_GEN_WORDS, value)
     suspend fun setGeneratorSeparator(value: String) = put(KEY_GEN_SEPARATOR, value)
     suspend fun setExperimentalEffects(value: Boolean) = put(KEY_EXPERIMENTAL, value)
@@ -494,6 +506,7 @@ class SettingsStore(private val context: Context) {
         val KEY_GEN_DIGITS = booleanPreferencesKey("gen_digits")
         val KEY_GEN_SYMBOLS = booleanPreferencesKey("gen_symbols")
         val KEY_GEN_CLEAR = booleanPreferencesKey("gen_clear")
+        val KEY_GEN_SYMBOL_SET = stringPreferencesKey("gen_symbol_set")
         val KEY_GEN_PASSPHRASE = booleanPreferencesKey("gen_passphrase")
         val KEY_GEN_WORDS = intPreferencesKey("gen_words")
         val KEY_GEN_SEPARATOR = stringPreferencesKey("gen_separator")

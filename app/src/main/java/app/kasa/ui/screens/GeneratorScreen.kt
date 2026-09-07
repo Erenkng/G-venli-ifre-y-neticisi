@@ -58,6 +58,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.text.style.TextOverflow
+import app.kasa.ui.components.KasaIconButton
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
@@ -71,6 +73,9 @@ import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaButtonGroup
 import app.kasa.ui.components.KasaCard
 import app.kasa.ui.components.KasaSwitch
+import app.kasa.ui.components.inkOn
+import app.kasa.ui.components.lift
+import app.kasa.ui.components.KasaTextField
 import app.kasa.ui.components.MorphDial
 import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.SplitButton
@@ -91,7 +96,7 @@ import app.kasa.ui.theme.KasaTheme
 fun GeneratorScreen(
     viewModel: GeneratorViewModel,
     settings: SettingsStore.Settings,
-    onUseForNewEntry: (String) -> Unit,
+    onUseForNewEntry: (String, GeneratorMode) -> Unit,
     modifier: Modifier = Modifier,
     /**
      * Başlığın ne kadar yukarı çıktığı (0..1).
@@ -182,6 +187,15 @@ fun GeneratorScreen(
                     color = dialColor,
                     modifier = Modifier.size(190.dp)
                 )
+                // Yazının rengi zeminden türetiliyor.
+                //
+                // Burada `Color.White` sabitti ve kadranın dolgusu gücün
+                // rengi: koyu temada parlak nane (#3FD9B4) ya da kehribar
+                // (#F2C14E). Beyazla kontrastları 1,8 ve 1,5 — gövde metni
+                // için gereken 4,5'in çok altında. Degrade sol üstü daha da
+                // açtığı için yazının durduğu yer bu değerlerden bile
+                // parlaktı. Gerekçesi [inkOn] üzerinde yazılı.
+                val dialInk = inkOn(dialColor.lift(DIAL_TEXT_LIFT))
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -189,15 +203,40 @@ fun GeneratorScreen(
                     Text(
                         text = stringResource(state.label),
                         style = KasaTheme.text.sectionLabel,
-                        color = Color.White
+                        color = dialInk
                     )
                     Text(
                         text = stringResource(R.string.gen_entropy, state.entropyBits.toInt()),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.82f)
+                        color = dialInk.copy(alpha = 0.82f)
                     )
                 }
             }
+        }
+
+        item(key = "crack") {
+            // "78 bit" kimsenin sahip olduğu bir birim değil.
+            //
+            // Çeviri zaten yazılmıştı: [GeneratorViewModel.crackTime] ve
+            // [CrackTime] sekiz dil kaynağıyla birlikte duruyordu ve hiçbir
+            // yerden çağrılmıyordu. Ekranın tek işi gücü söylemek ve
+            // söylediği tek sayı anlaşılmıyordu.
+            //
+            // Varsayım cümlenin içinde: kırılma süresi bir saldırganın
+            // hızına göre değişiyor ve o hızı yazmayan bir tahmin, kesinlik
+            // taslayan bir uydurma olur.
+            val crack = viewModel.crackTime()
+            Text(
+                text = stringResource(
+                    R.string.gen_crack,
+                    crack.arg?.let { stringResource(crack.textRes, it) }
+                        ?: stringResource(crack.textRes)
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = KasaTheme.colors.ink3,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp, start = 12.dp, end = 12.dp)
+            )
         }
 
         item(key = "value") {
@@ -436,6 +475,58 @@ fun GeneratorScreen(
                                 onCheckedChange = viewModel::setAvoidLookalikes
                             )
 
+                            // ── hangi simgeler ────────────────────────────
+                            //
+                            // Sitelerin simge kuralları birbirini tutmuyor:
+                            // kimi yalnızca birkaçını kabul ediyor, kimi
+                            // hiçbirini. Kabul edilmeyen bir simge yüzünden
+                            // reddedilen parola, kullanıcıyı elle bir şey
+                            // yazmaya itiyor — yani üreteç, korumak istediği
+                            // şeyi zayıflatmaya yol açıyor. Bu ekranın en sık
+                            // karşılaşılan gerçek sürtünmesi buydu.
+                            //
+                            // Daraltmanın bedeli gizlenmiyor: havuz küçülünce
+                            // entropi de düşüyor ve yukarıdaki sayı bunu
+                            // gösteriyor.
+                            if (state.settings.generatorSymbols) {
+                                Spacer(Modifier.height(14.dp))
+                                SectionLabel(stringResource(R.string.gen_symbol_set))
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    KasaChip(
+                                        text = stringResource(R.string.gen_symbol_wide),
+                                        selected = state.settings.generatorSymbolSet == PasswordGenerator.SYMBOLS,
+                                        onClick = { viewModel.setSymbolSet(PasswordGenerator.SYMBOLS) }
+                                    )
+                                    KasaChip(
+                                        text = stringResource(R.string.gen_symbol_narrow),
+                                        selected = state.settings.generatorSymbolSet == PasswordGenerator.SYMBOLS_NARROW,
+                                        onClick = { viewModel.setSymbolSet(PasswordGenerator.SYMBOLS_NARROW) }
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                KasaTextField(
+                                    value = state.settings.generatorSymbolSet,
+                                    onValueChange = { fresh ->
+                                        // Yinelenenler ve boşluk ayıklanıyor:
+                                        // aynı simgeyi iki kez yazmak havuzda
+                                        // onu iki kat olası kılar ve entropi
+                                        // hesabını sessizce şişirirdi.
+                                        viewModel.setSymbolSet(
+                                            fresh.filterNot { it.isWhitespace() }
+                                                .toCharArray().distinct().joinToString("")
+                                                .take(SYMBOL_SET_MAX)
+                                        )
+                                    },
+                                    label = stringResource(R.string.gen_symbol_custom),
+                                    textStyle = KasaTheme.text.mono,
+                                    supportingText = stringResource(R.string.gen_symbol_custom_sub)
+                                )
+                            }
+
                             // Entropi hedefi: "20 karakter" bir güç ölçüsü değil.
                             Spacer(Modifier.height(14.dp))
                             SectionLabel(stringResource(R.string.gen_entropy_target))
@@ -501,16 +592,42 @@ fun GeneratorScreen(
                         color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
                         else KasaTheme.colors.ink2,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
+                    // Satır seçiyor, düğme kopyalıyor.
+                    //
+                    // Önceden seçeneği kopyalamak iki dokunuş istiyordu: önce
+                    // seç, sonra yukarıdaki kopyala düğmesine bas. Seçenekler
+                    // zaten "şunlardan birini al" diye duruyor; almanın yolu
+                    // da orada olmalı.
+                    KasaIconButton(
+                        onClick = { viewModel.copyValue(option, settings.clipboardClearSeconds) },
+                        contentDescription = stringResource(R.string.copy)
+                    ) {
+                        Icon(
+                            Icons.Rounded.ContentCopy,
+                            contentDescription = null,
+                            tint = KasaTheme.colors.ink3,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
 
         item(key = "use") {
+            // Düğme kipe göre konuşuyor ve kipe göre davranıyor.
+            //
+            // Eskiden ne üretilirse üretilsin yeni bir **giriş bilgisinin
+            // parola alanına** yazıyordu ve yazısı hep "Giriş bilgisi ekle"
+            // idi. Kullanıcı adı üretip bastığında ad, parola alanına
+            // giriyordu; kurtarma kodları (çok satırlı bir küme) tek satırlık
+            // bir alana; onaltılık anahtar da bir giriş bilgisine, oysa o bir
+            // API anahtarı.
             KasaButton(
-                text = stringResource(R.string.add_login),
-                onClick = { onUseForNewEntry(state.value) },
+                text = stringResource(generatorUseLabel(mode)),
+                onClick = { onUseForNewEntry(state.value, mode) },
                 tone = ButtonTone.TONAL,
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
             )
@@ -523,12 +640,36 @@ fun GeneratorScreen(
             }
             items(history.size) { index ->
                 val value = history[index]
+                // Geçmiş satırları artık dokunulabilir.
+                //
+                // Düz birer `Text` idiler: ekran üretilmiş parolaları görünür
+                // tutuyor — yani bir risk taşıyor — ve karşılığında hiçbir şey
+                // vermiyordu. Kullanıcı bir parolayı üretip başka ekrana
+                // geçtiyse, geri döndüğünde onu görebiliyor ama alamıyordu.
+                //
+                // Uzun sözcük dizileri de sonu belirtilmeden kırpılıyordu;
+                // kesilen bir gizli değer, tam görünenden daha yanıltıcı.
                 Text(
                     text = value,
                     style = KasaTheme.text.mono.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize),
                     color = KasaTheme.colors.ink2,
                     maxLines = 1,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp)
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(KasaRadius.m))
+                        .clickableNoRipple {
+                            viewModel.copyValue(value, settings.clipboardClearSeconds)
+                        }
+                        .padding(horizontal = 10.dp, vertical = 10.dp)
+                )
+            }
+            item(key = "history-hint") {
+                Text(
+                    stringResource(R.string.gen_history_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KasaTheme.colors.ink3,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
             item(key = "history-clear") {
@@ -668,6 +809,23 @@ private fun SeparatorRow(selected: String, onSelect: (String) -> Unit) {
 }
 
 /** Kip yongasının adı. */
+/**
+ * Kadranın degradesinin, yazının durduğu yerdeki açılma payı.
+ *
+ * [MorphDial] dolguyu `lift(0.46) → lift(0.12) → renk` olarak çiziyor ve yazı
+ * ortada duruyor; kontrast hesabı o orta durağa göre yapılmalı, taban renge
+ * göre değil.
+ */
+private const val DIAL_TEXT_LIFT = 0.12f
+
+/**
+ * Özel simge kümesinin azami uzunluğu.
+ *
+ * Sınır güvenlik için değil, alanın tek satırda kalması için: on üç simgelik
+ * tam küme bile bunun yarısı kadar.
+ */
+private const val SYMBOL_SET_MAX = 32
+
 private fun generatorModeLabel(mode: GeneratorMode): Int = when (mode) {
     GeneratorMode.PASSWORD -> R.string.gen_mode_password
     GeneratorMode.PASSPHRASE -> R.string.gen_mode_passphrase
@@ -680,6 +838,20 @@ private fun generatorModeLabel(mode: GeneratorMode): Int = when (mode) {
 }
 
 /** Kaydırıcının ne saydığı: karakter, sözcük, hece ya da hane. */
+/**
+ * "Kullan" düğmesinin yazısı.
+ *
+ * Üretilen şeyin **nereye** gideceğini söylüyor; hepsine "giriş bilgisi
+ * ekle" demek, düğmenin yaptığı işi yanlış tarif etmekti.
+ */
+private fun generatorUseLabel(mode: GeneratorMode): Int = when (mode) {
+    GeneratorMode.USERNAME -> R.string.gen_use_username
+    // Onaltılık anahtar, UUID ve kurtarma kodları giriş bilgisi değil,
+    // saklanacak referans değerler; üstelik kurtarma kodları çok satırlı.
+    GeneratorMode.HEX, GeneratorMode.UUID, GeneratorMode.RECOVERY -> R.string.gen_use_note
+    else -> R.string.add_login
+}
+
 private fun generatorAmountLabel(mode: GeneratorMode): Int = when (mode) {
     GeneratorMode.PASSPHRASE -> R.string.gen_words
     GeneratorMode.PRONOUNCEABLE -> R.string.gen_syllables

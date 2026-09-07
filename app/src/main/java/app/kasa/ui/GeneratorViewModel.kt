@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -140,7 +142,8 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
                     upper = settings.generatorUpper,
                     digits = settings.generatorDigits,
                     symbols = settings.generatorSymbols,
-                    avoidLookalikes = settings.generatorAvoidLookalikes
+                    avoidLookalikes = settings.generatorAvoidLookalikes,
+                    symbolSet = settings.generatorSymbolSet
                 )
                 // Entropi hedefi açıksa uzunluk kullanıcıdan değil hedeften
                 // geliyor: "20 karakter" seçilen kümelere göre 94 bit de
@@ -215,6 +218,32 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
         settingsStore.setGeneratorBatch(value)
     }
 
+    /**
+     * Simge kümesi. Ötekilerden farklı olarak **geciktirilerek** işleniyor.
+     *
+     * [update] her değişimde yeniden üretiyor ve diske yazıyor; bu, ayrık
+     * seçimler (anahtar, yonga, kaydırıcı) için doğru. Ama burada kaynak bir
+     * metin alanı: her tuşta yeni bir parola üretmek, kullanıcı yazarken
+     * değerin gözünün önünde sürekli değişmesi demek — hem de silinen her
+     * karakterde ayrı bir DataStore yazımıyla.
+     *
+     * Durum anında güncelleniyor ki alan yazdığını göstersin; üretim ve
+     * kalıcılık, yazmanın durmasını bekliyor.
+     */
+    fun setSymbolSet(value: String) {
+        _state.value = _state.value.copy(
+            settings = _state.value.settings.copy(generatorSymbolSet = value)
+        )
+        symbolSetJob?.cancel()
+        symbolSetJob = viewModelScope.launch {
+            delay(SYMBOL_SET_SETTLE_MILLIS)
+            regenerate()
+            settingsStore.setGeneratorSymbolSet(value)
+        }
+    }
+
+    private var symbolSetJob: Job? = null
+
     fun setEntropyTarget(value: Int) = update({ copy(generatorEntropyTarget = value) }) {
         settingsStore.setGeneratorEntropyTarget(value)
     }
@@ -243,11 +272,34 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * Listedeki bir değeri panoya alır.
+     *
+     * [copy] yalnızca "şu anki değeri" kopyalıyor; geçmiş satırları ve toplu
+     * üretim seçenekleri için ayrı bir yol gerekiyordu. Geçmişe **yeniden**
+     * yazmıyor: zaten oradan geliyor ve aynı değeri listenin başına taşımak,
+     * kullanıcının görmediği bir yeniden sıralama olurdu.
+     */
+    fun copyValue(value: String, clearSeconds: Int) {
+        if (value.isEmpty()) return
+        SecureClipboard.copySensitive(container.appContext, value, clearSeconds)
+        container.haptics.play(Haptics.Kind.SUCCESS)
+        viewModelScope.launch {
+            if (clearSeconds > 0) messages.send(UiMessage(R.string.copied_clip, listOf(clearSeconds)))
+            else messages.send(UiMessage(R.string.copied))
+        }
+    }
+
     fun clearHistory() {
         viewModelScope.launch { container.vaultRepository.clearGeneratorHistory() }
     }
 
     fun haptic(kind: Haptics.Kind) = container.haptics.play(kind)
+
+    /** Yazmanın bittiğine karar vermeden önce beklenen süre. */
+    private companion object {
+        const val SYMBOL_SET_SETTLE_MILLIS = 450L
+    }
 
     /** Kırılma süresini insan diline çeviren yardımcı; ekran metni bunu kullanır. */
     fun crackTime(): CrackTime = CrackTime.of(PasswordStrength.crackSeconds(_state.value.entropyBits))

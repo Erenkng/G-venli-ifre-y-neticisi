@@ -74,6 +74,7 @@ import app.kasa.MainActivity
 import app.kasa.R
 import app.kasa.core.util.Haptics
 import app.kasa.data.SettingsStore
+import app.kasa.data.GeneratorMode
 import app.kasa.data.model.Category
 import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultFilter
@@ -388,13 +389,34 @@ fun MainScaffold(
                             viewModel = generatorViewModel,
                             settings = settings,
                             onHeaderCollapse = { headerCollapse.floatValue = it },
-                            onUseForNewEntry = { generated ->
-                                vaultViewModel.startEdit(
-                                    app.kasa.data.model.VaultItem(
+                            // Üretilen değer kipine göre doğru alana gidiyor.
+                            //
+                            // Burada ne üretilirse üretilsin `password` alanına
+                            // yazılıyordu: kullanıcı adı üretip "kullan" diyen
+                            // kullanıcı, adını parola alanında buluyordu; çok
+                            // satırlı kurtarma kodu kümesi de tek satırlık bir
+                            // alana sıkıştırılıyordu.
+                            //
+                            // Sınır açıkça söylenmeli: uygulamada ayrı bir
+                            // "güvenli not" türü yok, o yüzden referans
+                            // değerler (onaltılık anahtar, UUID, kurtarma
+                            // kodları) giriş bilgisinin **not** alanına
+                            // gidiyor — çok satırlı tek alan orası. Böyle bir
+                            // tür eklenirse doğru yer burasıdır.
+                            onUseForNewEntry = { generated, generatorMode ->
+                                val fresh = when (generatorMode) {
+                                    GeneratorMode.USERNAME ->
+                                        app.kasa.data.model.VaultItem(name = "", username = generated)
+                                    GeneratorMode.HEX,
+                                    GeneratorMode.UUID,
+                                    GeneratorMode.RECOVERY ->
+                                        app.kasa.data.model.VaultItem(name = "", notes = generated)
+                                    else -> app.kasa.data.model.VaultItem(
                                         name = "",
                                         password = app.kasa.core.crypto.SecretText.of(generated)
                                     )
-                                )
+                                }
+                                vaultViewModel.startEdit(fresh)
                             }
                         )
 

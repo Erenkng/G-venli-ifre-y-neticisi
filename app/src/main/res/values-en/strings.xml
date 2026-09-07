@@ -746,4 +746,14 @@
     <string name="vault_clear_filters">Clear filters</string>
     <string name="leak_alert_title">%1$d of your passwords showed up in breaches</string>
     <string name="leak_alert_sub">Someone else has these. Tap to change them.</string>
+
+    <string name="gen_crack">For an attacker making a hundred billion guesses a second: %1$s</string>
+    <string name="gen_use_username">Add as a username</string>
+    <string name="gen_use_note">Add as a note</string>
+    <string name="gen_history_hint">Tap a line to copy it.</string>
+    <string name="gen_symbol_set">Which symbols</string>
+    <string name="gen_symbol_wide">Wide</string>
+    <string name="gen_symbol_narrow">Narrow</string>
+    <string name="gen_symbol_custom">Symbols</string>
+    <string name="gen_symbol_custom_sub">Delete the ones the site rejects. A narrower set means less entropy, and the number above shows it.</string>
 </resources>

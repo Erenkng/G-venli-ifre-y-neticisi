@@ -25,7 +25,24 @@ object PasswordGenerator {
     private const val UPPER_CLEAR = "ABCDEFGHJKLMNPQRSTUVWXYZ"
     private const val DIGITS = "0123456789"
     private const val DIGITS_CLEAR = "23456789"
-    private const val SYMBOLS = "!#$%&*+-=?@^_"
+    /**
+     * Simgelerin tam kümesi.
+     *
+     * Tırnak, köşeli parantez, ters bölü ve boşluk bilerek yok: bunlar kabuk
+     * ve form doğrulamalarında en sık kaçırılmayı unutulan karakterler.
+     */
+    const val SYMBOLS = "!#$%&*+-=?@^_"
+
+    /**
+     * Dar simge kümesi.
+     *
+     * Sitelerin en yaygın kabul ettiği altı simge. Var olma sebebi teknik
+     * değil pratik: "en fazla şu simgeler" diyen bir siteye 13 simgeli bir
+     * havuzdan üretilen parola reddediliyor ve kullanıcı pes edip elle bir
+     * şey yazıyor — yani üreteç, korumak istediği şeyi zayıflatmaya yol
+     * açıyor.
+     */
+    const val SYMBOLS_NARROW = "!@#$%*"
 
     const val MIN_LENGTH = 8
     const val MAX_LENGTH = 64
@@ -74,7 +91,15 @@ object PasswordGenerator {
         val upper: Boolean = true,
         val digits: Boolean = true,
         val symbols: Boolean = true,
-        val avoidLookalikes: Boolean = false
+        val avoidLookalikes: Boolean = false,
+        /**
+         * Hangi simgeler kullanılacak.
+         *
+         * Boş bırakılırsa [SYMBOLS]'e düşüyor: kullanıcının sildiği bir alan
+         * yüzünden havuzun simgesiz kalması, [symbols] anahtarını sessizce
+         * kapatmak olurdu.
+         */
+        val symbolSet: String = SYMBOLS
     )
 
     data class PassphraseOptions(
@@ -271,7 +296,7 @@ object PasswordGenerator {
         add(if (options.avoidLookalikes) LOWER_CLEAR else LOWER)
         if (options.upper) add(if (options.avoidLookalikes) UPPER_CLEAR else UPPER)
         if (options.digits) add(if (options.avoidLookalikes) DIGITS_CLEAR else DIGITS)
-        if (options.symbols) add(SYMBOLS)
+        if (options.symbols) add(options.symbolSet.ifBlank { SYMBOLS })
     }
 
     private fun poolFor(options: Options): String = setsFor(options).joinToString("")
