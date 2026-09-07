@@ -52,6 +52,7 @@ import app.kasa.ui.components.KasaButton
 import app.kasa.ui.theme.KasaTheme
 import app.kasa.ui.theme.LocalReducedMotion
 import kotlinx.coroutines.launch
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
