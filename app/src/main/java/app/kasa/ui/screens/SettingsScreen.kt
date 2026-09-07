@@ -1333,30 +1333,6 @@ private fun RecoveryCodeDialog(code: String, onCopy: () -> Unit, onDismiss: () -
     }
 }
 
-/** Kasa, sistemde etkin otomatik doldurma servisi mi? */
-private fun isAutofillEnabled(context: android.content.Context): Boolean = try {
-    val manager = context.getSystemService(android.view.autofill.AutofillManager::class.java)
-    manager?.hasEnabledAutofillServices() == true
-} catch (t: Throwable) {
-    false
-}
-
-private fun openAutofillSettings(context: android.content.Context) {
-    runCatching {
-        context.startActivity(
-            Intent(android.provider.Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE)
-                .setData(android.net.Uri.parse("package:${context.packageName}"))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-    }.onFailure {
-        runCatching {
-            context.startActivity(
-                Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        }
-    }
-}
-
 /**
  * Klasör yöneticisi.
  *

@@ -385,6 +385,25 @@ class VaultStore(private val context: Context) {
         return true
     }
 
+    /**
+     * Ana parolayı yalnızca **doğrular**: oturuma, deneme sayacına ve kilit
+     * durumuna dokunmaz.
+     *
+     * Kurulumun sonunda kullanıcıya parolasını bir kez daha yazdırmak için
+     * var. [unlockWithPassword] bu iş için yanlış araç: o, başarısız denemeyi
+     * sayıyor ve sayaç eşiğe varınca kasayı silebiliyor — yani kullanıcının
+     * kendi parolasını prova etmesi, kasayı yok etme riski taşırdı.
+     *
+     * Sayaca dokunmamak burada bir açık yaratmıyor çünkü çağıran taraf
+     * ([app.kasa.data.repo.VaultRepository.verifyMasterPassword]) kasa açıkken
+     * çağırıyor; kilitli bir kasaya karşı sınırsız deneme yapmanın yolu değil.
+     * Kasayı açabilen saldırgan zaten içeriğe sahip.
+     */
+    fun verifyMasterPassword(password: SecretBytes): Boolean =
+        runCatching { openWrappedKey(masterKeyFile, MAGIC_MASTER, password) }
+            .getOrNull()
+            ?.also { it.wipe() } != null
+
     /** Kurtarma anahtarını yeniler ve yeni kodu döndürür. */
     fun regenerateRecoveryKey(vaultKey: SecretBytes, params: Kdf.Params = inheritedParams()): String {
         val code = RecoveryKey.generate()

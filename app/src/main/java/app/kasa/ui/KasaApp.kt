@@ -9,6 +9,7 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
@@ -39,7 +40,40 @@ fun KasaApp(
     val factory = rememberKasaViewModelFactory()
     val authViewModel: AuthViewModel = viewModel(factory = factory)
     val lockState by authViewModel.lockState.collectAsStateWithLifecycle()
+    val setup by authViewModel.setup.collectAsStateWithLifecycle()
     val stateHolder = rememberSaveableStateHolder()
+
+    // Kurulum, kasa yaratıldığı anda bitmiyor.
+    //
+    // ### Düzeltilen hata
+    //
+    // Ekran seçimi yalnızca [VaultRepository.LockState] ile yapılıyordu ve
+    // `createVault` kilidi aynı karede `Unlocked`'a çeviriyor. Sonuç:
+    // kurulumun kalan adımları — kurtarma anahtarı ve biyometri — hiçbir
+    // zaman görünmüyordu. Kod üretiliyor, sarmalayıcısı diske yazılıyor ve
+    // kullanıcıya gösterilmeden atlanıyordu; yani ana parolasını unutan
+    // kullanıcının tek çıkış yolu, varlığından haberi olmadığı bir kâğıttı.
+    //
+    // ### Neden kalıcı bayrakla değil
+    //
+    // `onboardingDone` bu iş için duruyordu ama okunması bir göç sorunu
+    // yaratırdı: bayrak, yalnızca ulaşılamayan biyometri adımından
+    // yazıldığı için mevcut bütün kasalarda `false`. Onu okumak, kurulumu
+    // çoktan bitirmiş kullanıcıları kurulum ekranına düşürürdü.
+    //
+    // Oturum durumu bu riski taşımıyor: [AuthViewModel.Stage] uygulama
+    // açılışında `SETUP`'ta duruyor ve yalnızca kasayı **bu oturumda**
+    // yaratan kullanıcıda ilerliyor.
+    val inSetup = setup.stage != AuthViewModel.Stage.SETUP &&
+        setup.stage != AuthViewModel.Stage.DONE
+
+    // Kurulumu geçmiş kasalarda bayrağı bir kez yerine koyuyor: yazan tek
+    // yol ulaşılamaz olduğu için bugüne kadar hiç yazılmamıştı.
+    LaunchedEffect(lockState, inSetup) {
+        if (lockState is VaultRepository.LockState.Unlocked && !inSetup) {
+            authViewModel.markOnboardingSettled()
+        }
+    }
 
     KasaBackground(modifier = Modifier.fillMaxSize()) {
         // transitionSpec @Composable değil; belirteçler beste içinde okunup
@@ -49,7 +83,7 @@ fun KasaApp(
         val exitFade: FiniteAnimationSpec<Float> = KasaMotion.exit()
 
         AnimatedContent(
-            targetState = lockState,
+            targetState = if (inSetup) VaultRepository.LockState.NeedsSetup else lockState,
             transitionSpec = {
                 (fadeIn(enterFade) + scaleIn(
                     initialScale = 0.98f,

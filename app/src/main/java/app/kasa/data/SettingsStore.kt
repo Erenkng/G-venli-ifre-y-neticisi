@@ -120,6 +120,36 @@ class SettingsStore(private val context: Context) {
     }
 
     /**
+     * Kurulumun sonunda seçilen güvenlik sıkılığı.
+     *
+     * ### Neden tek bir seçim
+     *
+     * Buradaki dört değerin dördü de Ayarlar'da ayrı ayrı duruyor ve orada
+     * kalmaya devam ediyor. Sorun bulunabilirlikti: kilit süresini,
+     * pano temizleme süresini ve yanlış deneme eşiğini kurcalayan kullanıcı
+     * sayısı azdır, dolayısıyla neredeyse herkes varsayılanla yaşıyor —
+     * yani gerçekte seçen taraf uygulama oluyor ama seçtiğini söylemiyor.
+     *
+     * Tek soru sormak bunu görünür kılıyor: kullanıcı bir kez karar veriyor,
+     * ne aldığını okuyor ve dört ayar birden buna göre yazılıyor.
+     *
+     * ### Neden iki tane
+     *
+     * Üçüncü bir kademe ("gevşek") eklemek, ilk kurulumda kullanıcının
+     * korumasını kendi eliyle indirmesini teklif etmek olurdu. Gevşetmek
+     * mümkün, ama Ayarlar'dan ve tek tek — yani bilerek.
+     */
+    enum class SecurityPosture(
+        val autoLockSeconds: Int,
+        val clipboardClearSeconds: Int,
+        val wipeAfterAttempts: Int,
+        val lockOnScreenOff: Boolean
+    ) {
+        BALANCED(autoLockSeconds = 60, clipboardClearSeconds = 30, wipeAfterAttempts = 0, lockOnScreenOff = true),
+        STRICT(autoLockSeconds = 15, clipboardClearSeconds = 10, wipeAfterAttempts = 10, lockOnScreenOff = true)
+    }
+
+    /**
      * Ayarların hepsi ilkel değer ve numaralandırma; yine de işaret açıkça
      * konuyor. Bileşen imzalarında en sık geçen tür bu ve kararlılığının
      * derleyicinin çıkarımına bırakılması, ileride bir liste alanı
@@ -353,6 +383,19 @@ class SettingsStore(private val context: Context) {
     suspend fun setAutoLockSeconds(value: Int) = put(KEY_AUTOLOCK, value)
     suspend fun setWipeAfterAttempts(value: Int) = put(KEY_WIPE_ATTEMPTS, value)
     suspend fun setOnlineBreachCheck(value: Boolean) = put(KEY_ONLINE_CHECK, value)
+    /**
+     * Sıkılık ön ayarını dört ayara birden yazar.
+     *
+     * Ekran görüntüsü engeli buraya dahil değil: zaten varsayılan açık ve
+     * "dengeli"de kapatmak, kullanıcının istemediği bir gevşetme olurdu.
+     */
+    suspend fun applySecurityPosture(posture: SecurityPosture) {
+        setAutoLockSeconds(posture.autoLockSeconds)
+        setClipboardClearSeconds(posture.clipboardClearSeconds)
+        setWipeAfterAttempts(posture.wipeAfterAttempts)
+        setLockOnScreenOff(posture.lockOnScreenOff)
+    }
+
     suspend fun setOnboardingDone(value: Boolean) = put(KEY_ONBOARDING, value)
     suspend fun setLastScanAt(value: Long) = put(KEY_LAST_SCAN, value)
     suspend fun setIntegrityWarningShown(value: Boolean) = put(KEY_INTEGRITY_SHOWN, value)

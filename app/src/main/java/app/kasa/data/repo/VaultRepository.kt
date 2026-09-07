@@ -800,6 +800,26 @@ class VaultRepository(
             }
         }
 
+    /**
+     * Kullanıcının yazdığı ana parola, bu kasanınki mi?
+     *
+     * Kilitliyken her zaman `false` — doğrulama yalnızca zaten açık bir kasa
+     * üzerinde yapılabiliyor. Bunun sebebi [VaultStore.verifyMasterPassword]
+     * deneme sayacını işletmiyor olması: kilitli kasada çalışsaydı, kilit
+     * ekranındaki gecikmeyi ve silme eşiğini es geçen ikinci bir kapı olurdu.
+     */
+    suspend fun verifyMasterPassword(password: CharArray): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                if (vaultKey == null) return@withContext false
+                SecretBytes.ofUtf8(password).use { store.verifyMasterPassword(it) }
+            } catch (t: Throwable) {
+                false
+            } finally {
+                password.fill('\u0000')
+            }
+        }
+
     suspend fun regenerateRecoveryKey(): String? = withContext(Dispatchers.IO) {
         mutex.withLock {
             if (inDuressSession) return@withContext null

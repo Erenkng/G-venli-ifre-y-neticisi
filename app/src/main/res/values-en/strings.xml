@@ -670,4 +670,72 @@
     <string name="gen_mode_recovery">Backup codes</string>
     <string name="gen_uuid_hint">An 8-4-4-4-12 identifier for config files, database rows and client IDs.</string>
     <string name="gen_recovery_hint">Backup sign-in codes for two-step verification. Look-alike characters (0/O, 1/I) are left out.</string>
+
+    <!-- Setup: fork -->
+    <string name="onb_intent_title">Where are we starting?</string>
+    <string name="onb_intent_fresh">Set up a new vault</string>
+    <string name="onb_intent_fresh_sub">Start empty, add passwords later</string>
+    <string name="onb_intent_restore">I have a backup</string>
+    <string name="onb_intent_restore_sub">Restore from a vault backup or another manager</string>
+
+    <!-- Setup: master password -->
+    <string name="onb_sub_restore">First pick a master password for this device. Your backup file has its own password; we\'ll ask for that in a moment.</string>
+    <string name="onb_suggest">Suggest one for me</string>
+    <string name="onb_crack">%1$d bits · %2$s for an attacker making a hundred billion guesses a second</string>
+    <string name="onb_no_reset">There is no reset. Lose this password and the recovery key together and the vault never opens again — nobody holds a spare, us included.</string>
+
+    <!-- Setup: recovery key -->
+    <string name="onb_recovery_save">Save to a file</string>
+    <string name="onb_recovery_saved_file">Saved</string>
+    <string name="onb_recovery_qr">QR code</string>
+    <string name="onb_recovery_qr_hide">Hide QR code</string>
+    <string name="onb_recovery_note">Photographing the QR code with a second device removes any chance of mistyping the 24 characters. Copying to the clipboard is deliberately missing: the clipboard is open to every app.</string>
+    <string name="onb_recovery_next">I saved the key</string>
+    <string name="rec_sheet_title">Kasa — recovery key</string>
+    <string name="rec_sheet_body">This is the recovery key for the Kasa app. If you forget your master password, this is the only thing that opens the vault.\n\nDo not keep this file in the same place as the vault. Printing it on paper works too.</string>
+
+    <!-- Setup: verifying the key -->
+    <string name="onb_verify_title">Let\'s use the key once</string>
+    <string name="onb_verify_sub">Type the requested groups from the key you saved. Doing it now is how you find out today that the key is really in your hands.</string>
+    <string name="onb_verify_group">Group %1$d</string>
+    <string name="onb_verify_wrong">These groups don\'t match the key. Check where you saved it and try again.</string>
+    <string name="onb_verify_back">Look at the key again</string>
+
+    <!-- Setup: confirming the password -->
+    <string name="onb_confirm_title">Type your master password again</string>
+    <string name="onb_confirm_sub">This time without looking. The most common disaster in a password manager isn\'t a breach — it\'s being locked out of your own vault.</string>
+    <string name="onb_confirm_wrong">That isn\'t the password you set up the vault with.</string>
+    <string name="onb_confirm_checking">Checking…</string>
+    <string name="onb_confirm_stuck">The vault is empty right now. If you can\'t recall the password, starting over is the clean answer — there is nothing to lose. This option won\'t exist once setup is done.</string>
+    <string name="onb_confirm_restart">Start setup over</string>
+
+    <!-- Setup: posture -->
+    <string name="onb_posture_title">How strict should it be?</string>
+    <string name="onb_posture_sub">This sets four options at once. Every one of them stays editable in Settings.</string>
+    <string name="onb_posture_balanced">Balanced</string>
+    <string name="onb_posture_balanced_sub">Locks after 1 minute · clipboard clears in 30 seconds</string>
+    <string name="onb_posture_strict">Strict</string>
+    <string name="onb_posture_strict_sub">Locks after 15 seconds · clipboard clears in 10 seconds · vault wipes after 10 wrong tries</string>
+    <string name="onb_posture_note">Screenshot blocking and locking on screen-off are on in both.</string>
+
+    <!-- Setup: handoff -->
+    <string name="onb_handoff_title">One last thing</string>
+    <string name="onb_handoff_sub">None of this is required, and all of it stays in Settings.</string>
+    <string name="onb_handoff_fill">Fill the vault</string>
+    <string name="onb_handoff_connect">Connect it to the phone</string>
+    <string name="onb_handoff_archive">Restore from a vault backup</string>
+    <string name="onb_handoff_archive_sub">An encrypted .kasa file, with its own password</string>
+    <string name="onb_handoff_csv">Import from another manager</string>
+    <string name="onb_handoff_csv_sub">Chrome, Firefox, Bitwarden, 1Password, LastPass CSV</string>
+    <string name="onb_handoff_imported">Imported %1$d entries. Remember to delete the file — the passwords in it are in the clear.</string>
+    <string name="onb_handoff_autofill">Turn on autofill</string>
+    <string name="onb_handoff_autofill_sub">Offer your passwords on other apps\' sign-in screens</string>
+    <string name="onb_handoff_passkey">Make it a passkey provider</string>
+    <string name="onb_handoff_passkey_sub">Keep passwordless sign-ins in the vault too</string>
+    <string name="onb_handoff_notify">Allow breach notifications</string>
+    <string name="onb_handoff_notify_sub">Get told when one of your passwords shows up in a breach</string>
+    <string name="onb_handoff_finish">Open the vault</string>
+    <string name="onb_handoff_note">Anything you skip can be turned on from Settings whenever you like.</string>
+    <string name="onb_archive_title">Backup password</string>
+    <string name="onb_archive_body">This is the password you chose when exporting the file — not the master password you just set.</string>
 </resources>

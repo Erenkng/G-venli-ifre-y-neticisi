@@ -726,4 +726,74 @@
     <string name="gen_mode_recovery">Yedek kod</string>
     <string name="gen_uuid_hint">Yapılandırma, veritabanı kaydı ve istemci kimliği için 8-4-4-4-12 biçiminde tanımlayıcı.</string>
     <string name="gen_recovery_hint">İki adımlı doğrulama için yedek giriş kodları. Karışan karakterler (0/O, 1/I) alfabede yok.</string>
+
+    <!-- Kurulum: çatal -->
+    <string name="onb_intent_title">Nereden başlıyoruz?</string>
+    <string name="onb_intent_fresh">Yeni bir kasa kur</string>
+    <string name="onb_intent_fresh_sub">Boş başla, parolaları sonra ekle</string>
+    <string name="onb_intent_restore">Elimde bir yedek var</string>
+    <string name="onb_intent_restore_sub">Kasa yedeğinden ya da başka bir yöneticiden geri yükle</string>
+
+    <!-- Kurulum: ana parola -->
+    <string name="onb_sub_restore">Önce bu cihaz için bir ana parola seç. Yedek dosyanın kendi parolası ayrıdır; onu birazdan soracağız.</string>
+    <string name="onb_suggest">Bana bir tane öner</string>
+    <string name="onb_crack">%1$d bit · saniyede yüz milyar deneme yapan bir saldırgan için %2$s</string>
+    <string name="onb_no_reset">Sıfırlama yok. Bu parolayı ve kurtarma anahtarını birlikte kaybedersen kasa bir daha açılmaz — ne bizim ne başkasının elinde bir yedek anahtar var.</string>
+
+    <!-- Kurulum: kurtarma anahtarı -->
+    <string name="onb_recovery_save">Dosyaya kaydet</string>
+    <string name="onb_recovery_saved_file">Kaydedildi</string>
+    <string name="onb_recovery_qr">Karekod</string>
+    <string name="onb_recovery_qr_hide">Karekodu gizle</string>
+    <string name="onb_recovery_note">Karekodu başka bir cihazla fotoğraflamak, 24 karakteri elle yazarken hata yapma ihtimalini tümüyle kaldırıyor. Panoya kopyalama bilerek yok: pano bütün uygulamalara açık.</string>
+    <string name="onb_recovery_next">Anahtarı kaydettim</string>
+    <string name="rec_sheet_title">Kasa — kurtarma anahtarı</string>
+    <string name="rec_sheet_body">Bu, Kasa uygulamasının kurtarma anahtarı. Ana parolanı unutursan kasayı yalnızca bununla açabilirsin.
+
+Bu dosyayı kasanın kendisiyle aynı yerde tutma. Yazdırıp kâğıt olarak saklamak da olur.</string>
+
+    <!-- Kurulum: anahtarı doğrulama -->
+    <string name="onb_verify_title">Anahtarı bir kez kullanalım</string>
+    <string name="onb_verify_sub">Kaydettiğin anahtardan istenen grupları yaz. Bunu şimdi yapmak, anahtarın gerçekten elinde olduğunu bugünden bilmek demek.</string>
+    <string name="onb_verify_group">%1$d. grup</string>
+    <string name="onb_verify_wrong">Gruplar anahtarla eşleşmiyor. Kaydettiğin yere bakıp yeniden dene.</string>
+    <string name="onb_verify_back">Anahtara tekrar bak</string>
+
+    <!-- Kurulum: parolayı yineleme -->
+    <string name="onb_confirm_title">Ana parolanı bir daha yaz</string>
+    <string name="onb_confirm_sub">Bu sefer bakmadan. Bir parola yöneticisinde en sık yaşanan felaket sızıntı değil, kullanıcının kendi kasasından kilitlenmesidir.</string>
+    <string name="onb_confirm_wrong">Bu, kasayı kurarken yazdığın parola değil.</string>
+    <string name="onb_confirm_checking">Denetleniyor…</string>
+    <string name="onb_confirm_stuck">Kasa şu an boş. Parolayı hatırlamıyorsan en temizi baştan başlamak — kaybedilecek bir şey yok. Kurulum bittikten sonra bu seçenek olmayacak.</string>
+    <string name="onb_confirm_restart">Kurulumu baştan yap</string>
+
+    <!-- Kurulum: sıkılık -->
+    <string name="onb_posture_title">Ne kadar sıkı olsun?</string>
+    <string name="onb_posture_sub">Dört ayarı birden belirliyor. Hepsi sonradan Ayarlar\'dan tek tek değiştirilebilir.</string>
+    <string name="onb_posture_balanced">Dengeli</string>
+    <string name="onb_posture_balanced_sub">1 dakikada kilitlenir · pano 30 saniyede temizlenir</string>
+    <string name="onb_posture_strict">Sıkı</string>
+    <string name="onb_posture_strict_sub">15 saniyede kilitlenir · pano 10 saniyede temizlenir · 10 yanlış denemede kasa silinir</string>
+    <string name="onb_posture_note">Ekran görüntüsü engeli ve ekran kapanınca kilitleme ikisinde de açık.</string>
+
+    <!-- Kurulum: devir -->
+    <string name="onb_handoff_title">Son bir şey</string>
+    <string name="onb_handoff_sub">Hiçbiri zorunlu değil ve hepsi sonradan Ayarlar\'da duruyor.</string>
+    <string name="onb_handoff_fill">Kasayı doldur</string>
+    <string name="onb_handoff_connect">Telefona bağla</string>
+    <string name="onb_handoff_archive">Kasa yedeğinden geri yükle</string>
+    <string name="onb_handoff_archive_sub">Şifreli .kasa dosyası, kendi parolasıyla</string>
+    <string name="onb_handoff_csv">Başka bir yöneticiden aktar</string>
+    <string name="onb_handoff_csv_sub">Chrome, Firefox, Bitwarden, 1Password, LastPass CSV</string>
+    <string name="onb_handoff_imported">%1$d kayıt aktarıldı. Dosyayı silmeyi unutma — içindeki parolalar açık.</string>
+    <string name="onb_handoff_autofill">Otomatik doldurmayı aç</string>
+    <string name="onb_handoff_autofill_sub">Parolalar diğer uygulamaların giriş ekranlarında çıksın</string>
+    <string name="onb_handoff_passkey">Geçiş anahtarı sağlayıcısı yap</string>
+    <string name="onb_handoff_passkey_sub">Parolasız girişler de kasada saklansın</string>
+    <string name="onb_handoff_notify">Sızıntı bildirimlerine izin ver</string>
+    <string name="onb_handoff_notify_sub">Bir parolan sızıntıda görünürse haber verilsin</string>
+    <string name="onb_handoff_finish">Kasayı aç</string>
+    <string name="onb_handoff_note">Atladıklarını Ayarlar\'dan istediğin zaman açabilirsin.</string>
+    <string name="onb_archive_title">Yedeğin parolası</string>
+    <string name="onb_archive_body">Bu, dosyayı dışa aktarırken seçtiğin parola — az önce belirlediğin ana parola değil.</string>
 </resources>
