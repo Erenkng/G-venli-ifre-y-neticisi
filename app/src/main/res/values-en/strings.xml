@@ -151,7 +151,7 @@
     <string name="gen_history">Generated</string>
     <string name="gen_history_empty">Nothing generated yet.</string>
     <string name="gen_entropy">%1$d bits of entropy</string>
-    <string name="gen_crack">Offline brute force: %1$s</string>
+    <string name="gen_crack">For an attacker making a hundred billion guesses a second: %1$s</string>
 
     <string name="strength_very_weak">VERY WEAK</string>
     <string name="strength_weak">WEAK</string>
@@ -747,7 +747,6 @@
     <string name="leak_alert_title">%1$d of your passwords showed up in breaches</string>
     <string name="leak_alert_sub">Someone else has these. Tap to change them.</string>
 
-    <string name="gen_crack">For an attacker making a hundred billion guesses a second: %1$s</string>
     <string name="gen_use_username">Add as a username</string>
     <string name="gen_use_note">Add as a note</string>
     <string name="gen_history_hint">Tap a line to copy it.</string>

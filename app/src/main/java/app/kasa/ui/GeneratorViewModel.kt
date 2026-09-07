@@ -52,6 +52,18 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
         val strength: Float
             get() = ((entropyBits - 28.0) / 105.0).coerceIn(0.0, 1.0).toFloat()
 
+        /**
+         * Kırılma süresi.
+         *
+         * Fonksiyon değil özellik: eskiden `crackTime()` görünüm modelinden
+         * `_state.value`'yu doğrudan okuyordu ve çağıran liste öğesi bu
+         * okumayı **gözlemlemiyordu** — değer değişince öğe yeniden
+         * bestelenmiyor, ekranda eski süre kalıyordu. Durumun kendi üzerinde
+         * durunca okuma da durumun okunması oluyor.
+         */
+        val crack: CrackTime
+            get() = CrackTime.of(PasswordStrength.crackSeconds(entropyBits))
+
         val label: Int
             get() = when {
                 strength > 0.75f -> R.string.strength_very_strong
@@ -301,8 +313,6 @@ class GeneratorViewModel(private val container: AppContainer) : ViewModel() {
         const val SYMBOL_SET_SETTLE_MILLIS = 450L
     }
 
-    /** Kırılma süresini insan diline çeviren yardımcı; ekran metni bunu kullanır. */
-    fun crackTime(): CrackTime = CrackTime.of(PasswordStrength.crackSeconds(_state.value.entropyBits))
 }
 
 /** Kaba kuvvetle kırma süresinin kabaca sınıflandırılması. */

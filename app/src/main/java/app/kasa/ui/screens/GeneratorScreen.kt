@@ -217,7 +217,7 @@ fun GeneratorScreen(
         item(key = "crack") {
             // "78 bit" kimsenin sahip olduğu bir birim değil.
             //
-            // Çeviri zaten yazılmıştı: [GeneratorViewModel.crackTime] ve
+            // Çeviri zaten yazılmıştı: [GeneratorViewModel.State.crack] ve
             // [CrackTime] sekiz dil kaynağıyla birlikte duruyordu ve hiçbir
             // yerden çağrılmıyordu. Ekranın tek işi gücü söylemek ve
             // söylediği tek sayı anlaşılmıyordu.
@@ -225,7 +225,7 @@ fun GeneratorScreen(
             // Varsayım cümlenin içinde: kırılma süresi bir saldırganın
             // hızına göre değişiyor ve o hızı yazmayan bir tahmin, kesinlik
             // taslayan bir uydurma olur.
-            val crack = viewModel.crackTime()
+            val crack = state.crack
             Text(
                 text = stringResource(
                     R.string.gen_crack,

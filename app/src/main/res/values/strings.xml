@@ -191,7 +191,7 @@
     <string name="gen_history">Üretilenler</string>
     <string name="gen_history_empty">Henüz bir şey üretmedin.</string>
     <string name="gen_entropy">%1$d bit entropi</string>
-    <string name="gen_crack">Kaba kuvvetle kırma süresi: %1$s</string>
+    <string name="gen_crack">Saniyede yüz milyar deneme yapan bir saldırgan için: %1$s</string>
 
     <string name="strength_very_weak">ÇOK ZAYIF</string>
     <string name="strength_weak">ZAYIF</string>
@@ -801,7 +801,6 @@ Bu dosyayı kasanın kendisiyle aynı yerde tutma. Yazdırıp kâğıt olarak sa
     <string name="list_totp_show">Kodları listede göster</string>
     <string name="list_totp_sub">Kod satırın sonunda, geri sayımıyla birlikte durur; dokununca kopyalanır. Kapalıyken yalnızca kaydı açınca görünür.</string>
 
-    <string name="gen_crack">Saniyede yüz milyar deneme yapan bir saldırgan için: %1$s</string>
     <string name="gen_use_username">Kullanıcı adı olarak ekle</string>
     <string name="gen_use_note">Not olarak ekle</string>
     <string name="gen_history_hint">Bir satıra dokunmak onu panoya alır.</string>

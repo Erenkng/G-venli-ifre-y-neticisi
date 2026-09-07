@@ -19,24 +19,35 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 2.3'te yenilikler
+## 2.4'te yenilikler
 
-- **Basış animasyonu takılmıyor.** İki sebep vardı: titreşim arayüz iş
-  parçacığında çalınıyordu (binder çağrısı, tam animasyonun ilk karesinde) ve
-  basış ölçeği beste aşamasında okunuyordu — parmak düğmede durduğu sürece
-  düğmenin bütün iskeleti her karede yeniden kuruluyordu.
-- **Titreşimin kendi ayarları.** Güç kademesi (dokununca örneği hemen çalıyor)
-  ve ayrı bir dokunuş tıkırtısı anahtarı.
-- **Yüzey efektleri kendi sayfasında**, sekizi tek tek kapatılabiliyor. Üçü
-  yeni: basılı tutma dolumu, cam altı derinlik, odak ışığı. Zemin manzarası da
-  eklendi.
-- **Artı düğmesinin bulanıklığı** aşağıdan yukarı açılıyor ve iki ayrı
-  yarıçapla çiziliyor — tek bir bulanıklığı soldurmak hayalet çift görüntü
-  üretiyordu.
-- **Tanecikli zemin** artık gradyanı griye yıkamıyor (Overlay karışımı) ve dört
-  kademesi var.
-- Aramada geçmişi temizleme · uzun basış menüsü sırayla açılıyor · ayarların
-  kategori başlıkları hizalandı · kayıt satırındaki kopyalama düğmesi kaldırıldı.
+- **Kurtarma anahtarı ekranı bugüne kadar hiç açılmıyormuş.** Ekran seçimi
+  yalnızca kilit durumuna bakıyordu ve kasa yaratıldığı anda kurulum yerini
+  ana listeye bırakıyordu: anahtar üretiliyor, diske yazılıyor ve kullanıcıya
+  gösterilmeden atlanıyordu. Ana parolasını unutanın tek çıkış yolu,
+  varlığından haberi olmadığı bir koddu.
+- **Kurulum baştan yazıldı.** "Yeni kasa / yedeğim var" çatalı · anahtarın üç
+  grubunu geri yazdırma (onay kutusu kaldırıldı) · anahtarı dosyaya kaydetme
+  ve karekod · ana parolayı kurtarma adımından **sonra** yineleme · sözcük
+  dizisi önerisi · Dengeli/Sıkı sıkılık seçimi · son adımda otomatik
+  doldurma, geçiş anahtarı ve içe aktarma.
+- **Sızıntı bildirimleri artık gerçekten geliyor.** İzin manifestte tanımlıydı
+  ve tarama onu kontrol ediyordu, ama hiçbir yerde istenmiyordu.
+- **Ölçülemeyen kayıt yeşil nokta almıyor.** Notun parolası yok, kartın
+  numarası da seçilmiş bir sır değil; ikisi de bir yargı bildiriyordu. Artık
+  içi boş halka.
+- **İki adımlı kodlar listede**, geri sayımıyla, dokununca kopyalanıyor. Üst
+  sıra da sık kullanılanları gösteriyor — "son kullanılan" altındaki listeyi
+  tekrarlıyordu.
+- **Üreteç:** kadranın üstündeki yazı okunuyor artık (beyaz sabitti, kontrast
+  1,5'e kadar düşüyordu) · kırılma süresi "78 bit"in yanında · "kullan"
+  düğmesi kipe göre doğru alana yazıyor · geçmiş satırları kopyalanabiliyor ·
+  sitenin kabul etmediği simgeler çıkarılabiliyor.
+- **Çöp kutusunda sola kaydırmak** artık kalıcı silme onayı açıyor; önceden
+  kaydı yeniden çöpe atıp otuz günlük sayacı sıfırlıyordu.
+- Artı düğmesinin örtüsündeki çift bulanıklık · üretici kadranının 16
+  saniyede bir sıçraması ve sallanması · tanıtım sayfalarına üç derinlik
+  düzlemi.
 
 Gezinme çubuğuna yine dokunulmadı.
 
