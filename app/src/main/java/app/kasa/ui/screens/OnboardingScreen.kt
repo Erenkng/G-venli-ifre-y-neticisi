@@ -6,8 +6,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
@@ -17,6 +20,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -75,6 +80,7 @@ import app.kasa.ui.AuthViewModel
 import app.kasa.ui.CrackTime
 import app.kasa.ui.LocalBiometricGate
 import app.kasa.ui.components.ButtonTone
+import app.kasa.ui.components.animatedCorner
 import app.kasa.ui.components.GroupPosition
 import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaPasswordField
@@ -282,6 +288,39 @@ private fun ChoiceCard(
     modifier: Modifier = Modifier,
     selected: Boolean = false
 ) {
+    // Seçim bir durum, bir olay değil.
+    //
+    // Önceden yalnızca simge onay imiyle takas ediliyordu: kart seçiliyken
+    // seçili olmayandan yalnızca o küçük karenin içeriğiyle ayrılıyordu ve
+    // takas tek karede olduğu için hangi kartın değiştiği bile gözden
+    // kaçıyordu.
+    //
+    // Şimdi simge kabı seçilince kareden daireye **dönüşüyor** ve rengi
+    // oraya doğru yürüyor. Biçimin kendisi seçili olmanın işareti, yani
+    // karar ekranda kalıcı olarak duruyor.
+    // Belirteçler çağrıdan **önce** çözülüyor: `transitionSpec` bloğu
+    // @Composable değil, yani KasaMotion'ın içinden okuduğu
+    // CompositionLocal'a orada erişilemiyor.
+    val iconIn = KasaMotion.enter<Float>()
+    val iconOut = KasaMotion.exit<Float>()
+    val iconPop = KasaMotion.small<Float>()
+
+    val radius = animatedCorner(
+        if (selected) KasaRadius.full else KasaRadius.m,
+        label = "choiceIconShape"
+    )
+    val background by animateColorAsState(
+        if (selected) KasaTheme.colors.badgeStrongBg
+        else MaterialTheme.colorScheme.surfaceContainerHigh,
+        KasaMotion.effect(),
+        label = "choiceBg"
+    )
+    val foreground by animateColorAsState(
+        if (selected) KasaTheme.colors.badgeStrongFg else KasaTheme.colors.ink2,
+        KasaMotion.effect(),
+        label = "choiceFg"
+    )
+
     KasaTile(
         position = GroupPosition.ONLY,
         onClick = onClick,
@@ -290,18 +329,26 @@ private fun ChoiceCard(
         Box(
             Modifier
                 .size(40.dp)
-                .clip(RoundedCornerShape(KasaRadius.m))
-                .background(
-                    if (selected) KasaTheme.colors.badgeStrongBg
-                    else MaterialTheme.colorScheme.surfaceContainerHigh
-                ),
+                .clip(RoundedCornerShape(radius))
+                .background(background),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                if (selected) Icons.Rounded.Check else icon,
-                contentDescription = null,
-                tint = if (selected) KasaTheme.colors.badgeStrongFg else KasaTheme.colors.ink2
-            )
+            // Simge de takas edilmiyor, **çapraz geçiyor**: onay imi
+            // büyüyerek gelirken eski simge küçülerek çıkıyor.
+            AnimatedContent(
+                targetState = selected,
+                transitionSpec = {
+                    (fadeIn(iconIn) + scaleIn(initialScale = 0.6f, animationSpec = iconPop))
+                        .togetherWith(fadeOut(iconOut) + scaleOut(targetScale = 0.6f, animationSpec = iconOut))
+                },
+                label = "choiceIcon"
+            ) { on ->
+                Icon(
+                    if (on) Icons.Rounded.Check else icon,
+                    contentDescription = null,
+                    tint = foreground
+                )
+            }
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
@@ -529,6 +576,7 @@ private fun NoteRow(text: String, modifier: Modifier = Modifier) {
  * Panoya kopyalama bilerek yok: pano bütün uygulamalara açık ve kasa
  * anahtarının orada bir saniye durmasının gerekçesi yok.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RecoveryStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState) {
     val code = state.recoveryCode.orEmpty()
@@ -585,15 +633,40 @@ private fun RecoveryStep(viewModel: AuthViewModel, state: AuthViewModel.SetupSta
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(KasaRadius.xl))
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    .padding(24.dp)
+                    .padding(horizontal = 18.dp, vertical = 24.dp)
             ) {
-                Text(
-                    code,
-                    style = KasaTheme.text.mono,
-                    color = KasaTheme.colors.ink,
-                    textAlign = TextAlign.Center,
+                // Kod, grupları sırayla çözülerek beliriyor.
+                //
+                // Kutu tek parça olarak netleşiyordu ve yirmi dört karakter
+                // aynı anda okunur hâle geliyordu; gözün nereden başlayacağına
+                // dair hiçbir işaret yoktu. Soldan sağa açılınca okuma yönünü
+                // hareketin kendisi veriyor — ve bu ekranın tek işi bu koda
+                // gerçekten bakılması.
+                //
+                // Gruplar ayrı ayrı sarılıyor çünkü aralarındaki gecikme
+                // metnin **içinde** olmalı; tek bir Text'e uygulanan gecikme
+                // yine tek bir olay olurdu.
+                FlowRow(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalArrangement = Arrangement.Center,
                     modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    val groups = code.split('-')
+                    groups.forEachIndexed { index, group ->
+                        KasaReveal(
+                            visible = true,
+                            delayMillis = STEP_DELAY * 3 + index * CODE_GROUP_STEP,
+                            blurRadius = CODE_BLUR,
+                            lift = 0.dp
+                        ) {
+                            Text(
+                                if (index == groups.lastIndex) group else "$group-",
+                                style = KasaTheme.text.mono,
+                                color = KasaTheme.colors.ink
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -726,7 +799,15 @@ private fun RecoveryVerifyStep(viewModel: AuthViewModel, state: AuthViewModel.Se
         }
         Spacer(Modifier.height(28.dp))
 
+        // Alanlar sırayla iniyor: kaç grup istendiği, saymadan önce
+        // hareketten anlaşılıyor.
         slots.forEachIndexed { slot, group ->
+            KasaReveal(
+                visible = true,
+                delayMillis = STEP_DELAY * 2 + slot * FIELD_STEP,
+                lift = 10.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
             KasaTextField(
                 value = typed[slot],
                 onValueChange = { fresh ->
@@ -743,6 +824,7 @@ private fun RecoveryVerifyStep(viewModel: AuthViewModel, state: AuthViewModel.Se
                 isError = state.verifyError,
                 modifier = Modifier.fillMaxWidth()
             )
+            }
             Spacer(Modifier.height(10.dp))
         }
 
@@ -1141,6 +1223,7 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
                 if (restoreFirst) R.string.onb_handoff_archive_sub else R.string.onb_handoff_csv_sub
             ),
             position = GroupPosition.FIRST,
+            step = 0,
             onClick = {
                 if (restoreFirst) archiveLauncher.launch(arrayOf(ANY_MIME))
                 else csvLauncher.launch(arrayOf(ANY_MIME))
@@ -1155,6 +1238,7 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
                 if (restoreFirst) R.string.onb_handoff_csv_sub else R.string.onb_handoff_archive_sub
             ),
             position = GroupPosition.LAST,
+            step = 1,
             onClick = {
                 if (restoreFirst) csvLauncher.launch(arrayOf(ANY_MIME))
                 else archiveLauncher.launch(arrayOf(ANY_MIME))
@@ -1182,6 +1266,7 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
             subtitle = stringResource(R.string.onb_handoff_autofill_sub),
             position = GroupPosition.FIRST,
             done = autofillOn,
+            step = 2,
             onClick = { openAutofillSettings(context) }
         )
         HandoffRow(
@@ -1190,6 +1275,7 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
             subtitle = stringResource(R.string.onb_handoff_passkey_sub),
             position = GroupPosition.MIDDLE,
             done = passkeyOn,
+            step = 3,
             onClick = { openCredentialProviderSettings(context) }
         )
         // Bildirim izni.
@@ -1205,6 +1291,7 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
             subtitle = stringResource(R.string.onb_handoff_notify_sub),
             position = GroupPosition.LAST,
             done = notificationsOn,
+            step = 4,
             onClick = {
                 if (!notificationsOn) {
                     notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -1260,9 +1347,10 @@ private fun FillRow(
     title: String,
     subtitle: String,
     position: GroupPosition,
+    step: Int,
     onClick: () -> Unit
 ) {
-    HandoffRow(icon, title, subtitle, position, onClick, done = null)
+    HandoffRow(icon, title, subtitle, position, onClick, done = null, step = step)
 }
 
 /** Bölüm başlığı: satır grubunun ne olduğunu söyleyen küçük etiket. */
@@ -1290,8 +1378,20 @@ private fun HandoffRow(
     subtitle: String,
     position: GroupPosition,
     onClick: () -> Unit,
-    done: Boolean? = false
+    done: Boolean? = false,
+    /**
+     * Sıradaki yeri. Satırlar tek blok olarak belirdiğinde hangi eylemin
+     * nerede olduğu ancak okununca anlaşılıyordu; sırayla inince liste bir
+     * yığın değil bir **sıra** oluyor.
+     */
+    step: Int = 0
 ) {
+    KasaReveal(
+        visible = true,
+        delayMillis = STEP_DELAY * 2 + step * ROW_STEP,
+        lift = 12.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
     KasaTile(position = position, onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Icon(icon, contentDescription = null, tint = KasaTheme.colors.ink2)
         Spacer(Modifier.width(14.dp))
@@ -1308,6 +1408,7 @@ private fun HandoffRow(
                 tint = KasaTheme.colors.badgeStrongBg
             )
         }
+    }
     }
 }
 
@@ -1328,8 +1429,26 @@ private const val STEP_DELAY = 90
  */
 private val CODE_BLUR = 26.dp
 
+/**
+ * Sıralı beliren alanlar ve satırlar arasındaki gecikme.
+ *
+ * [STEP_DELAY]'den kısa: bunlar ekranın ayrı bölümleri değil, tek bir
+ * listenin öğeleri. Aynı değeri kullanmak listeyi bölümlere ayırırdı.
+ */
+private const val FIELD_STEP = 60
+private const val ROW_STEP = 45
+
 /** Önerilen sözcük dizisinin uzunluğu: ~9 bit/sözcük ile 50 bitin üzerinde. */
 private const val SUGGEST_WORDS = 6
+
+/**
+ * Kodun grupları arasındaki çözülme gecikmesi.
+ *
+ * Adımın bölümleri arasındaki [STEP_DELAY]'den kısa: bunlar ayrı bölümler
+ * değil, tek bir şeyin parçaları. Uzun bir gecikme kodu altı ayrı nesneye
+ * bölerdi.
+ */
+private const val CODE_GROUP_STEP = 55
 
 /** Kurtarma anahtarındaki bir grubun karakter sayısı (Crockford Base32). */
 private const val GROUP_LENGTH = 4

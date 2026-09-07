@@ -7,11 +7,15 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -222,55 +226,47 @@ fun MorphDial(
         listOf(color.lift(0.46f), color.lift(0.12f), color)
     )
     val reduced = rememberReducedMotion()
-    val transition = rememberInfiniteTransition(label = "morph")
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 16000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
 
-    // ── güce göre iki ayrı karakter ────────────────────────────────────────
+    // ── dönüş neden tekrarlanan bir animasyonla değil ──────────────────────
     //
-    // Kadran eskiden güçten yalnızca **ölçü** alıyordu: zayıfta biraz daha
-    // dikenli, biraz daha hızlı; güçlüde biraz daha yuvarlak, biraz daha
-    // yavaş. Aynı hareketin iki ayarı olduğu için "zayıf" ile "güçlü"
-    // arasındaki fark ancak ikisini yan yana görünce anlaşılıyordu — oysa
-    // kullanıcı hiçbir zaman ikisini yan yana görmüyor.
+    // Burada `infiniteRepeatable` ile 0'dan 2π'ye giden bir rampa vardı ve
+    // açı ondan **çarpılarak** türetiliyordu: `rampa * (1.2 - 0.85 * güç)`.
+    // Çarpan tam sayı olmadığı sürece bu döngü kapanmıyor. Orta güçte çarpan
+    // 0.775, yani açı 0'dan 0.775·2π'ye süpürüyor ve rampa başa dönerken
+    // 81 derece geri sıçrıyor. On altı saniyede bir görünen o sıçrama,
+    // dönüşün "loop gibi durmamasının" sebebiydi.
     //
-    // Artık iki ayrı döngü var ve güç, hangisinin duyulacağını seçiyor:
+    // Bunun tam sayı bir çarpanla düzeltilmesi mümkün değil: çarpan gücün
+    // kendisinden geliyor ve güç kullanıcı yazdıkça sürekli değişiyor.
+    // Süreyi değiştirmek de çözüm değil — `durationMillis` değişince
+    // animasyon baştan başlıyor, yani her tuşta yeni bir sıçrama.
     //
-    //  - [unrest] **huzursuzluk**. Dikenler kendi başına büyüyüp küçülüyor ve
-    //    biçimin merkezi yerinde duramıyor. Zayıf parolada bütün ağırlık
-    //    burada: kadran titreyen, oturmamış bir şey.
-    //  - [breath] **nefes**. Biçim yavaşça büyüyüp küçülüyor, başka hiçbir
-    //    şey yapmıyor. Güçlü parolada ağırlık buraya geçiyor: kadran duran,
-    //    sakin, canlı bir şey.
-    //
-    // Aradaki geçiş sürekli, yani orta güçte ikisi de az miktarda duyuluyor.
-    // İki uçta ise ortak hiçbir şey kalmıyor: biri titriyor, öteki nefes
-    // alıyor.
-    val unrest by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = UNREST_MILLIS, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "unrest"
-    )
-    val breath by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = BREATH_MILLIS, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "breath"
-    )
+    // Bu yüzden açı artık **biriktiriliyor**: her karede hız çarpı geçen
+    // süre kadar ilerliyor. Baştan başlayan bir şey olmadığı için kapanacak
+    // bir döngü de yok; hız da istendiği an, sıçramadan değişebiliyor.
+    val moving = spin && !reduced
+    val angle = remember { mutableFloatStateOf(STILL_ANGLE) }
+    // Hız bir okuma kutusunda tutuluyor: kare döngüsü bir kez kuruluyor ve
+    // gücün her değişiminde yeniden kurulmuyor.
+    val speed = rememberUpdatedState(TURN_RATE * (1.2f - 0.85f * strength.coerceIn(0f, 1f)))
+
+    LaunchedEffect(moving) {
+        if (!moving) return@LaunchedEffect
+        var previous = 0L
+        while (true) {
+            withInfiniteAnimationFrameNanos { now ->
+                if (previous != 0L) {
+                    val seconds = (now - previous) / NANOS_PER_SECOND
+                    // Sarmalama kayan noktalı sayının çözünürlüğünü koruyor:
+                    // sürekli büyüyen bir açı, saatler sonra kesikli dönmeye
+                    // başlardı.
+                    angle.floatValue =
+                        (angle.floatValue + speed.value * seconds).mod(TWO_PI)
+                }
+                previous = now
+            }
+        }
+    }
 
     // Şeklin kendisi net, uçları dağılıyor.
     //
@@ -292,41 +288,33 @@ fun MorphDial(
     val scratchVertices = remember(points) { FloatArray(points * 4) }
 
     Canvas(modifier = modifier) {
-        // Dönüş açısı çizim aşamasında okunuyor: bestede okunsaydı kadran
-        // ekranda durduğu sürece kare başına bir yeniden besteleme olurdu.
+        // Açı çizim aşamasında okunuyor. Bestede okunsaydı kadran ekranda
+        // durduğu sürece kare başına bir yeniden besteleme olurdu; burada
+        // okunduğunda yalnızca çizim yeniden yapılıyor.
+        val turn = if (moving) angle.floatValue else STILL_ANGLE
         val calm = strength.coerceIn(0f, 1f)
-        val agitation = 1f - calm
-        val moving = spin && !reduced
 
-        val angle = if (moving) rotation * (1.2f - 0.85f * calm) else 0.4f
+        // Merkez sabit.
+        //
+        // Bir ara merkez, zayıf parolada iki eksende farklı ritimlerde
+        // kaydırılıyordu; niyet "titreme" idi. Ama bütün nesneyi kaydırmak
+        // titremek değil, salınmaktır: iki eksenin farklı ritmi bir yörünge
+        // çiziyor ve göz onu sallanma olarak okuyor. Güç, biçimin
+        // **ölçüsünden** okunuyor — dikenlerin boyu ve köşelerin
+        // yuvarlaklığından — konumundan değil.
+        val center = Offset(size.width / 2f, size.height / 2f)
         val radius = min(size.width, size.height) / 2f * 0.88f
-
-        // Huzursuzluk: merkez yerinde duramıyor ve dikenler kendi ritminde
-        // büyüyüp küçülüyor. İki eksende farklı faz kullanılıyor; aynı fazla
-        // merkez bir doğru üzerinde gidip gelirdi ve bu, titremekten çok
-        // sallanmak gibi görünürdü.
-        val shudder = if (moving) agitation * agitation * radius * SHUDDER_FRACTION else 0f
-        val center = Offset(
-            size.width / 2f + cos(unrest * 3f) * shudder,
-            size.height / 2f + sin(unrest * 2f) * shudder
-        )
-
-        // Nefes: yalnızca güçlüde duyuluyor ve yalnızca ölçekte.
-        val breathScale = if (moving) 1f + BREATH_DEPTH * calm * sin(breath) else 1f
-
-        val spikeNow = SPIKE_BASE * agitation *
-            (1f + SPIKE_SWELL * agitation * sin(unrest * 1.7f))
 
         fun shape(scale: Float): Path {
             buildMorphPathInto(
                 path = scratchPath,
                 centerX = center.x,
                 centerY = center.y,
-                radius = radius * scale * breathScale,
+                radius = radius * scale,
                 points = points,
-                spike = spikeNow.coerceAtLeast(0f),
+                spike = SPIKE_BASE * (1f - calm),
                 round = 0.14f + 0.36f * calm,
-                rotation = angle,
+                rotation = turn,
                 vertices = scratchVertices
             )
             return scratchPath
@@ -347,23 +335,25 @@ fun MorphDial(
     }
 }
 
-/** Huzursuzluk döngüsü: titremenin fark edilmesi için kısa. */
-private const val UNREST_MILLIS = 2600
+/** Tam tur (radyan). */
+private const val TWO_PI = (2 * PI).toFloat()
 
-/** Nefes döngüsü: sayılabilecek kadar yavaş, yani sakin. */
-private const val BREATH_MILLIS = 5200
+private const val NANOS_PER_SECOND = 1_000_000_000f
 
-/** Zayıfta merkezin yarıçapın kaçta kaçı kadar kayacağı. */
-private const val SHUDDER_FRACTION = 0.035f
+/**
+ * Güçlü parolada dönüş hızı (radyan/saniye).
+ *
+ * Eski 16 saniyelik turla aynı: bir tur, okunacak metnin yanında dikkat
+ * çekmeyecek kadar yavaş. Zayıf parolada [MorphDial] bunu iki katına
+ * yaklaştırıyor.
+ */
+private const val TURN_RATE = TWO_PI / 16f
 
-/** Güçlüde biçimin nefesle büyüyüp küçülme payı. */
-private const val BREATH_DEPTH = 0.045f
+/** Hareket kapalıyken kadranın durduğu açı: köşelerinden biri yukarı bakmıyor. */
+private const val STILL_ANGLE = 0.4f
 
-/** Dikenlerin taban yüksekliği. */
+/** Dikenlerin zayıf paroladaki boyu. */
 private const val SPIKE_BASE = 0.30f
-
-/** Dikenlerin kendi ritminde ne kadar kabarıp söneceği. */
-private const val SPIKE_SWELL = 0.55f
 
 /** Kenarın çözüldüğü halka sayısı. Üçün üstü fark edilmiyor, altı sert kalıyor. */
 private const val GLOW_LAYERS = 3

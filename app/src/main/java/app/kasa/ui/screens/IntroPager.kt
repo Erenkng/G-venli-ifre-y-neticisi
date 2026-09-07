@@ -8,11 +8,9 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,15 +22,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -44,6 +39,9 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.drop
 import app.kasa.core.util.Haptics
@@ -51,7 +49,6 @@ import app.kasa.core.util.rememberHapticPlayer
 import app.kasa.R
 import app.kasa.ui.components.ButtonTone
 import app.kasa.ui.components.KasaButton
-import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 import app.kasa.ui.theme.LocalReducedMotion
 import kotlinx.coroutines.launch
@@ -98,6 +95,29 @@ fun IntroPager(
     val scope = rememberCoroutineScope()
     val onLastPage = pagerState.currentPage == pages.lastIndex
 
+    // Sahnelerin ortak saati.
+    //
+    // Faz eskiden her sayfanın kendi içinde kuruluyordu: üç sayfa, üç sonsuz
+    // animasyon ve ekranda görünmeyen ikisi de çalışıyordu. Tek bir saat hem
+    // o iki animasyonu ortadan kaldırıyor hem de sahneleri birbirine
+    // bağlıyor — kaydırırken iki sahne aynı anda görünüyor ve ayrı saatlerde
+    // dönmeleri, kaymanın kendisini bozan bir gürültüydü.
+    val reduced = LocalReducedMotion.current
+    val transition = rememberInfiniteTransition(label = "intro")
+    val animatedPhase = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = SCENE_CYCLE_MILLIS, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "introPhase"
+    )
+    // Hareket kapalıyken sabit bir kare: sahne durağan çiziliyor ama boş
+    // kalmıyor.
+    val phase: State<Float> =
+        if (reduced) remember { mutableStateOf(0f) } else animatedPhase
+
     // Sayfa değişiminde bir yer değiştirme titreşimi. Düğmeye değil sayfanın
     // kendisine bağlı: kaydırarak geçmek de aynı olay ve düğmeye bağlansaydı
     // kullanıcının iki geçiş yolundan biri sessiz kalırdı.
@@ -140,21 +160,44 @@ fun IntroPager(
                         .widthIn(max = INTRO_ART_MAX)
                         .fillMaxWidth()
                         .aspectRatio(1.15f)
-                        .graphicsLayer {
-                            // Sayfadan yavaş: arkada duruyor.
-                            translationX = offset * size.width * 0.42f
-                            alpha = (1f - abs(offset) * 0.85f).coerceIn(0f, 1f)
-                        }
                 ) {
-                    IntroArtwork(pages[page].scene, Modifier.fillMaxSize())
+                    // Çizim tek bir düzlem değil, iki.
+                    //
+                    // Grafik ve yazı zaten farklı hızlarda kayıyordu, yani iki
+                    // derinlik vardı. Ama grafiğin kendisi tek parça olduğu
+                    // için, içindeki her şey aynı uzaklıktaydı: halkalar,
+                    // uydular ve kadran hep birlikte hareket ediyor ve
+                    // sahne bir fotoğraf gibi düz okunuyordu.
+                    //
+                    // Şimdi her sahnenin uzak parçaları (halkalar, duvarlar,
+                    // arkadaki kartlar) yakın parçalarından ayrı çiziliyor ve
+                    // daha yavaş kayıyor. Aralarındaki hız farkı, gözün
+                    // derinlik olarak okuduğu tek şey — ışık ya da gölge
+                    // değil, **paralaks**.
+                    IntroPlane(
+                        scene = pages[page].scene,
+                        plane = ScenePlane.FAR,
+                        phase = phase,
+                        offset = offset,
+                        drift = PARALLAX_FAR,
+                        fade = 0.7f
+                    )
+                    IntroPlane(
+                        scene = pages[page].scene,
+                        plane = ScenePlane.NEAR,
+                        phase = phase,
+                        offset = offset,
+                        drift = PARALLAX_NEAR,
+                        fade = 0.95f
+                    )
                 }
 
                 Spacer(Modifier.height(40.dp))
 
                 Column(
                     Modifier.graphicsLayer {
-                        // Sayfadan hızlı: önde duruyor.
-                        translationX = offset * size.width * -0.22f
+                        // Üç düzlemin en öndeki: sayfadan **hızlı** kayıyor.
+                        translationX = offset * size.width * PARALLAX_TEXT
                         alpha = (1f - abs(offset) * 1.4f).coerceIn(0f, 1f)
                     },
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -259,43 +302,53 @@ private fun lerpColor(from: Color, to: Color, fraction: Float) = Color(
 )
 
 /**
- * Sayfanın grafiği.
+ * Sahnenin bir derinlik düzlemi.
  *
  * Üçü de elle çizilmiş; resim dosyası kullanılmamasının sebebi tema. Bu
  * çizimler tema renklerinden besleniyor ve karanlık temada kendiliğinden
  * doğru görünüyor — sabit bir PNG için iki ayrı dosya tutmak ve ikisini de
  * güncel kalmaya zorlamak gerekirdi.
+ *
+ * [drift] düzlemin sayfaya göre ne kadar geride kaldığını söylüyor: büyük
+ * değer daha uzak. [fade] ise uzak düzlemin daha geç sönmesini sağlıyor —
+ * yakındaki nesneler kadraja girip çıkarken uzaktaki manzara kalıcıdır.
  */
 @Composable
-private fun IntroArtwork(scene: IntroScene, modifier: Modifier) {
-    val reduced = LocalReducedMotion.current
-    val transition = rememberInfiniteTransition(label = "intro")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = SCENE_CYCLE_MILLIS, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "introPhase"
-    )
+private fun IntroPlane(
+    scene: IntroScene,
+    plane: ScenePlane,
+    phase: State<Float>,
+    offset: Float,
+    drift: Float,
+    fade: Float
+) {
     val accent = MaterialTheme.colorScheme.primary
     val ink = KasaTheme.colors.ink
     val soft = KasaTheme.colors.ink3
 
-    Canvas(modifier) {
+    Canvas(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                translationX = offset * size.width * drift
+                alpha = (1f - abs(offset) * fade).coerceIn(0f, 1f)
+            }
+    ) {
         // Faz çizim aşamasında okunuyor. Bestede okunsaydı tanıtım ekranı
         // açık durduğu sürece — yani kullanıcının okuduğu bütün süre boyunca
         // — kare başına yeniden bestelenirdi; hem de kaydırma tam o sırada
         // oluyor.
-        val t = if (reduced) 0f else phase
+        val t = phase.value
         when (scene) {
-            IntroScene.VAULT -> drawVaultScene(t, accent, ink, soft)
-            IntroScene.TYPES -> drawTypesScene(t, accent, ink, soft)
-            IntroScene.OFFLINE -> drawOfflineScene(t, accent, ink, soft)
+            IntroScene.VAULT -> drawVaultScene(t, plane, accent, ink, soft)
+            IntroScene.TYPES -> drawTypesScene(t, plane, accent, ink, soft)
+            IntroScene.OFFLINE -> drawOfflineScene(t, plane, accent, ink, soft)
         }
     }
 }
+
+/** Bir sahnenin iki derinliği. Uzak olan yavaş kayıyor, yakın olan hızlı. */
+private enum class ScenePlane { FAR, NEAR }
 
 /**
  * Birinci sayfa: kayıtlar kadranın içine akıyor.
@@ -304,18 +357,32 @@ private fun IntroArtwork(scene: IntroScene, modifier: Modifier) {
  * çekiliyor ve orada kayboluyor. Kadran uygulamanın kendi işareti, yani
  * kullanıcı bu şekli birazdan simgede tekrar görecek.
  */
-private fun DrawScope.drawVaultScene(t: Float, accent: Color, ink: Color, soft: Color) {
+private fun DrawScope.drawVaultScene(
+    t: Float,
+    plane: ScenePlane,
+    accent: Color,
+    ink: Color,
+    soft: Color
+) {
     val center = Offset(size.width / 2f, size.height / 2f)
     val radius = size.minDimension * 0.21f
 
-    // Dışarıdaki halkalar
-    repeat(3) { ring ->
-        drawCircle(
-            color = soft.copy(alpha = 0.14f - ring * 0.035f),
-            radius = radius * (1.9f + ring * 0.72f),
-            center = center,
-            style = Stroke(width = 1.4.dp.toPx())
-        )
+    if (plane == ScenePlane.FAR) {
+        // Uzak: halkalar. Sahnenin durduğu yeri tarif ediyorlar ve yakın
+        // düzlemden yavaş kaydıkları için mesafe onlardan okunuyor.
+        //
+        // Halkalar artık nefes de alıyor: her biri kendi gecikmesiyle
+        // genişleyip daralıyor, yani sahne kaydırılmadığında da yaşıyor.
+        repeat(3) { ring ->
+            val swell = sin((t + ring * RING_LAG) * 2f * PI.toFloat())
+            drawCircle(
+                color = soft.copy(alpha = 0.14f - ring * 0.035f),
+                radius = radius * (1.9f + ring * 0.72f) * (1f + RING_BREATH * swell),
+                center = center,
+                style = Stroke(width = 1.4.dp.toPx())
+            )
+        }
+        return
     }
 
     // Merkeze akan kayıtlar
@@ -324,16 +391,20 @@ private fun DrawScope.drawVaultScene(t: Float, accent: Color, ink: Color, soft: 
         val progress = ((t + seed) % 1f)
         // Sona doğru hızlanıyor: kasaya "çekiliyor" hissi.
         val eased = progress * progress
-        val angle = (seed * 360f + index * 47f) * (Math.PI / 180f).toFloat()
+        val angle = (seed * 360f + index * 47f) * (PI / 180f).toFloat()
         val distance = radius * (3.3f - eased * 2.1f)
         val dotCenter = Offset(
             center.x + cos(angle) * distance,
             center.y + sin(angle) * distance
         )
+        // Kayıt merkeze yaklaştıkça uzuyor: hızlanan bir nesnenin bıraktığı
+        // iz. Sabit boyda bir dikdörtgen, hız değişimini yalnızca konumdan
+        // okutuyordu.
+        val stretch = 1f + eased * SATELLITE_STRETCH
         drawRoundRect(
             color = accent.copy(alpha = (1f - eased) * 0.55f),
-            topLeft = dotCenter - Offset(radius * 0.16f, radius * 0.11f),
-            size = Size(radius * 0.32f, radius * 0.22f),
+            topLeft = dotCenter - Offset(radius * 0.16f * stretch, radius * 0.11f),
+            size = Size(radius * 0.32f * stretch, radius * 0.22f),
             cornerRadius = CornerRadius(radius * 0.08f)
         )
     }
@@ -369,11 +440,17 @@ private fun DrawScope.drawVaultScene(t: Float, accent: Color, ink: Color, soft: 
  * açılıp kapanıyor — çünkü durağan bir yığın "arşiv", hareketli bir yelpaze
  * "seçilebilir" anlamına geliyor.
  */
-private fun DrawScope.drawTypesScene(t: Float, accent: Color, ink: Color, soft: Color) {
+private fun DrawScope.drawTypesScene(
+    t: Float,
+    plane: ScenePlane,
+    accent: Color,
+    ink: Color,
+    soft: Color
+) {
     val center = Offset(size.width / 2f, size.height / 2f)
     val cardWidth = size.minDimension * 0.46f
     val cardHeight = cardWidth * 0.63f
-    val breathe = sin(t * 2f * Math.PI.toFloat()) * 0.5f + 0.5f
+    val breathe = sin(t * 2f * PI.toFloat()) * 0.5f + 0.5f
 
     val tints = listOf(
         accent.copy(alpha = 0.28f),
@@ -382,7 +459,28 @@ private fun DrawScope.drawTypesScene(t: Float, accent: Color, ink: Color, soft: 
         accent
     )
 
+    if (plane == ScenePlane.FAR) {
+        // Uzak düzlem yığının zeminini taşıyor: gölge çizgisi kartların bir
+        // yere oturduğunu söyleyen tek şey ve yakın düzlemden yavaş kaydığı
+        // için zemin gibi davranıyor.
+        drawRoundRect(
+            color = ink.copy(alpha = 0.06f),
+            topLeft = Offset(center.x - cardWidth * 0.62f, center.y + cardHeight * 0.86f),
+            size = Size(cardWidth * 1.24f, cardHeight * 0.08f),
+            cornerRadius = CornerRadius(cardHeight * 0.04f)
+        )
+        drawCircle(soft.copy(alpha = 0.001f), 1f, center)
+    }
+
+    // Yelpazenin kartları iki düzleme bölünüyor: arkadakiler uzakta,
+    // öndeki yakında. Kaydırırken aradaki hız farkı yelpazeyi gerçekten
+    // açıyor — tek düzlemde çizildiğinde yığın, üst üste konmuş düz
+    // dikdörtgenlerden ibaretti.
+    val front = tints.lastIndex
     tints.forEachIndexed { index, color ->
+        val isFront = index == front
+        if (isFront != (plane == ScenePlane.NEAR)) return@forEachIndexed
+
         val depth = index - (tints.size - 1) / 2f
         val spread = 1f + breathe * 0.55f
         translate(
@@ -397,7 +495,7 @@ private fun DrawScope.drawTypesScene(t: Float, accent: Color, ink: Color, soft: 
                     cornerRadius = CornerRadius(cardHeight * 0.18f)
                 )
                 // En öndeki kartta içerik ipucu: yonga ve iki satır
-                if (index == tints.lastIndex) {
+                if (isFront) {
                     val pad = cardWidth * 0.11f
                     drawRoundRect(
                         color = Color.White.copy(alpha = 0.85f),
@@ -420,15 +518,6 @@ private fun DrawScope.drawTypesScene(t: Float, accent: Color, ink: Color, soft: 
             }
         }
     }
-
-    // Yelpazenin altındaki gölge çizgisi, yığının bir zemine oturduğunu söylüyor
-    drawRoundRect(
-        color = ink.copy(alpha = 0.06f),
-        topLeft = Offset(center.x - cardWidth * 0.62f, center.y + cardHeight * 0.86f),
-        size = Size(cardWidth * 1.24f, cardHeight * 0.08f),
-        cornerRadius = CornerRadius(cardHeight * 0.04f)
-    )
-    drawCircle(soft.copy(alpha = 0.001f), 1f, center)
 }
 
 /**
@@ -439,26 +528,38 @@ private fun DrawScope.drawTypesScene(t: Float, accent: Color, ink: Color, soft: 
  * göstermenin tek dürüst yolu hareketin **durdurulduğunu** göstermek — boş
  * bir ekran "hiçbir şey gitmiyor" demiyor, yalnızca hiçbir şey söylemiyor.
  */
-private fun DrawScope.drawOfflineScene(t: Float, accent: Color, ink: Color, soft: Color) {
+private fun DrawScope.drawOfflineScene(
+    t: Float,
+    plane: ScenePlane,
+    accent: Color,
+    ink: Color,
+    soft: Color
+) {
     val center = Offset(size.width / 2f, size.height / 2f)
     val phoneWidth = size.minDimension * 0.34f
     val phoneHeight = phoneWidth * 1.9f
     val wall = phoneWidth * 1.32f
 
-    // Duvar: telefonun iki yanında dikey kesikli hat
-    listOf(-1f, 1f).forEach { side ->
-        var y = center.y - phoneHeight * 0.62f
-        val end = center.y + phoneHeight * 0.62f
-        val dash = phoneHeight * 0.07f
-        while (y < end) {
-            drawRoundRect(
-                color = soft.copy(alpha = 0.3f),
-                topLeft = Offset(center.x + side * wall - 1.2.dp.toPx(), y),
-                size = Size(2.4.dp.toPx(), dash),
-                cornerRadius = CornerRadius(1.2.dp.toPx())
-            )
-            y += dash * 2f
+    if (plane == ScenePlane.FAR) {
+        // Uzak: duvar. Telefonun iki yanında dikey kesikli hat.
+        //
+        // Duvarın uzak düzlemde olması anlatımın da parçası: sınır telefonun
+        // bir özelliği değil, telefonun içinde bulunduğu dünyanın sınırı.
+        listOf(-1f, 1f).forEach { side ->
+            var y = center.y - phoneHeight * 0.62f
+            val end = center.y + phoneHeight * 0.62f
+            val dash = phoneHeight * 0.07f
+            while (y < end) {
+                drawRoundRect(
+                    color = soft.copy(alpha = 0.3f),
+                    topLeft = Offset(center.x + side * wall - 1.2.dp.toPx(), y),
+                    size = Size(2.4.dp.toPx(), dash),
+                    cornerRadius = CornerRadius(1.2.dp.toPx())
+                )
+                y += dash * 2f
+            }
         }
+        return
     }
 
     // Duvara çarpıp geri dönen noktalar
@@ -476,6 +577,18 @@ private fun DrawScope.drawOfflineScene(t: Float, accent: Color, ink: Color, soft
             radius = phoneWidth * (if (hitting) 0.075f else 0.05f),
             center = Offset(x, y)
         )
+        // Çarpma anında duvarda bir halka: nokta geri dönüyor değil,
+        // **durduruluyor**. Sahnenin anlattığı şey bu ve önceden yalnızca
+        // noktanın büyümesinden okunuyordu.
+        if (hitting) {
+            val bloom = (travel - 0.92f) / 0.08f
+            drawCircle(
+                color = accent.copy(alpha = 0.35f * (1f - bloom)),
+                radius = phoneWidth * (0.075f + 0.16f * bloom),
+                center = Offset(center.x + side * wall, y),
+                style = Stroke(width = 1.6.dp.toPx())
+            )
+        }
     }
 
     // Telefon
@@ -507,6 +620,26 @@ private fun DrawScope.drawOfflineScene(t: Float, accent: Color, ink: Color, soft
         center = Offset(center.x, shieldTop + shieldWidth * 0.78f)
     )
 }
+
+/**
+ * Düzlemlerin sayfaya göre kayma oranları.
+ *
+ * Büyük değer daha uzak: sayfadan yavaş kayan şey geride duruyor. Negatif
+ * değer sayfadan hızlı, yani en önde. Üçünün arası eşit değil — uzak ile
+ * yakın arasındaki fark, yakın ile yazı arasındakinden büyük, çünkü
+ * derinlik algısı orana değil farka bakıyor ve eşit aralık üç ayrı düzlemi
+ * tek bir eğime çeviriyordu.
+ */
+private const val PARALLAX_FAR = 0.62f
+private const val PARALLAX_NEAR = 0.30f
+private const val PARALLAX_TEXT = -0.22f
+
+/** Halkaların nefes payı ve aralarındaki gecikme. */
+private const val RING_BREATH = 0.035f
+private const val RING_LAG = 0.18f
+
+/** Kaydın merkeze yaklaşırken ne kadar uzayacağı. */
+private const val SATELLITE_STRETCH = 0.9f
 
 /** Uydu sayısı: az olsa seyrek, çok olsa gürültülü görünüyor. */
 private const val SATELLITES = 7
