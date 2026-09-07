@@ -307,7 +307,9 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
     fun restartSetup() {
         viewModelScope.launch {
             repository.wipeEverything()
-            _setup.value = SetupState()
+            // Çatalın seçimi korunuyor: kullanıcı parolasını unuttu, yedeği
+            // olup olmadığını değil.
+            _setup.value = SetupState(intent = _setup.value.intent)
         }
     }
 
