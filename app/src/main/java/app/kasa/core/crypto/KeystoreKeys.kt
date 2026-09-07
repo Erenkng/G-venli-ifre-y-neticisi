@@ -11,6 +11,7 @@ import android.util.Log
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
+import javax.crypto.Mac
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
@@ -36,6 +37,15 @@ object KeystoreKeys {
     const val ALIAS_DEVICE_CREDENTIAL = "kasa.kek.devicecred.v1"
     const val ALIAS_DEVICE = "kasa.kek.device.v1"
     const val ALIAS_PIN = "kasa.kek.pin.v1"
+
+    /**
+     * Cihaza bağlı özet anahtarı.
+     *
+     * Şifreleme için değil, **karşılaştırma** için: aynı girdi hep aynı çıktıyı
+     * versin ama o çıktıyı bu cihazın dışında kimse hesaplayamasın. Anahtar
+     * Keystore'da duruyor ve dışa aktarılamıyor.
+     */
+    const val ALIAS_MAC = "kasa.mac.device.v1"
 
     private val keyStore: KeyStore by lazy {
         KeyStore.getInstance(PROVIDER).apply { load(null) }
@@ -87,6 +97,7 @@ object KeystoreKeys {
     }
 
     fun deleteAll() {
+        runCatching { keyStore.deleteEntry(ALIAS_MAC) }
         deleteBiometricKey()
         runCatching { keyStore.deleteEntry(ALIAS_DEVICE) }
         runCatching { keyStore.deleteEntry(ALIAS_PIN) }
@@ -299,6 +310,42 @@ object KeystoreKeys {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, loadOrCreateDeviceKey(), GCMParameterSpec(Crypto.GCM_TAG_BITS, iv))
         cipher.doFinal(body)
+    } catch (t: Throwable) {
+        null
+    }
+
+    // ------------------------------------------------------- cihaza bağlı özet
+
+    private fun loadOrCreateMacKey(): SecretKey {
+        (keyStore.getKey(ALIAS_MAC, null) as? SecretKey)?.let { return it }
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_HMAC_SHA256, PROVIDER)
+        generator.init(
+            KeyGenParameterSpec.Builder(ALIAS_MAC, KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY)
+                .setKeySize(256)
+                .build()
+        )
+        return generator.generateKey()
+    }
+
+    /**
+     * Girdinin bu cihaza özgü özeti.
+     *
+     * Sade bir SHA-256'dan farkı, anahtarın cihazı terk edememesi. Girdi
+     * tahmin edilebilir bir kümeden geliyorsa — Wi-Fi ağ adları gibi, ki
+     * bunlar herkese açık veri tabanlarında listeli — anahtarsız özet, bir
+     * sözlük saldırısına açık bir arama anahtarından ibaret kalıyor. Anahtarlı
+     * özette ise elinde dosya olan biri deneyebileceği bir aday listesi
+     * kuramıyor: özeti hesaplamak için cihazın kendisi gerekiyor.
+     *
+     * Anahtar üretilemezse `null`; çağıranın kararı, özelliği sessizce
+     * kapatmak olmalı — anahtarsız bir yola düşmek burada korunan şeyi
+     * ortadan kaldırırdı.
+     */
+    fun deviceMac(plain: ByteArray): ByteArray? = try {
+        Mac.getInstance("HmacSHA256").run {
+            init(loadOrCreateMacKey())
+            doFinal(plain)
+        }
     } catch (t: Throwable) {
         null
     }

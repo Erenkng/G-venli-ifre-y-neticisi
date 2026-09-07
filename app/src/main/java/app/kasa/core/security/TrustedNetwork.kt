@@ -9,6 +9,7 @@ import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import androidx.core.content.ContextCompat
 import app.kasa.core.crypto.Crypto
+import app.kasa.core.crypto.KeystoreKeys
 
 /**
  * "Bu, ev ağım mı?" sorusunun cevabı.
@@ -23,10 +24,32 @@ import app.kasa.core.crypto.Crypto
  *
  * ### Verinin nereye gittiği: hiçbir yere
  *
- * Ağ adı ham hâlde **hiç saklanmıyor**. Saklanan tek şey
- * `SHA-256(ağ adı ‖ ağ donanım kimliği)` özetinin ilk 16 baytı. Özet
- * karşılaştırma dışında hiçbir işe yaramıyor; tersine çevrilip "kullanıcı
- * hangi ağa bağlanıyor" bilgisi çıkarılamıyor ve zaten cihazdan çıkmıyor.
+ * Ağ adı ham hâlde **hiç saklanmıyor**; saklanan şey bir özet ve o özet
+ * cihazdan çıkmıyor.
+ *
+ * ### Neden anahtarsız özet yetmiyordu
+ *
+ * Burada `SHA-256(ağ adı ‖ ağ donanım kimliği)` vardı ve bu belgede "tersine
+ * çevrilip hangi ağa bağlandığı çıkarılamaz" yazıyordu. Doğru değildi.
+ * SHA-256 tersine çevrilemez, ama buradaki girdi yüksek entropili değil:
+ * ağ adı ve donanım kimliği havada açıkça yayınlanıyor ve dünyadaki
+ * erişim noktalarını konumlarıyla birlikte listeleyen herkese açık veri
+ * tabanları var. Yani özet, tek yönlü bir mühür değil, halka açık bir
+ * sözlüğe karşı denenebilecek bir **arama anahtarı**ydı: ayarlar dosyasını
+ * eline geçiren biri, aday ağları tek tek özetleyip tutturduğunda
+ * kullanıcının evinin nerede olduğunu öğrenirdi.
+ *
+ * Özet artık [KeystoreKeys.deviceMac] ile alınıyor: anahtar Keystore'da,
+ * dışa aktarılamıyor. Aday listesi kurmak için cihazın kendisi gerekiyor,
+ * dolayısıyla dosyayı okumak tek başına bir şey söylemiyor.
+ *
+ * ### Eski biçim
+ *
+ * Kayıtlı özetler `v2:` önekiyle işaretleniyor. Öneksiz bir değer eski
+ * biçimdir ve hiçbir şeyle eşleşmiyor; [SettingsStore] onu okurken boş
+ * sayıyor ve açılışta diskten siliyor. Yükseltme yapan kullanıcı için
+ * sonuç, güvenilen ağı bir kez yeniden seçmek — ve bu arada kilit her
+ * yerde kısa süreli, yani yanlış tarafa değil güvenli tarafa düşülüyor.
  *
  * ### Neden konum izni isteniyor
  *
@@ -41,6 +64,13 @@ object TrustedNetwork {
 
     /** Özetin saklanan uzunluğu. Çakışma olasılığı yok denecek kadar düşük. */
     private const val DIGEST_BYTES = 16
+
+    /** Cihaza bağlı özet biçiminin işareti. Öneksiz değerler eski biçim. */
+    private const val PREFIX = "v2:"
+
+    /** Kayıtlı değer bugünkü biçimde mi? Boş değer "ayarlanmamış" sayılıyor. */
+    fun isCurrentFormat(stored: String): Boolean =
+        stored.isBlank() || stored.startsWith(PREFIX)
 
     fun hasPermission(context: Context): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -82,13 +112,17 @@ object TrustedNetwork {
         if (ssid.isBlank() || ssid == WifiManager.UNKNOWN_SSID) return null
         if (bssid.isBlank() || bssid == "02:00:00:00:00:00") return null
 
-        val digest = Crypto.sha256("$ssid|$bssid".toByteArray(Charsets.UTF_8))
-        return Crypto.hex(digest.copyOfRange(0, DIGEST_BYTES))
+        // Anahtar üretilemiyorsa özellik sessizce kapanıyor: anahtarsız bir
+        // özete düşmek, tam da bu yolun kapatmak için var olduğu şey olurdu.
+        val mac = KeystoreKeys.deviceMac("$ssid|$bssid".toByteArray(Charsets.UTF_8)) ?: return null
+        return PREFIX + Crypto.hex(mac.copyOfRange(0, DIGEST_BYTES))
     }
 
     /** Kayıtlı güvenilen ağda mıyız? */
     fun isTrusted(context: Context, storedFingerprint: String): Boolean {
         if (storedFingerprint.isBlank()) return false
+        // Eski biçim hiçbir şeyle eşleşmiyor; karşılaştırmaya hiç girmiyor.
+        if (!storedFingerprint.startsWith(PREFIX)) return false
         val current = currentFingerprint(context) ?: return false
         return current == storedFingerprint
     }

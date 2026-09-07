@@ -112,6 +112,12 @@ class KasaApplication : Application(), Configuration.Provider {
             }
             .launchIn(container.scope)
 
+        // Eski biçimdeki güvenilen ağ özeti diskte kalmasın; gerekçesi
+        // TrustedNetwork üzerinde yazılı.
+        container.scope.launch {
+            container.settingsStore.dropLegacyTrustedNetwork()
+        }
+
         container.autoLocker.start()
 
         container.scope.launch {

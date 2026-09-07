@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.compose.runtime.Immutable
+import app.kasa.core.security.TrustedNetwork
 import app.kasa.core.util.PasswordGenerator
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -322,7 +323,14 @@ class SettingsStore(private val context: Context) {
             biometricUnlock = prefs[KEY_BIOMETRIC] ?: false,
             deviceCredentialUnlock = prefs[KEY_DEVICE_CRED] ?: false,
             contextLockEnabled = prefs[KEY_CONTEXT_LOCK] ?: false,
-            trustedNetworkHash = prefs[KEY_TRUSTED_NETWORK] ?: "",
+            // Eski biçimdeki değer hiç okunmuyor: eşleşmeyeceği için işe
+            // yaramıyor, ama "güvenilen ağ ayarlı" görünüp özelliğin neden
+            // çalışmadığını açıklamayan bir durum bırakırdı. Boş görününce
+            // ayarlar ekranı doğal olarak yeniden seçmeyi öneriyor.
+            // Diskten silinmesi ayrı: [dropLegacyTrustedNetwork].
+            trustedNetworkHash = (prefs[KEY_TRUSTED_NETWORK] ?: "")
+                .takeIf { TrustedNetwork.isCurrentFormat(it) }
+                ?: "",
             contextLockSeconds = prefs[KEY_CONTEXT_SECONDS] ?: 300,
             blockScreenshots = prefs[KEY_BLOCK_SHOTS] ?: true,
             clipboardClearSeconds = prefs[KEY_CLIP_SECONDS] ?: 30,
@@ -453,6 +461,21 @@ class SettingsStore(private val context: Context) {
     /** Kasa silindiğinde tercihler de sıfırlanır. */
     suspend fun clear() {
         context.dataStore.edit { it.clear() }
+    }
+
+    /**
+     * Eski biçimdeki güvenilen ağ özetini diskten siler.
+     *
+     * Okuma tarafı onu zaten yok sayıyor, ama mesele yalnızca davranış değil:
+     * o değerin kendisi bir sızıntıydı — gerekçesi [TrustedNetwork] üzerinde.
+     * Yok saymak yetmez, silmek gerekiyor. Açılışta bir kez çağrılıyor ve
+     * silecek bir şey yoksa hiçbir yazma yapmıyor.
+     */
+    suspend fun dropLegacyTrustedNetwork() {
+        context.dataStore.edit { prefs ->
+            val stored = prefs[KEY_TRUSTED_NETWORK] ?: return@edit
+            if (!TrustedNetwork.isCurrentFormat(stored)) prefs.remove(KEY_TRUSTED_NETWORK)
+        }
     }
 
     private suspend fun put(key: Preferences.Key<String>, value: String) {
