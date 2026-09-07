@@ -19,35 +19,31 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 2.4'te yenilikler
+## 2.5'te yenilikler
 
-- **Kurtarma anahtarı ekranı bugüne kadar hiç açılmıyormuş.** Ekran seçimi
-  yalnızca kilit durumuna bakıyordu ve kasa yaratıldığı anda kurulum yerini
-  ana listeye bırakıyordu: anahtar üretiliyor, diske yazılıyor ve kullanıcıya
-  gösterilmeden atlanıyordu. Ana parolasını unutanın tek çıkış yolu,
-  varlığından haberi olmadığı bir koddu.
-- **Kurulum baştan yazıldı.** "Yeni kasa / yedeğim var" çatalı · anahtarın üç
-  grubunu geri yazdırma (onay kutusu kaldırıldı) · anahtarı dosyaya kaydetme
-  ve karekod · ana parolayı kurtarma adımından **sonra** yineleme · sözcük
-  dizisi önerisi · Dengeli/Sıkı sıkılık seçimi · son adımda otomatik
-  doldurma, geçiş anahtarı ve içe aktarma.
-- **Sızıntı bildirimleri artık gerçekten geliyor.** İzin manifestte tanımlıydı
-  ve tarama onu kontrol ediyordu, ama hiçbir yerde istenmiyordu.
-- **Ölçülemeyen kayıt yeşil nokta almıyor.** Notun parolası yok, kartın
-  numarası da seçilmiş bir sır değil; ikisi de bir yargı bildiriyordu. Artık
-  içi boş halka.
-- **İki adımlı kodlar listede**, geri sayımıyla, dokununca kopyalanıyor. Üst
-  sıra da sık kullanılanları gösteriyor — "son kullanılan" altındaki listeyi
-  tekrarlıyordu.
-- **Üreteç:** kadranın üstündeki yazı okunuyor artık (beyaz sabitti, kontrast
-  1,5'e kadar düşüyordu) · kırılma süresi "78 bit"in yanında · "kullan"
-  düğmesi kipe göre doğru alana yazıyor · geçmiş satırları kopyalanabiliyor ·
-  sitenin kabul etmediği simgeler çıkarılabiliyor.
-- **Çöp kutusunda sola kaydırmak** artık kalıcı silme onayı açıyor; önceden
-  kaydı yeniden çöpe atıp otuz günlük sayacı sıfırlıyordu.
-- Artı düğmesinin örtüsündeki çift bulanıklık · üretici kadranının 16
-  saniyede bir sıçraması ve sallanması · tanıtım sayfalarına üç derinlik
-  düzlemi.
+Bu sürüm baştan sona **Güvenlik** ekranı.
+
+- **Sızıntı taraması artık dakikalar değil saniyeler sürüyor.** Her parola için
+  ayrı ve ardışık bir istek atılıyordu — dört yüz kayıtlı bir kasada dört yüz
+  gidiş-dönüş. Artık ön eke göre gruplanıyor: her ayrı ön ek bir kez
+  indiriliyor, kalanı cihazda çözülüyor.
+- **Ve daha az bilgi sızdırıyor.** Aynı ön eki tekrar tekrar sormak, sunucuya
+  "bu kullanıcının bu ön ekte on parolası var" demekti; k-anonimliğin sakladığı
+  şeyi trafik deseni sızdırıyordu.
+- **Ekran denetimin kapalı olduğunu söylemiyordu.** Kart k-anonimliğin nasıl
+  çalıştığını anlatıyor ama açık mı kapalı mı olduğunu söylemiyordu. Artık
+  durumu gösteriyor, anahtarı taşıyor ve son tarama ağa çıkamadıysa bunu yazıyor.
+- **Puanın dökümü ekranda.** Taban ortalama güç, üstüne her bulgunun oranına
+  göre inen ceza. Puanın kaç kaydın ölçülebilir sırrından hesaplandığı da
+  yazılı — "kasanın puanı" ile "kasanın bir kısmının puanı" aynı şey değil.
+- **Seyir çizgisi.** Son yirmi dört tarama puanı kasada tutuluyor; on parolasını
+  düzelten kullanıcı artık ne kadar yol aldığını da görüyor.
+- **"Yenileme zamanı geldi" doğru listeye götürüyor.** Kendi klasörü yoktu ve
+  "bir yıldan eski" listesine bağlıydı: kullanıcı doksan günlük kuralını arıyor,
+  bir yıldan eskileri buluyordu. Bulgu artık puana da giriyor.
+- **SSH anahtarı, lisans ve banka kayıtları da taranıyor.** Sırlarını ayrı bir
+  alanda tuttukları için taramanın tamamen dışında kalıyorlardı; iki anahtara
+  aynı parolayı vermek artık görünüyor.
 
 Gezinme çubuğuna yine dokunulmadı.
 
