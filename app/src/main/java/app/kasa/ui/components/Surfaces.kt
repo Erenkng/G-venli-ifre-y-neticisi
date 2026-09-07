@@ -165,21 +165,41 @@ fun KasaBadge(
 }
 
 /** Parola gücü noktası: listenin sağ ucundaki küçük renkli işaret. */
+/**
+ * Gücü tek bir noktayla anlatan işaret.
+ *
+ * [tone] `null` ise güç **ölçülemiyor** demek — notta parola yok, kartta
+ * ölçülecek bir sır yok. O durumda dolu bir nokta değil, içi boş bir halka
+ * çiziliyor: "burada bir şey var ama ölçülmedi". Dolu noktanın üç rengi de
+ * bir yargı bildiriyor ve yargı bildirmeyecek yere yeşil koymak, kullanıcının
+ * yeşile duyduğu güveni boşaltıyordu.
+ */
 @Composable
-fun StrengthDot(tone: PasswordStrength.Tone, modifier: Modifier = Modifier) {
+fun StrengthDot(tone: PasswordStrength.Tone?, modifier: Modifier = Modifier) {
     val colors = KasaTheme.colors
-    val color = when (tone) {
-        PasswordStrength.Tone.WEAK -> colors.strengthWeak
-        PasswordStrength.Tone.MID -> colors.strengthMid
-        PasswordStrength.Tone.STRONG -> colors.strengthStrong
-    }
     Box(
         modifier = modifier
             .size(18.dp)
             .clip(RoundedCornerShape(KasaRadius.full))
-            .background(KasaTheme.colors.tile),
+            .background(colors.tile),
         contentAlignment = Alignment.Center
     ) {
+        if (tone == null) {
+            // Halka ölçülemeyeni gösteriyor. Kalınlığı noktanın yarıçapından
+            // ince: göz onu "sönük bir nokta" değil, "boş bir yer" olarak
+            // okuyor.
+            Box(
+                Modifier
+                    .size(10.dp)
+                    .border(1.4.dp, colors.ink3.copy(alpha = 0.55f), RoundedCornerShape(KasaRadius.full))
+            )
+            return@Box
+        }
+        val color = when (tone) {
+            PasswordStrength.Tone.WEAK -> colors.strengthWeak
+            PasswordStrength.Tone.MID -> colors.strengthMid
+            PasswordStrength.Tone.STRONG -> colors.strengthStrong
+        }
         Box(
             Modifier
                 .size(10.dp)

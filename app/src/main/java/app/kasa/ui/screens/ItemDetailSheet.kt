@@ -130,9 +130,11 @@ fun ItemDetailSheet(
         if (uri != null && attachment != null) viewModel.exportAttachment(attachment, uri)
     }
 
+    // Ölçülecek sır ile kopyalanacak değer aynı şey değil: kartta biri
+    // parola, öteki kart numarası. Güç göstergesi yalnızca birincisine bakıyor.
+    val measured = measuredSecret(item)
     val tone = toneOf(item)
-    val strength = if (item.primarySecret.isBlank()) 1f
-    else PasswordStrength.evaluate(item.primarySecret).score
+    val strength = if (measured == null) 1f else PasswordStrength.evaluate(measured).score
     val reuse = viewModel.reuseCount(item)
 
     ModalBottomSheet(
@@ -350,7 +352,13 @@ fun ItemDetailSheet(
             }
 
             // ── güç göstergesi ────────────────────────────────────────────
-            if (item.primarySecret.isNotBlank() && item.category != Category.OTP) {
+            //
+            // Koşul artık ölçümün kendisine bakıyor. Eskiden "birincil değer
+            // boş değilse" diyordu ve kartın numarası da birincil değer
+            // olduğu için her kart bir güç çubuğu alıyordu; OTP'yi elle
+            // dışarıda bırakmak da aynı sorunun ikinci yamasıydı. Ölçülemeyen
+            // kayıtta blok hiç çıkmıyor.
+            if (tone != null) {
                 Spacer(Modifier.height(8.dp))
                 // Sızıntı ve tekrar, kaydın kendisinde çözülemeyen iki
                 // bulgu: ikisi de **başka** kayıtlarla ilgili. Blok o

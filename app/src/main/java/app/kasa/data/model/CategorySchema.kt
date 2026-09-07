@@ -114,6 +114,17 @@ object CategorySchema {
             .mapNotNull { item.extras[it.key] }
             .filter { it.isNotBlank() }
 
+    /**
+     * Bu türün birincil alanı gerçekten bir sır mı?
+     *
+     * Güç ölçümü buna bakıyor. [primaryValue] "kopyalanacak değer" demek ve
+     * her tür için bir tane var — ama hepsi kullanıcının **seçtiği** bir sır
+     * değil: banka kaydının IBAN'ı ya da lisansın anahtarı kopyalanır, yine de
+     * "ne kadar güçlü" diye sorulacak şeyler değildir.
+     */
+    fun primaryIsSecret(category: Category): Boolean =
+        fieldsFor(category).firstOrNull { it.primary }?.let { isSecret(it.kind) } == true
+
     fun isSecret(kind: FieldKind): Boolean =
         kind == FieldKind.SECRET || kind == FieldKind.SECRET_MULTILINE
 }

@@ -206,6 +206,16 @@ class SettingsStore(private val context: Context) {
         val autofillVerifyDomains: Boolean = true,
         val sortOrder: SortOrder = SortOrder.LAST_USED,
         val listDensity: ListDensity = ListDensity.COMFORTABLE,
+        /**
+         * İki adımlı doğrulama kodları listede görünsün mü.
+         *
+         * Varsayılan açık. Kod ekranda durunca omuz üstünden okunabilir hâle
+         * geliyor, ama tek başına hiçbir kapıyı açmıyor: parolası olmayan biri
+         * onunla hiçbir yere giremez ve otuz saniye sonra zaten ölüyor.
+         * Karşılığında kazanılan şey, uygulamanın en aceleci anında kaydı
+         * bulup açma zorunluluğunun kalkması.
+         */
+        val totpInList: Boolean = true,
         val onboardingDone: Boolean = false,
         val lastScanAt: Long = 0L,
         val integrityWarningShown: Boolean = false,
@@ -314,6 +324,7 @@ class SettingsStore(private val context: Context) {
             generatorSyllables = prefs[KEY_GEN_SYLLABLES] ?: 6,
             sortOrder = runCatching { SortOrder.valueOf(prefs[KEY_SORT] ?: SortOrder.LAST_USED.name) }
                 .getOrDefault(SortOrder.LAST_USED),
+            totpInList = prefs[KEY_TOTP_LIST] ?: true,
             listDensity = runCatching { ListDensity.valueOf(prefs[KEY_DENSITY] ?: ListDensity.COMFORTABLE.name) }
                 .getOrDefault(ListDensity.COMFORTABLE),
             onboardingDone = prefs[KEY_ONBOARDING] ?: false,
@@ -379,6 +390,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setGeneratorSyllables(value: Int) = put(KEY_GEN_SYLLABLES, value)
     suspend fun setSortOrder(value: SortOrder) = put(KEY_SORT, value.name)
     suspend fun setListDensity(value: ListDensity) = put(KEY_DENSITY, value.name)
+    suspend fun setTotpInList(value: Boolean) = put(KEY_TOTP_LIST, value)
     suspend fun setClipboardClearSeconds(value: Int) = put(KEY_CLIP_SECONDS, value)
     suspend fun setAutoLockSeconds(value: Int) = put(KEY_AUTOLOCK, value)
     suspend fun setWipeAfterAttempts(value: Int) = put(KEY_WIPE_ATTEMPTS, value)
@@ -463,6 +475,7 @@ class SettingsStore(private val context: Context) {
         val KEY_TRUSTED_NETWORK = stringPreferencesKey("trusted_network")
         val KEY_CONTEXT_SECONDS = intPreferencesKey("context_lock_seconds")
         val KEY_BLOCK_SHOTS = booleanPreferencesKey("block_screenshots")
+        val KEY_TOTP_LIST = booleanPreferencesKey("totp_in_list")
         val KEY_CLIP_SECONDS = intPreferencesKey("clipboard_seconds")
         val KEY_AUTOLOCK = intPreferencesKey("autolock_seconds")
         val KEY_WIPE_ATTEMPTS = intPreferencesKey("wipe_attempts")

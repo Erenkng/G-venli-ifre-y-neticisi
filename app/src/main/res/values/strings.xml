@@ -796,4 +796,8 @@ Bu dosyayı kasanın kendisiyle aynı yerde tutma. Yazdırıp kâğıt olarak sa
     <string name="onb_handoff_note">Atladıklarını Ayarlar\'dan istediğin zaman açabilirsin.</string>
     <string name="onb_archive_title">Yedeğin parolası</string>
     <string name="onb_archive_body">Bu, dosyayı dışa aktarırken seçtiğin parola — az önce belirlediğin ana parola değil.</string>
+
+    <string name="list_totp">İki adımlı kodlar</string>
+    <string name="list_totp_show">Kodları listede göster</string>
+    <string name="list_totp_sub">Kod satırın sonunda, geri sayımıyla birlikte durur; dokununca kopyalanır. Kapalıyken yalnızca kaydı açınca görünür.</string>
 </resources>

@@ -49,6 +49,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.RestoreFromTrash
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PrivacyTip
@@ -95,6 +97,9 @@ import app.kasa.ui.components.KasaButtonGroup
 import app.kasa.ui.components.KasaTile
 import app.kasa.ui.components.RecentCard
 import app.kasa.ui.components.SearchBarButton
+import androidx.compose.runtime.State
+import app.kasa.ui.components.RowTotpCode
+import app.kasa.ui.components.rememberTotpClock
 import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.StrengthDot
 import app.kasa.ui.components.clickableNoRipple
@@ -141,7 +146,7 @@ fun VaultScreen(
 ) {
     val data by viewModel.data.collectAsStateWithLifecycle()
     val items by viewModel.visibleItems.collectAsStateWithLifecycle()
-    val recents by viewModel.recents.collectAsStateWithLifecycle()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val category by viewModel.category.collectAsStateWithLifecycle()
     val view by viewModel.view.collectAsStateWithLifecycle()
     val folders by viewModel.folders.collectAsStateWithLifecycle()
@@ -157,6 +162,8 @@ fun VaultScreen(
     var actionTarget by remember { mutableStateOf<VaultItem?>(null) }
     var listMenuOpen by remember { mutableStateOf(false) }
     var qrTarget by remember { mutableStateOf<VaultItem?>(null) }
+    // Kalıcı silme onayı bekleyen kayıt. Çöp kutusunda sola kaydırınca doluyor.
+    var purgeTarget by remember { mutableStateOf<VaultItem?>(null) }
 
     // Sıralama listede uygulanıyor, depoda değil: süzgeç sonucu zaten burada
     // ve sıralama bir görüntüleme tercihi — kasanın içeriğine ait değil.
@@ -185,6 +192,13 @@ fun VaultScreen(
     // etkisiz. Oradaki toplu iş geri yükleme ve kalıcı silme; ikisi de çöp
     // kutusu ekranının kendi işleri.
     val selecting = selection.isNotEmpty() && !inTrash
+
+    // Ortak TOTP saati.
+    //
+    // Yalnızca gerçekten gösterilecekse kuruluyor: kasada tek bir TOTP kaydı
+    // yokken saniyede bir uyanan bir döngü tutmanın hiçbir karşılığı yok.
+    val anyTotp = remember(sorted) { sorted.any { it.totpSecret.isNotBlank() } }
+    val totpClock = if (settings.totpInList && anyTotp && !inTrash) rememberTotpClock() else null
 
     val listState = rememberLazyListState()
 
@@ -312,17 +326,24 @@ fun VaultScreen(
             }
         }
 
-        if (recents.isNotEmpty() && view == VaultFilter.All && category == null) {
-            item(key = "recents-label") {
-                SectionLabel(stringResource(R.string.vault_recent))
+        // Üst sıra sık kullanılanları gösteriyor.
+        //
+        // Eskiden "son kullanılan" yazıyordu ve varsayılan sıralama zaten son
+        // kullanmaya göre olduğu için hemen altındaki listenin ilk sekiz
+        // satırıyla aynı kayıtları taşıyordu — aynı veri, iki biçimde, üst
+        // üste. Yıldız ise kullanıcının kendi kararı ve hiçbir sıralamayla
+        // çakışmıyor.
+        if (favorites.isNotEmpty() && view == VaultFilter.All && category == null) {
+            item(key = "favorites-label") {
+                SectionLabel(stringResource(R.string.smart_favorites))
             }
-            item(key = "recents") {
+            item(key = "favorites") {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(vertical = 4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(recents, key = { it.id }) { entry ->
+                    items(favorites, key = { it.id }) { entry ->
                         RecentCard(
                             name = entry.name,
                             subtitle = categoryLabel(entry.category),
@@ -416,15 +437,36 @@ fun VaultScreen(
                 // Seçim kipinde kapalı: orada yatay hareketin kendi anlamı
                 // yok ve seçimini kaydırırken kaybeden kullanıcı, kipin ne
                 // yaptığına bir daha güvenmiyor.
+                // Kaydırma eylemleri görünüme göre değişiyor.
+                //
+                // Eskiden değişmiyordu ve çöp kutusunda ikisi de yanlış işi
+                // yapıyordu: sola çekmek zaten silinmiş bir kaydı **yeniden**
+                // çöpe atıyor — yani otuz günlük sayacı baştan başlatıyor,
+                // kullanıcı ise kalıcı sildiğini sanıyordu. Sağa çekmek de
+                // silinmiş bir kaydı sık kullanılana ekliyordu.
+                //
+                // Çöp kutusunda tek anlamlı iki iş geri yüklemek ve kalıcı
+                // silmek. İkincisi kaydırmayla **doğrudan** yapılmıyor: geri
+                // alınamayan bir işlemin tek bir parmak hareketiyle olması,
+                // yanlışlıkla yapılabilmesi demek. Kaydırma yalnızca onay
+                // penceresini açıyor.
                 SwipeActions(
                     enabled = !selecting,
-                    start = SwipeAction(
+                    start = if (inTrash) SwipeAction(
+                        icon = Icons.Rounded.RestoreFromTrash,
+                        label = stringResource(R.string.trash_restore),
+                        tint = MaterialTheme.colorScheme.tertiary
+                    ) { viewModel.restoreFromTrash(entry) } else SwipeAction(
                         icon = if (entry.favorite) Icons.Rounded.StarBorder
                         else Icons.Rounded.Star,
                         label = stringResource(R.string.detail_favorite),
                         tint = MaterialTheme.colorScheme.tertiary
                     ) { viewModel.toggleFavorite(entry.id) },
-                    end = SwipeAction(
+                    end = if (inTrash) SwipeAction(
+                        icon = Icons.Rounded.DeleteForever,
+                        label = stringResource(R.string.trash_delete_forever),
+                        tint = KasaTheme.colors.strengthWeak
+                    ) { purgeTarget = entry } else SwipeAction(
                         icon = Icons.Rounded.DeleteOutline,
                         label = stringResource(R.string.detail_delete_to_trash),
                         tint = KasaTheme.colors.strengthWeak
@@ -461,11 +503,32 @@ fun VaultScreen(
                     onLongClick = {
                         if (selecting) viewModel.toggleSelected(entry.id)
                         else actionTarget = entry
+                    },
+                    // Seçim kipinde kod gösterilmiyor: orada satırın işi
+                    // seçilmek ve dokunuşun tek bir anlamı olmalı.
+                    totpClock = if (selecting) null else totpClock,
+                    onCopyTotp = { code ->
+                        viewModel.copySecret(code, settings.clipboardClearSeconds)
                     }
                 )
                 }
             }
         }
+    }
+
+    purgeTarget?.let { target ->
+        ConfirmDialog(
+            title = stringResource(R.string.trash_purge_confirm),
+            body = stringResource(R.string.trash_purge_body, target.name),
+            confirmText = stringResource(R.string.trash_delete_forever),
+            dismissText = stringResource(R.string.cancel),
+            destructive = true,
+            onConfirm = {
+                purgeTarget = null
+                viewModel.purge(target)
+            },
+            onDismiss = { purgeTarget = null }
+        )
     }
 
     if (listMenuOpen) {
@@ -474,6 +537,8 @@ fun VaultScreen(
             density = settings.listDensity,
             onSortChange = viewModel::setSortOrder,
             onDensityChange = viewModel::setListDensity,
+            totpInList = settings.totpInList,
+            onTotpInListChange = viewModel::setTotpInList,
             onDismiss = { listMenuOpen = false }
         )
     }
@@ -764,7 +829,16 @@ fun VaultRow(
      * olmayan satır sıradan bir satırdan ayırt edilemezdi.
      */
     selectable: Boolean = false,
-    selected: Boolean = false
+    selected: Boolean = false,
+    /**
+     * Listenin ortak TOTP saati; `null` ise kod gösterilmiyor.
+     *
+     * Saat dışarıdan geliyor çünkü tek olması gerekiyor: her satırın kendi
+     * sayacını kurması, ekranda kaç TOTP kaydı varsa o kadar coroutine
+     * demekti. Gerekçesi [rememberTotpClock] üzerinde yazılı.
+     */
+    totpClock: State<Long>? = null,
+    onCopyTotp: ((String) -> Unit)? = null
 ) {
     val tone = toneOf(item)
     val breachMark = stringResource(R.string.breach_mark)
@@ -812,6 +886,23 @@ fun VaultRow(
                 overflow = TextOverflow.Ellipsis
             )
             }
+        }
+        // Kod, güç noktasından **önce**: ikisi de satırın sonunda ama biri
+        // okunacak bir değer, öteki bir yargı. Değer içeride, yargı en dışta —
+        // liste dikey tarandığında noktalar tek bir sütun oluşturuyor ve
+        // araya giren kod o sütunu bozmuyor.
+        // Koşul satır içinde: `showTotp` gibi bir boolean üzerinden akıllı
+        // dönüşüm yapılmıyor, iki değer de burada doğrudan sınanmalı.
+        if (totpClock != null && onCopyTotp != null && item.totpSecret.isNotBlank()) {
+            RowTotpCode(
+                clock = totpClock,
+                secret = item.totpSecret,
+                digits = item.totpDigits,
+                period = item.totpPeriod,
+                algorithm = item.totpAlgorithm,
+                onCopy = onCopyTotp,
+                modifier = Modifier.padding(end = 8.dp)
+            )
         }
         StrengthDot(tone)
     }

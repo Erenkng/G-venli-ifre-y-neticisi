@@ -1189,10 +1189,43 @@ class VaultRepository(
     fun folderCounts(): Map<String, Int> =
         _data.value.liveItems.mapNotNull { it.folderId }.groupingBy { it }.eachCount()
 
+    /**
+     * Son kullanılan kayıtlar. **Arama ekranı** için.
+     *
+     * Ana ekranda kullanılmıyor: orada varsayılan sıralama zaten son
+     * kullanmaya göre, dolayısıyla bu sıra listenin kendisini tekrarlıyordu.
+     * Aramada ise durum tersine: kullanıcı bir şey arıyor ve henüz hiçbir şey
+     * yazmamış; en iyi tahmin, son dokunduğu kayıtlar.
+     */
     fun recents(limit: Int = 8): List<VaultItem> =
         _data.value.liveItems
-            .filter { it.lastUsedAt > 0 || it.favorite }
-            .sortedWith(compareByDescending<VaultItem> { it.favorite }.thenByDescending { it.lastUsedAt })
+            .filter { it.lastUsedAt > 0 }
+            .sortedByDescending { it.lastUsedAt }
+            .take(limit)
+
+    /**
+     * Ana ekranın üst sırası: **sık kullanılanlar**.
+     *
+     * ### Neden artık "son kullanılan" değil
+     *
+     * Bu liste eskiden son kullanma zamanına göre sıralanıyordu ve tam da
+     * bu yüzden altındaki listeyi tekrarlıyordu: varsayılan sıralama zaten
+     * [SettingsStore.SortOrder.LAST_USED]. Ekranın üstünde sekiz kart, hemen
+     * altında aynı sekiz kayıt satır olarak — aynı veri, iki biçimde, üst
+     * üste. Sıranın kazandırdığı tek şey sık kullanılanların öne alınmasıydı.
+     *
+     * Sık kullanılan, kullanıcının **bilinçli** olarak işaretlediği bir şey ve
+     * hiçbir sıralamayla çakışmıyor: son kullanma zamanı uygulamanın kendi
+     * gözlemi, yıldız ise kullanıcının kararı. Sıra artık yalnızca o kararı
+     * gösteriyor.
+     *
+     * Son kullanma yine işe yarıyor — ama listenin kendi sıralaması olarak,
+     * ki zaten öyleydi.
+     */
+    fun favorites(limit: Int = 8): List<VaultItem> =
+        _data.value.liveItems
+            .filter { it.favorite }
+            .sortedByDescending { it.lastUsedAt }
             .take(limit)
 
     /** Otomatik doldurma için: paket adı ve alan adına göre eşleşen kayıtlar. */

@@ -567,7 +567,18 @@ fun GlassBackdropScrim(
             band = SCRIM_BAND_FAR,
             reveal = { progress.value }
         )
-        ScrimBlurPass(
+        // Yakın geçiş yalnızca **yükselen kenarın üstünde** duruyor.
+        //
+        // Burada uzak geçişle aynı maske kullanılıyordu ve o maske monoton:
+        // bir kez doluya çıkıyor ve orada kalıyor. Tam açıkken ikisi de bütün
+        // ekranda tam güçteydi, yani iki cam üst üste biniyordu — gezinme
+        // çubuğunun `NEAR_STOPS` maskesi tam da bunu önlemek için "kenarda
+        // yok, hemen ardından tam, sonra sönüyor" diye yazılmıştı.
+        //
+        // Şimdi öyle: tepe noktası kenarın hemen içinde, arkasında sıfıra
+        // düşüyor, ve kenar ekrandan çıkarken geçişin tamamı sönüyor. Tam
+        // açıkta geriye yalnızca uzak geçiş kalıyor.
+        ScrimEdgePass(
             backdrop = backdrop,
             modifier = Modifier.matchParentSize().padding(bottom = blurBottomInset),
             radius = SCRIM_BLUR_NEAR,
@@ -645,6 +656,76 @@ private fun ScrimBlurPass(
 }
 
 /**
+ * Yükselen kenarı izleyen ince bulanıklık geçişi.
+ *
+ * [ScrimBlurPass]'ten tek farkı maskesi — ve fark tam olarak meselenin
+ * kendisi. Uzak geçişin maskesi monoton: kenarın arkasında doluya çıkıyor ve
+ * orada kalıyor, çünkü onun işi camın gövdesini kurmak. Yakın geçişin işi ise
+ * yalnızca **sınırı** yumuşatmak; arkada da dolu kalırsa iki cam üst üste
+ * biniyor ve göz bunu yumuşaklık değil, bulanmış bir fotoğraf olarak okuyor.
+ *
+ * Geçişin tamamı ayrıca kenar ekrandan çıkarken sönüyor: tam açıkta
+ * yumuşatılacak bir sınır kalmıyor.
+ */
+@Composable
+private fun ScrimEdgePass(
+    backdrop: GraphicsLayer,
+    modifier: Modifier,
+    radius: Dp,
+    band: Float,
+    reveal: () -> Float
+) {
+    val blurLayer = rememberGraphicsLayer()
+    val blurRadius = with(LocalDensity.current) { radius.toPx() }
+    var origin by remember { mutableStateOf(Offset.Zero) }
+
+    Box(
+        modifier
+            .onGloballyPositioned { origin = it.positionInRoot() }
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawBehind {
+                val shown = reveal().coerceIn(0f, 1f)
+                // Kenar yukarı çıktıkça sönüyor. Eşik, sönmenin son
+                // kalıntısının da görünmeyeceği yer.
+                val strength = (1f - shown).coerceIn(0f, 1f)
+                if (shown <= 0.004f || strength <= 0.02f) return@drawBehind
+                runCatching {
+                    blurLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
+                    blurLayer.clip = true
+                    blurLayer.record {
+                        translate(left = -origin.x, top = -origin.y) { drawLayer(backdrop) }
+                    }
+                    drawLayer(blurLayer)
+                    drawRect(brush = edgeMask(shown, band, strength), blendMode = BlendMode.DstIn)
+                }
+            }
+    )
+}
+
+/**
+ * Kenarın hemen içinde tepe yapıp arkasında sönen maske.
+ *
+ * Gezinme çubuğundaki `NEAR_STOPS` ile aynı biçim, ama duraklar sabit değil:
+ * orada şerit yerinde duruyor, burada aşağıdan yukarı yürüyor.
+ */
+private fun edgeMask(shown: Float, band: Float, strength: Float): Brush {
+    val progress = shown.coerceIn(0f, 1f)
+    val edge = 1f - progress
+    val peak = strength.coerceIn(0f, 1f)
+    // Duraklar kesin artan olmalı.
+    val top = (edge - band * 0.4f).coerceIn(0f, 0.994f)
+    val crest = edge.coerceIn(top + 0.002f, 0.996f)
+    val tail = (edge + band).coerceIn(crest + 0.002f, 0.998f)
+    return Brush.verticalGradient(
+        0f to Color.Transparent,
+        top to Color.Transparent,
+        crest to Color.Black.copy(alpha = peak),
+        tail to Color.Transparent,
+        1f to Color.Transparent
+    )
+}
+
+/**
  * Aşağıdan yukarı açılan maske.
  *
  * [shown] 0 iken hiçbir yer görünmüyor, 1 iken her yer. Sınır sert değil:
@@ -678,8 +759,16 @@ private val SCRIM_TINT = Color(0xFF09201B)
 private const val SCRIM_DIM = 0.22f
 
 /** Örtü bulanıklığının alt kenarındaki yumuşama bölgesi. */
-/** Örtünün uzak geçişi: geniş yarıçap, geniş bant. */
-private val SCRIM_BLUR_FAR = 30.dp
+/**
+ * Örtünün uzak geçişi.
+ *
+ * Gezinme çubuğunun 30 dp'sinden düşük ve bu bilerek: orada bulanıklık
+ * altmış dp'lik bir şeridin altında duruyor ve maskesi o şeridin içinde
+ * ramp yapıyor, yani tam güce hiç ulaşmıyor. Burada bütün ekranı kaplıyor ve
+ * tam güçte duruyor — aynı yarıçap, küçük ve parlak öğeleri (rozetler, seçili
+ * çip) yayıp hâle bırakıyordu.
+ */
+private val SCRIM_BLUR_FAR = 20.dp
 
 /** Örtünün yakın geçişi: dar yarıçap, dar bant. */
 private val SCRIM_BLUR_NEAR = 9.dp

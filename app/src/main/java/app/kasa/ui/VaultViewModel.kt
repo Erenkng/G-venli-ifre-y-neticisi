@@ -105,8 +105,14 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
             .onEach { _listReady.value = true }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Aramanın boş durumunda gösterilen son kullanılanlar. */
     val recents: StateFlow<List<VaultItem>> =
         repository.data.map { repository.recents() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Ana ekranın üst sırası. Gerekçesi [VaultRepository.favorites] üzerinde. */
+    val favorites: StateFlow<List<VaultItem>> =
+        repository.data.map { repository.favorites() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val folders: StateFlow<List<Folder>> =
@@ -599,6 +605,10 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setListDensity(density: app.kasa.data.SettingsStore.ListDensity) {
         viewModelScope.launch { container.settingsStore.setListDensity(density) }
+    }
+
+    fun setTotpInList(value: Boolean) {
+        viewModelScope.launch { container.settingsStore.setTotpInList(value) }
     }
 
     fun toggleFavorite(id: String) {

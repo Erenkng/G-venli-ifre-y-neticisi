@@ -738,4 +738,12 @@
     <string name="onb_handoff_note">Anything you skip can be turned on from Settings whenever you like.</string>
     <string name="onb_archive_title">Backup password</string>
     <string name="onb_archive_body">This is the password you chose when exporting the file — not the master password you just set.</string>
+
+    <string name="list_totp">Two-step codes</string>
+    <string name="list_totp_show">Show codes in the list</string>
+    <string name="list_totp_sub">The code sits at the end of the row with its countdown, and copies on tap. Turned off, it only appears when you open the entry.</string>
+
+    <string name="vault_clear_filters">Clear filters</string>
+    <string name="leak_alert_title">%1$d of your passwords showed up in breaches</string>
+    <string name="leak_alert_sub">Someone else has these. Tap to change them.</string>
 </resources>

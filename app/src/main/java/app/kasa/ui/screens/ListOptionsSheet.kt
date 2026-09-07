@@ -54,8 +54,10 @@ import app.kasa.ui.theme.KasaTheme
 fun ListOptionsSheet(
     sortOrder: SettingsStore.SortOrder,
     density: SettingsStore.ListDensity,
+    totpInList: Boolean,
     onSortChange: (SettingsStore.SortOrder) -> Unit,
     onDensityChange: (SettingsStore.ListDensity) -> Unit,
+    onTotpInListChange: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -132,6 +134,28 @@ fun ListOptionsSheet(
                 label = { stringResource(densityLabel(it)) },
                 onSelect = onDensityChange,
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            // İki adımlı doğrulama kodu.
+            //
+            // Ayarlar ekranına değil buraya konuyor: sıralama ve yoğunluk gibi
+            // bu da listenin **neyi gösterdiğine** dair bir tercih ve
+            // kullanıcı onu listeye bakarken değiştirmek istiyor. Ayarların
+            // derinliğine konan bir anahtarın bulunmama ihtimali, kapatmak
+            // isteyen kullanıcı için gerçek bir sorun.
+            Spacer(Modifier.height(22.dp))
+            Text(
+                stringResource(R.string.list_totp),
+                style = KasaTheme.text.sheetTitle,
+                color = KasaTheme.colors.ink
+            )
+            Spacer(Modifier.height(12.dp))
+            ToggleRow(
+                title = stringResource(R.string.list_totp_show),
+                subtitle = stringResource(R.string.list_totp_sub),
+                checked = totpInList,
+                onCheckedChange = onTotpInListChange,
+                first = true
             )
             Spacer(Modifier.height(24.dp))
         }

@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import app.kasa.R
 import app.kasa.core.util.PasswordStrength
 import app.kasa.data.model.Category
+import app.kasa.data.model.CategorySchema
 import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultItem
 import app.kasa.ui.components.CardThumb
@@ -89,10 +90,46 @@ fun HeroHeader(
 }
 
 /** Bir kaydın parola gücü tonu. Parolası olmayan kayıtlar güçlü sayılır. */
-fun toneOf(item: VaultItem): PasswordStrength.Tone {
-    val secret = item.primarySecret
-    if (secret.isBlank()) return PasswordStrength.Tone.STRONG
+/**
+ * Gücü ölçülmesi **anlamlı** olan sır; yoksa `null`.
+ *
+ * [VaultItem.primarySecret] bu iş için yanlış kaynak. Onun tanımı
+ * "kopyalanacak değer" ve her tür için bir tane var, ama hepsi kullanıcının
+ * seçtiği bir sır değil: kartta kart numarasını, banka kaydında IBAN'ı
+ * veriyor. On altı haneli bir kart numarasını parola gibi puanlamak (~53 bit,
+ * yani "orta") kullanıcıya **değiştiremeyeceği** bir şey için uyarı vermek
+ * demekti.
+ */
+fun measuredSecret(item: VaultItem): String? {
+    val value = when {
+        // Şema tabanlı türlerde yalnızca birincil alan gerçekten bir sırsa.
+        item.category.schemaDriven ->
+            if (CategorySchema.primaryIsSecret(item.category)) CategorySchema.primaryValue(item) else ""
+        // Kartın numarası değil, varsa kartın parolası.
+        else -> item.password.reveal()
+    }
+    return value.ifBlank { null }
+}
+
+/**
+ * Kaydın güç tonu; ölçülemiyorsa `null`.
+ *
+ * ### Neden üçüncü bir durum gerekti
+ *
+ * Buradan eskiden hiçbir zaman `null` dönmüyordu: gizli değer boşsa
+ * **STRONG** dönüyordu. Sonucu, listenin kullanıcıya yanlış söylemesiydi.
+ * Notun ölçülecek parolası yok ama yeşil nokta alıyordu — ve bir güvenlik
+ * uygulamasında yeşil "bakıldı, iyi" demek. Kullanıcı listeyi kırmızı ararken
+ * tarıyor ve yeşile güvenmeyi öğreniyor; hiçbir şey ölçmemiş yeşiller o
+ * güveni içeriden boşaltıyordu.
+ *
+ * Bilinmeyeni yeşil göstermek, bilmemekten kötü.
+ */
+fun toneOf(item: VaultItem): PasswordStrength.Tone? {
+    // Sızıntı her şeyin önünde: parolanın şu anda başkasının elinde olduğunu
+    // biliyorsak, kaç bit olduğu artık ilgisiz.
     if (item.breached) return PasswordStrength.Tone.WEAK
+    val secret = measuredSecret(item) ?: return null
     return PasswordStrength.evaluate(secret).tone
 }
 
