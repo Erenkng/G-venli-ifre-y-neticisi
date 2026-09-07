@@ -122,8 +122,19 @@ class DigitalAssetLinks(private val context: Context) {
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@runCatching empty
-                val body = response.body?.string().orEmpty()
-                if (body.length > MAX_BODY) return@runCatching empty
+                // Gövde okunmadan **önce** sınırlanıyor.
+                //
+                // Burada `body.string()` çağrılıp uzunluğu sonradan
+                // ölçülüyordu; o sırada gövdenin tamamı çoktan belleğe
+                // alınmış oluyordu. Yani sınır, sınırlaması gereken şeyden
+                // sonra çalışıyordu: sorgulanan alan adının sunucusu
+                // gigabaytlık bir yanıt döndürerek Kasa'yı düşürebilirdi.
+                // İstek kasadaki bir kaydın alan adına gidiyor — sunucusunun
+                // dürüst davranacağının garantisi yok.
+                //
+                // `peekBody` en çok verilen kadarını okuyor; fazlası hiç
+                // belleğe girmiyor.
+                val body = response.peekBody(MAX_BODY.toLong()).string()
                 CacheEntry(parse(body), System.currentTimeMillis(), ok = true)
             }
         }.getOrDefault(empty)

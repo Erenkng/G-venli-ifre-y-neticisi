@@ -37,10 +37,14 @@ object KdfCalibration {
      * ayırdığı yığından fazlasını istemek doğrudan çökme demektir.
      */
     private const val MIN_MEMORY_KIB = 32 * 1024        // 32 MiB
-    private const val MAX_MEMORY_KIB = 512 * 1024       // 512 MiB
     private const val PROBE_MEMORY_KIB = 32 * 1024
     private const val MIN_ITERATIONS = 2
-    private const val MAX_ITERATIONS = 12
+
+    // Tavanlar Kdf ile ortak: okuma tarafı da aynı sınırları uyguluyor ve
+    // ikisi ayrı ayrı yazılsaydı, biri değişince öteki sessizce uyumsuz
+    // kalırdı — ölçümün ürettiği bir kasa okunamaz hâle gelirdi.
+    private const val MAX_MEMORY_KIB = Kdf.MAX_ARGON2_MEMORY_KIB
+    private const val MAX_ITERATIONS = Kdf.MAX_ARGON2_ITERATIONS
 
     data class Result(
         val params: Kdf.Params,
@@ -138,7 +142,7 @@ object KdfCalibration {
 
             val scaled = (probeIterations.toDouble() * targetMillis / probeMillis).toInt()
             // OWASP tabanının altına asla inilmez; ölçüm yalnızca yukarı çeker.
-            val iterations = scaled.coerceIn(Kdf.PBKDF2_ITERATIONS, 5_000_000)
+            val iterations = scaled.coerceIn(Kdf.PBKDF2_ITERATIONS, Kdf.MAX_PBKDF2_ITERATIONS)
             onProgress(1f)
 
             Result(

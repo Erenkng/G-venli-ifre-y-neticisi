@@ -38,6 +38,31 @@ object Kdf {
 
     const val SALT_BYTES = 16
 
+    // ── dosyadan okunan parametrelerin kabul aralığı ──────────────────────
+    //
+    // Parametreler dosya başlığından geliyor ve türetme **doğrulamadan önce**
+    // çalışıyor: parola sınanabilsin diye önce anahtarın türetilmesi
+    // gerekiyor. Yani başlığa yazılan maliyeti, dosyayı veren kişi seçiyor.
+    //
+    // Kötüye kullanımı somut: `memoryKib = Int.MAX_VALUE` yazılmış bir .kasa
+    // dosyası, içe aktarmayı deneyen kullanıcıda 2 TiB'lık bir ayırma
+    // denemesine dönüşüyordu — parolayı bilmeye gerek yok, "şu yedeği bir
+    // açar mısın" demek yetiyordu. Negatif değerler de geçiyordu, çünkü
+    // `readInt()` işaretli.
+    //
+    // Sınırlar [KdfCalibration]'ın ölçüm tavanlarıyla aynı: uygulamanın kendi
+    // yazdığı hiçbir dosya bunların dışına çıkmıyor, dolayısıyla dışına çıkan
+    // her dosya ya bozuk ya da kasıtlı.
+    //
+    // Alt sınırlar bilerek gevşek: zayıf parametreli bir dosya yalnızca
+    // **kendi** içeriğini zayıflatıyor, okuyan kasayı değil. Buradaki iş
+    // maliyeti sınırlamak, geçmişte yazılmış dosyaları reddetmek değil.
+    const val MIN_ARGON2_MEMORY_KIB = 8 * 1024          // 8 MiB
+    const val MAX_ARGON2_MEMORY_KIB = 512 * 1024        // 512 MiB
+    const val MAX_ARGON2_ITERATIONS = 12
+    const val MAX_ARGON2_PARALLELISM = 16
+    const val MAX_PBKDF2_ITERATIONS = 5_000_000
+
     private val argon2: Argon2Kt? by lazy {
         try {
             Argon2Kt()
@@ -83,6 +108,23 @@ object Kdf {
         override fun hashCode(): Int =
             algorithm.hashCode() * 31 + iterations * 31 + memoryKib * 31 + salt.contentHashCode()
 
+        /**
+         * Bu parametreler bu uygulamanın yazabileceği bir şey mi?
+         *
+         * Gerekçesi ve sınırların nereden geldiği [Kdf] üzerindeki kabul
+         * aralığı notunda. Bilinmeyen algoritma da burada eleniyor: [derive]
+         * zaten onu reddediyor, ama okurken elemek hatayı dosyanın
+         * çözülmesinden önceye alıyor.
+         */
+        fun plausible(): Boolean = when (algorithm) {
+            ALG_ARGON2ID ->
+                iterations in 1..MAX_ARGON2_ITERATIONS &&
+                    memoryKib in MIN_ARGON2_MEMORY_KIB..MAX_ARGON2_MEMORY_KIB &&
+                    parallelism in 1..MAX_ARGON2_PARALLELISM
+            ALG_PBKDF2_SHA512 -> iterations in 1..MAX_PBKDF2_ITERATIONS
+            else -> false
+        }
+
         companion object {
             fun readFrom(input: DataInputStream): Params {
                 val alg = input.readByte()
@@ -93,7 +135,10 @@ object Kdf {
                 require(saltLen in 8..64) { "Geçersiz tuz uzunluğu" }
                 val salt = ByteArray(saltLen)
                 input.readFully(salt)
-                return Params(alg, salt, iterations, memoryKib, parallelism)
+                val params = Params(alg, salt, iterations, memoryKib, parallelism)
+                // Türetmeye geçmeden önce: maliyeti dosya söylüyor.
+                require(params.plausible()) { "Anahtar türetme parametreleri kabul aralığının dışında" }
+                return params
             }
         }
     }

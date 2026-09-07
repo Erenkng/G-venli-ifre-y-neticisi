@@ -317,15 +317,15 @@ class VaultStore(private val context: Context) {
     /** Doğrulanmış şifreleyiciyle sarmalanmış kasa anahtarını çözer. */
     fun unlockWithBiometric(cipher: Cipher): UnlockResult = try {
         val blob = biometricKeyFile.readBytes()
-        val input = DataInputStream(ByteArrayInputStream(blob))
+        val stream = ByteArrayInputStream(blob)
+        val input = DataInputStream(stream)
         val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
         require(magic.contentEquals(MAGIC_BIOMETRIC)) { "Bozuk biyometrik sarmalayıcı" }
         val version = input.readByte().toInt()
         readAuthClass(input, version)
         val ivLen = input.readUnsignedByte()
         input.skipBytes(ivLen)
-        val len = input.readInt()
-        val wrapped = ByteArray(len).also { input.readFully(it) }
+        val wrapped = readBlob(input, stream)
         val key = cipher.doFinal(wrapped)
         resetAttempts()
         UnlockResult.Success(SecretBytes(key))
@@ -600,8 +600,7 @@ class VaultStore(private val context: Context) {
             val params = Kdf.Params.readFrom(input)
             val headerLen = blob.size - stream.available()
             val headerBytes = blob.copyOfRange(0, headerLen)
-            val len = input.readInt()
-            val outer = ByteArray(len).also { input.readFully(it) }
+            val outer = readBlob(input, stream)
 
             val inner = KeystoreKeys.pinOpen(context, outer)
                 ?: return onFailedPin()
@@ -862,8 +861,7 @@ class VaultStore(private val context: Context) {
 
         val sections = ArrayList<ByteArray>(count)
         repeat(count) {
-            val len = input.readInt()
-            sections.add(ByteArray(len).also { input.readFully(it) })
+            sections.add(readBlob(input, stream))
         }
         return Container(version, suite, header, sections)
     }
@@ -1100,8 +1098,7 @@ class VaultStore(private val context: Context) {
             val params = Kdf.Params.readFrom(input)
             val headerLen = blob.size - stream.available()
             val headerBytes = blob.copyOfRange(0, headerLen)
-            val len = input.readInt()
-            val sealed = ByteArray(len).also { input.readFully(it) }
+            val sealed = readBlob(input, stream)
             Kdf.derive(exportPassword, params).use { kek ->
                 val plain = Crypto.open(kek.raw(), sealed, headerBytes, fileSuite)
                 try {
@@ -1143,14 +1140,14 @@ class VaultStore(private val context: Context) {
     /** Eki çözer. Dosya yoksa ya da anahtar yanlışsa `null`. */
     fun readAttachment(id: String, key: ByteArray): ByteArray? = try {
         val blob = File(attachmentDir, "$id.bin").readBytes()
-        val input = DataInputStream(ByteArrayInputStream(blob))
+        val stream = ByteArrayInputStream(blob)
+        val input = DataInputStream(stream)
         val magic = ByteArray(MAGIC_LEN).also { input.readFully(it) }
         require(magic.contentEquals(MAGIC_ATTACHMENT)) { "Bu bir Kasa eki değil" }
         val version = input.readByte().toInt()
         val fileSuite = readSuite(input, version)
         val headerLen = MAGIC_LEN + 1 + if (version >= FORMAT_VERSION_SUITE) 1 else 0
-        val len = input.readInt()
-        val sealed = ByteArray(len).also { input.readFully(it) }
+        val sealed = readBlob(input, stream)
         Crypto.open(key, sealed, blob.copyOfRange(0, headerLen), fileSuite)
     } catch (t: Throwable) {
         null
@@ -1417,6 +1414,26 @@ class VaultStore(private val context: Context) {
         }
     }
 
+    /**
+     * Uzunluk öneki taşıyan bir gövdeyi okur.
+     *
+     * Uzunluğu dosya söylüyor ve [DataInputStream.readInt] işaretli: bozuk ya
+     * da kasıtlı bir dosya `Int.MAX_VALUE` (2 GiB) veya negatif bir değer
+     * yazabiliyor. Kontrolsüz hâlde önce o boyutta bir dizi ayrılıyor, sonra
+     * `readFully` dosyanın bittiğini fark edip hata veriyordu — yani ayırma,
+     * anlamsız olduğu **anlaşıldıktan önce** yapılıyordu. İçe aktarmada bu
+     * doğrudan kullanılabilir bir kapıydı: dosyayı veren kişi boyutu seçiyor.
+     *
+     * Sınır bir tahmin değil, dosyanın kendisi: geride kalan bayt sayısından
+     * uzun bir gövde zaten okunamaz. Denetim yalnızca hatayı ayırmadan önceye
+     * çekiyor.
+     */
+    private fun readBlob(input: DataInputStream, stream: ByteArrayInputStream): ByteArray {
+        val len = input.readInt()
+        require(len >= 0 && len <= stream.available()) { "Bozuk uzunluk alanı" }
+        return ByteArray(len).also { input.readFully(it) }
+    }
+
     private fun openWrappedKey(file: File, magic: ByteArray, secret: SecretBytes): SecretBytes {
         val blob = file.readBytes()
         val stream = ByteArrayInputStream(blob)
@@ -1428,8 +1445,7 @@ class VaultStore(private val context: Context) {
         val params = Kdf.Params.readFrom(input)
         val headerLen = blob.size - stream.available()
         val headerBytes = blob.copyOfRange(0, headerLen)
-        val len = input.readInt()
-        val wrapped = ByteArray(len).also { input.readFully(it) }
+        val wrapped = readBlob(input, stream)
         return Kdf.derive(secret, params).use { kek ->
             SecretBytes(Crypto.open(kek.raw(), wrapped, headerBytes, suite))
         }

@@ -31,6 +31,20 @@ import java.util.concurrent.TimeUnit
  */
 class BreachChecker {
 
+    private companion object {
+        /**
+         * Yanıttan okunacak en çok bayt.
+         *
+         * Bir aralık yanıtı en fazla birkaç bin satır, yani onlarca kilobayt;
+         * `Add-Padding` dolgusuyla birlikte bile bunun yanında küçük kalıyor.
+         * Sınır cömert ama sınırsız değil: `body.string()` gövdenin tamamını
+         * belleğe alıyor ve "uç nokta TLS ile doğrulanıyor" bir boyut sözü
+         * vermiyor. Kaynağın davranışına güvenmek yerine okunan miktarı
+         * sınırlamak, ödenen bedeli sıfır tutuyor.
+         */
+        const val MAX_BODY = 4L * 1024 * 1024
+    }
+
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(12, TimeUnit.SECONDS)
@@ -84,7 +98,7 @@ class BreachChecker {
         try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
-                val body = response.body?.string() ?: return@withContext null
+                val body = response.peekBody(MAX_BODY).string()
                 val map = HashMap<String, Int>()
                 for (line in body.lineSequence()) {
                     val separator = line.indexOf(':')
@@ -122,7 +136,7 @@ class BreachChecker {
         try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
-                val body = response.body?.string() ?: return@withContext null
+                val body = response.peekBody(MAX_BODY).string()
                 for (line in body.lineSequence()) {
                     val separator = line.indexOf(':')
                     // Uzunluk eşitliği şart. Eskiden yalnızca satırın ':' öncesi

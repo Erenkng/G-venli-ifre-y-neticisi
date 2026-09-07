@@ -715,6 +715,9 @@ class VaultRepository(
 
     // ------------------------------------------------------- zorlama parolası
 
+    /** Zorlama parolası kurma sonucu. */
+    enum class DuressOutcome { OK, SAME_AS_MASTER, FAILED }
+
     /**
      * Zorlama parolasını kurar ve yem kasayı örnek kayıtlarla doldurur.
      *
@@ -724,9 +727,6 @@ class VaultRepository(
      * girip bunları kendi istediği gibi düzenleyebilir — düzenlemesi de
      * tavsiye edilir, çünkü kendi hayatına benzeyen bir yem en inandırıcısı.
      */
-    /** Zorlama parolası kurma sonucu. */
-    enum class DuressOutcome { OK, SAME_AS_MASTER, FAILED }
-
     suspend fun setDuressPassword(duressPassword: CharArray): DuressOutcome =
         withContext(Dispatchers.IO) {
             mutex.withLock {
