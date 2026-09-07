@@ -762,4 +762,5 @@
     <string name="sec_score_scope">Scored from the measurable secrets of %1$d entries.</string>
     <string name="sec_trend">Trend</string>
     <string name="sec_trend_range">%1$d – %2$d</string>
+    <string name="widget_unlocked">Vault unlocked</string>
 </resources>

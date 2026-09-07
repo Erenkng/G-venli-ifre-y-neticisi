@@ -829,7 +829,15 @@ class VaultRepository(
     suspend fun verifyMasterPassword(password: CharArray): Boolean =
         withContext(Dispatchers.IO) {
             try {
-                if (vaultKey == null) return@withContext false
+                // Yem oturumda hiçbir zaman cevap verilmiyor.
+                //
+                // Bugün bu yol yalnızca kurulumdan çağrılıyor, yani zorlama
+                // oturumuyla karşılaşmıyor. Yine de açık bir depo metodu ve
+                // yem kasadayken "bu tahmin gerçek ana parola mı" sorusuna
+                // cevap veren bir kapı bırakmanın hiçbir karşılığı yok:
+                // zorlama parolasını bilen biri, gerçek parolayı buradan
+                // deneyebilirdi.
+                if (vaultKey == null || inDuressSession) return@withContext false
                 SecretBytes.ofUtf8(password).use { store.verifyMasterPassword(it) }
             } catch (t: Throwable) {
                 false

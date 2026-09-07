@@ -1,6 +1,7 @@
 package app.kasa.data
 
 import android.content.Context
+import android.os.SystemClock
 import app.kasa.core.crypto.AeadSuite
 import app.kasa.core.crypto.Crypto
 import app.kasa.core.crypto.Kdf
@@ -229,8 +230,7 @@ class VaultStore(private val context: Context) {
      */
     fun unlockWithPassword(password: SecretBytes, wipeAfterAttempts: Int = 0): UnlockResult {
         val state = readAttempts()
-        val now = System.currentTimeMillis()
-        if (state.blockedUntil > now) return UnlockResult.Blocked(state.blockedUntil - now)
+        if (state.remainingBlockMillis > 0) return UnlockResult.Blocked(state.remainingBlockMillis)
 
         return try {
             val realKey = runCatching { openWrappedKey(masterKeyFile, MAGIC_MASTER, password) }.getOrNull()
@@ -262,8 +262,7 @@ class VaultStore(private val context: Context) {
     private fun unlockWithRecoverySecret(secret: SecretBytes, wipeAfterAttempts: Int): UnlockResult {
         if (!recoveryKeyFile.exists()) return UnlockResult.WrongSecret
         val state = readAttempts()
-        val now = System.currentTimeMillis()
-        if (state.blockedUntil > now) return UnlockResult.Blocked(state.blockedUntil - now)
+        if (state.remainingBlockMillis > 0) return UnlockResult.Blocked(state.remainingBlockMillis)
         return try {
             val key = openWrappedKey(recoveryKeyFile, MAGIC_RECOVERY, secret)
             resetAttempts()
@@ -1179,12 +1178,80 @@ class VaultStore(private val context: Context) {
 
     // ------------------------------------------------------------- deneme sayacı
 
-    class Attempts(val failed: Int, val blockedUntil: Long)
+    /**
+     * Yanlış deneme durumu.
+     *
+     * @param failed üst üste kaç yanlış deneme oldu
+     * @param remainingBlockMillis şu andan itibaren daha ne kadar bekleneceği;
+     *        0 ise engel yok. Bir zaman **damgası** değil bir **süre**: hangi
+     *        saate göre hesaplandığı [readAttempts]'in işi ve çağıranı
+     *        ilgilendirmiyor.
+     */
+    class Attempts(val failed: Int, val remainingBlockMillis: Long)
 
     /**
-     * Yanlış deneme sayacı cihaz anahtarıyla şifreli tutulur; dosyayı silerek
-     * sayacı sıfırlamak isteyen biri, silme işlemini de en baştan kilitli
-     * sayacı yeniden kurmak zorunda kalır.
+     * Diskteki hâli.
+     *
+     * Üç ayrı zaman referansı tutuluyor ve engel bunların **en uzun** olanına
+     * göre hesaplanıyor. Gerekçesi [readAttempts] üzerinde.
+     */
+    private class AttemptRecord(
+        val failed: Int,
+        val blockedUntilWall: Long,
+        val blockedUntilElapsed: Long,
+        val bootCount: Int,
+        val remainingAtWrite: Long
+    )
+
+    /**
+     * Cihazın açılış sayacı.
+     *
+     * Yeniden başlatmayı tespit etmenin tek güvenilir yolu: geriye
+     * gitmiyor ve fabrika ayarlarına dönmeden sıfırlanamıyor.
+     *
+     * Okunamazsa -1 dönüyor. O zaman yazarken de okurken de -1 görülüyor,
+     * yani karşılaştırma "yeniden başlatılmamış" diyor ve tekdüze saat dalı
+     * çalışıyor. Sonuç yine sıkı taraf: yeniden başlatmada
+     * [SystemClock.elapsedRealtime] sıfırlandığı için kalan süre **daha
+     * uzun** hesaplanıyor, tavanı da [MAX_BLOCK_MILLIS] kırpıyor. Sayaç
+     * okunamadığında kaybedilen tek şey, engelin yeniden başlatmadan sonra
+     * olduğundan uzun görünmemesi.
+     */
+    private fun bootCount(): Int = runCatching {
+        android.provider.Settings.Global.getInt(
+            context.contentResolver,
+            android.provider.Settings.Global.BOOT_COUNT
+        )
+    }.getOrDefault(-1)
+
+    /**
+     * Yanlış deneme sayacını okur ve kalan engel süresini hesaplar.
+     *
+     * ### Neden duvar saati tek başına yetmiyordu
+     *
+     * Engel eskiden `System.currentTimeMillis() + süre` olarak bir damga
+     * hâlinde yazılıyordu. O saat kullanıcının denetiminde: Ayarlar'dan tarih
+     * ileri alınınca engel anında dolmuş oluyor. Üstel bekleme — çalınmış bir
+     * cihazda ana parolayı denemeye karşı tek savunma — böylece tamamen
+     * devre dışı kalıyordu. Üç yanlış, tarihi bir saat ileri al, üç yanlış
+     * daha; sınırsız deneme.
+     *
+     * ### Üç referans, en uzunu geçerli
+     *
+     *  - **Tekdüze saat** ([SystemClock.elapsedRealtime]): kullanıcı
+     *    değiştiremiyor, ama yeniden başlatmada sıfırlanıyor.
+     *  - **Açılış sayacı**: yeniden başlatıldığını söylüyor. Sayaç değiştiyse
+     *    tekdüze saat anlamsız; kalan süre **yeniden kuruluyor**, yani
+     *    yeniden başlatmak engeli silmiyor, baştan başlatıyor.
+     *  - **Duvar saati**: yalnızca engeli **uzatabiliyor**. Saati geri alan
+     *    biri kalan süreyi büyütmüş olur; ileri alan bir şey kazanmaz, çünkü
+     *    tekdüze saat yerinde duruyor.
+     *
+     * En uzun olanın seçilmesi bu üçünü tek bir kurala indiriyor: hiçbir saat
+     * oyunu bekleme süresini **kısaltamıyor**.
+     *
+     * Dosya cihaz anahtarıyla mühürlü; silerek sıfırlamak isteyen biri, silme
+     * işlemini de en baştan kilitli bir sayaç bulmakla ödüyor.
      */
     fun readAttempts(): Attempts {
         // Dosya hiç yoksa gerçekten sıfırdır: kasa yeni kurulmuş ya da sayaç
@@ -1198,25 +1265,90 @@ class VaultStore(private val context: Context) {
             // sıfırlamak için kurcalamış. Eskiden burada sıfır dönülüyordu ve
             // bu, üstel beklemeyi tek dosya bozarak atlamanın yolu demekti.
             // Şüphede kalındığında sıkı taraf seçiliyor.
-            return Attempts(TAMPERED_ATTEMPTS, System.currentTimeMillis() + TAMPER_BLOCK_MILLIS)
+            return Attempts(TAMPERED_ATTEMPTS, TAMPER_BLOCK_MILLIS)
         }
-        return runCatching {
-            val input = DataInputStream(ByteArrayInputStream(plain))
-            Attempts(input.readInt(), input.readLong())
-        }.getOrDefault(Attempts(TAMPERED_ATTEMPTS, System.currentTimeMillis() + TAMPER_BLOCK_MILLIS))
+
+        val record = decodeAttempts(plain)
+            ?: return Attempts(TAMPERED_ATTEMPTS, TAMPER_BLOCK_MILLIS)
+
+        val now = System.currentTimeMillis()
+        val elapsed = SystemClock.elapsedRealtime()
+        val rebooted = record.bootCount != bootCount()
+
+        val monotonic = if (rebooted) {
+            // Yeniden başlatılmış: tekdüze saat sıfırlandı, kalan süre
+            // yeniden kuruluyor. Böylece yeniden başlatmak engeli silmiyor.
+            record.remainingAtWrite
+        } else {
+            record.blockedUntilElapsed - elapsed
+        }
+        val byWall = record.blockedUntilWall - now
+        // Üst sınır, tasarlanan en uzun bekleme.
+        //
+        // Duvar saatinin engeli yalnızca uzatabilmesi saldırganı durduruyor
+        // ama tek başına yeni bir kapı açıyordu: saati bir yıl **geri** alan
+        // biri, kasanın sahibini bir yıl kilitleyebilirdi. Savunmanın kendisi
+        // hizmet reddine dönüşürdü. Meşru hiçbir engel bu sınırı aşmadığı
+        // için, aşan her değer saat oyunudur ve kırpılıyor.
+        val remaining = maxOf(monotonic, byWall).coerceIn(0L, MAX_BLOCK_MILLIS)
+
+        if (rebooted && remaining > 0) {
+            // Yeni açılışa göre yeniden yazılıyor, yoksa her okuma kalan
+            // süreyi baştan kurar ve engel hiç bitmezdi.
+            writeRecord(record.failed, remaining)
+        }
+        return Attempts(record.failed, remaining)
     }
 
-    private fun writeAttempts(attempts: Attempts) {
+    /**
+     * Eski ve yeni biçimi birlikte okur.
+     *
+     * Eski biçim tam 12 bayt (int + long). Uzunluğa bakmak belirsizlik
+     * bırakmıyor ve sürüm baytı eklemek zorunda kalmadan yükseltme yolunu
+     * açıyor: yeni sürüme geçen kullanıcı, çözülemeyen bir dosya yüzünden beş
+     * dakika kilitli kalmıyor.
+     */
+    private fun decodeAttempts(plain: ByteArray): AttemptRecord? = runCatching {
+        val input = DataInputStream(ByteArrayInputStream(plain))
+        if (plain.size == LEGACY_ATTEMPTS_BYTES) {
+            val failed = input.readInt()
+            val wall = input.readLong()
+            // Eski kayıtta tekdüze referans yok; duvar saatinden kalan süre
+            // neyse o kadarı devralınıyor.
+            AttemptRecord(
+                failed = failed,
+                blockedUntilWall = wall,
+                blockedUntilElapsed = 0L,
+                bootCount = -1,
+                remainingAtWrite = (wall - System.currentTimeMillis()).coerceAtLeast(0L)
+            )
+        } else {
+            AttemptRecord(
+                failed = input.readInt(),
+                blockedUntilWall = input.readLong(),
+                blockedUntilElapsed = input.readLong(),
+                bootCount = input.readInt(),
+                remainingAtWrite = input.readLong()
+            )
+        }
+    }.getOrNull()
+
+    private fun writeRecord(failed: Int, blockMillis: Long) {
+        val now = System.currentTimeMillis()
+        val elapsed = SystemClock.elapsedRealtime()
         val out = ByteArrayOutputStream()
         DataOutputStream(out).use { d ->
-            d.writeInt(attempts.failed)
-            d.writeLong(attempts.blockedUntil)
+            d.writeInt(failed)
+            d.writeLong(if (blockMillis > 0) now + blockMillis else 0L)
+            d.writeLong(if (blockMillis > 0) elapsed + blockMillis else 0L)
+            d.writeInt(bootCount())
+            d.writeLong(blockMillis.coerceAtLeast(0L))
         }
         runCatching { writeAtomically(attemptsFile, KeystoreKeys.deviceSeal(out.toByteArray())) }
     }
 
     fun resetAttempts() {
-        writeAttempts(Attempts(0, 0))
+        writeRecord(0, 0)
     }
 
     private fun onFailedAttempt(state: Attempts, wipeAfterAttempts: Int): UnlockResult {
@@ -1226,11 +1358,18 @@ class VaultStore(private val context: Context) {
             return UnlockResult.Wiped
         }
         // Üstel bekleme: 3. denemeden sonra 5 sn, sonra 15, 45, 135... en çok 30 dk.
+        //
+        // Kırpma çarpmadan **önce** yapılıyor. Sonra yapılsaydı: yeterince çok
+        // yanlış denemede (ki 30 dakikalık engellerle beklemeyi göze alan biri
+        // için bir günlük iş) 3'ün kuvveti [Double]'ın gösterebildiğini aşıyor,
+        // `toLong()` [Long.MAX_VALUE]'ya doyuyor ve 1000 ile çarpım taşıp
+        // **negatife** dönüyordu. Negatif süre "engel yok" demek — yani üstel
+        // bekleme tam da en çok gerektiği yerde kendini kapatırdı.
         val blockMillis = if (failed < 3) 0L else {
             val seconds = (5.0 * Math.pow(3.0, (failed - 3).toDouble())).toLong()
-            minOf(seconds, 1800L) * 1000L
+            minOf(seconds, MAX_BLOCK_MILLIS / 1000L) * 1000L
         }
-        writeAttempts(Attempts(failed, if (blockMillis > 0) System.currentTimeMillis() + blockMillis else 0))
+        writeRecord(failed, blockMillis)
         return if (blockMillis > 0) UnlockResult.Blocked(blockMillis) else UnlockResult.WrongSecret
     }
 
@@ -1429,6 +1568,18 @@ class VaultStore(private val context: Context) {
          */
         private const val TAMPERED_ATTEMPTS = 5
         private const val TAMPER_BLOCK_MILLIS = 5 * 60 * 1000L
+
+        /** Eski deneme kaydının bayt uzunluğu: int + long. */
+        private const val LEGACY_ATTEMPTS_BYTES = 12
+
+        /**
+         * Üstel beklemenin tavanı (30 dk) ve okunan her engelin üst sınırı.
+         *
+         * [onFailedAttempt] zaten bu değerin üstüne çıkmıyor; sınır burada
+         * ikinci kez uygulanıyor çünkü okuma tarafı duvar saatine de bakıyor
+         * ve o saat güvenilir değil.
+         */
+        private const val MAX_BLOCK_MILLIS = 1800L * 1000L
 
         /** Kullanıcının seçtiği dosyanın gerçekten .kasa olup olmadığını hızlıca söyler. */
         fun looksLikeExport(head: ByteArray): Boolean =

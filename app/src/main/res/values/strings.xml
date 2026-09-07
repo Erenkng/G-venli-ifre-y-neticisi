@@ -816,4 +816,5 @@ Bu dosyayı kasanın kendisiyle aynı yerde tutma. Yazdırıp kâğıt olarak sa
     <string name="sec_score_scope">Puan %1$d kaydın ölçülebilir sırrından hesaplandı.</string>
     <string name="sec_trend">Seyir</string>
     <string name="sec_trend_range">%1$d – %2$d</string>
+    <string name="widget_unlocked">Kasa açık</string>
 </resources>

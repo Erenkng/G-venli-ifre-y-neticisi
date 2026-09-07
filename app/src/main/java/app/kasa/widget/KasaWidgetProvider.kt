@@ -31,18 +31,28 @@ class KasaWidgetProvider : AppWidgetProvider() {
 
     private fun buildViews(context: Context): RemoteViews {
         val repository = KasaApplication.container(context).vaultRepository
-        val locked = !repository.isUnlocked
-        val count = if (locked) 0 else repository.data.value.items.size
 
+        // ── araç birimi kasadan hiçbir sayı taşımıyor ─────────────────────
+        //
+        // Burada kasa açıkken kayıt **sayısı** yazıyordu. Uygulamanın verdiği
+        // söz ise şu: "kayıt adları, kaç kayıt olduğu ve hangi kategorilerin
+        // kullanıldığı dâhil her şey o şifreli dosyanın içinde." Sayı küçük
+        // bir veri ama tam da saklanacağı söylenen veri.
+        //
+        // Nereye gittiği de önemli: [RemoteViews] Kasa'nın değil
+        // **başlatıcının** sürecinde çiziliyor. Yani sayı ana ekranda duruyor,
+        // `FLAG_SECURE` kapsamı dışında — ekran görüntüsüne ve ekran kaydına
+        // giriyor, omuz üstünden okunuyor.
+        //
+        // Kalan metin yalnızca kasanın kilit durumunu söylüyor. O da bir bilgi
+        // ama gizlenebilir bir bilgi değil: uygulamanın kurulu olduğu zaten
+        // simgesinden belli ve kilidin açık olup olmadığı, dokununca hemen
+        // görülüyor.
         val status = when {
             repository.lockState.value is VaultRepository.LockState.NeedsSetup ->
                 context.getString(R.string.vault_empty_title)
-            locked -> context.getString(R.string.lock_title)
-            else -> context.getString(
-                R.string.vault_subtitle,
-                count,
-                context.getString(R.string.vault_never_synced)
-            )
+            !repository.isUnlocked -> context.getString(R.string.lock_title)
+            else -> context.getString(R.string.widget_unlocked)
         }
 
         return RemoteViews(context.packageName, R.layout.widget_kasa).apply {
