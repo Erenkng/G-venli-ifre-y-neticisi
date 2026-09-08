@@ -21,8 +21,11 @@ import app.kasa.R
  *  2. **Otomatik temizleme** — kullanıcının belirlediği süre sonunda (varsayılan
  *     30 sn) pano bir alarmla silinir; uygulama arka planda öldürülse bile
  *     alarm çalışır, çünkü iş [ClipboardClearReceiver] tarafından yapılır.
- *  3. **Sessiz silme** — pano temizlenirken içine boş değil, tek boşluk konur;
- *     bazı üreticilerin pano geçmişi tamamen boş `ClipData`'yı yok sayıyor.
+ *  3. **Kilitlenince temizleme** — kasa kilitlendiği anda pano da boşaltılır;
+ *     alarmın gecikmesi ya da hiç çalışmaması durumunda ikinci yol bu.
+ *
+ * İkinci ve üçüncü maddenin neden uzun süre hiç çalışmadığı [clearNow]
+ * üzerinde yazılı. Pano **geçmişi** kapsam dışında: gerekçesi de orada.
  */
 object SecureClipboard {
 
@@ -55,8 +58,19 @@ object SecureClipboard {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val pending = clearIntent(context)
         alarmManager.cancel(pending)
+        // RTC değil RTC_WAKEUP.
+        //
+        // `RTC` cihaz uyuyorsa alarmı uyanana kadar bekletiyor. Panodaki şey
+        // bir parola ve "otuz saniye sonra silinir" sözü, telefon cebe girdiği
+        // anda "bir dahaki uyanışta silinir"e dönüşüyordu — yani sözün
+        // tutulmadığı durum tam da riskin en yüksek olduğu durum.
+        //
+        // Alarm yine de kesin değil (kesin alarm Android 12'den beri ayrı bir
+        // izin istiyor ve bir pano temizliği için o izni istemek orantısız);
+        // bu yüzden pano kasa kilitlenirken de temizleniyor. İki yol birbirinin
+        // yedeği.
         alarmManager.set(
-            AlarmManager.RTC,
+            AlarmManager.RTC_WAKEUP,
             System.currentTimeMillis() + seconds * 1000L,
             pending
         )
@@ -77,15 +91,44 @@ object SecureClipboard {
         )
     }
 
-    /** Panoyu hemen temizler. Kasa kilitlenirken de çağrılır. */
+    /**
+     * Panoyu hemen temizler. Kasa kilitlenirken ve alarm dolduğunda çağrılıyor.
+     *
+     * ### Neden okumaya güvenilmiyor
+     *
+     * Burada önce pano okunuyor, etiketi "Kasa" değilse dokunulmuyordu.
+     * Niyet doğruydu — kullanıcı bu arada başka bir şey kopyaladıysa onu
+     * silmemek — ama Android 10'dan beri **odakta olmayan bir uygulama panoyu
+     * okuyamıyor**: `primaryClip` arka planda `null` dönüyor. Yani etiket
+     * karşılaştırması hep başarısız oluyor ve işlev her seferinde erken
+     * çıkıyordu.
+     *
+     * Bunun sonucu şuydu: pano temizleme hiç çalışmıyordu. İki çağıran da
+     * uygulama arka plandayken geliyor — alarm alıcısı zaten süreç dışından,
+     * kilit ise tam da uygulamadan çıkılınca. Kopyalanan parola panoda
+     * süresiz kalıyordu, ekranda "30 saniye sonra silinecek" yazarken.
+     *
+     * Artık okuma yalnızca bir **ipucu**: okunabiliyor ve bizim değilse
+     * dokunulmuyor; okunamıyorsa temizleniyor. Ödenen bedel, kullanıcının o
+     * kısa pencerede kopyaladığı bir metni kaybetme ihtimali; kazanılan şey,
+     * panoda kalan bir parolanın olmaması. Bir parola yöneticisinde bu takas
+     * tek yönlü.
+     *
+     * Temizlik `clearPrimaryClip` ile, tek adımda. Panoya önce bir boşluk
+     * yazıp sonra boşaltmak parolayı pano **geçmişinden** de düşürürdü, ama
+     * yazma işlemi Android 13'ten beri ekranda bir pano önizleme balonu
+     * çıkarabiliyor: her kilitlenmede görünen bir balon, kazandırdığı şeyin
+     * yanında ağır kalıyor. Pano geçmişi bu yüzden bilinen bir sınır olarak
+     * duruyor.
+     */
     fun clearNow(context: Context, notifyUser: Boolean = false) {
         val manager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-        val current = manager.primaryClip
-        // Kullanıcı bu arada başka bir şey kopyaladıysa ona dokunma.
-        val ours = current?.description?.label?.toString() == SENSITIVE_LABEL
-        if (!ours) return
 
-        manager.clearPrimaryClip()
+        val current = runCatching { manager.primaryClip }.getOrNull()
+        if (current != null && current.description?.label?.toString() != SENSITIVE_LABEL) return
+
+        runCatching { manager.clearPrimaryClip() }
+
         if (notifyUser) {
             Toast.makeText(context, R.string.clipboard_cleared, Toast.LENGTH_SHORT).show()
         }

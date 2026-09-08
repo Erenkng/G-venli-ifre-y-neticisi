@@ -22,6 +22,25 @@ object Totp {
         val account: String = ""
     )
 
+    /**
+     * Aralık ve hane sayısını kullanılabilir bir değere çeker.
+     *
+     * ### Neden çağrı noktasında değil burada
+     *
+     * `parseUri` bu iki alanı zaten sınırlıyordu, ama karekod tek kaynak
+     * değil: değerler kasa dosyasından da geliyor ve **içe aktarılan** bir
+     * kasa dosyasının içeriğini veren kişi onları seçiyor. `period = 0`
+     * yazılmış tek bir kayıt, kodu hesaplayan her yerde sıfıra bölme
+     * demekti — ve o kayıt artık kasada durduğu için liste her açılışta
+     * çöküyordu. Yani dosyayla teslim edilen, kalıcı bir hizmet reddi.
+     *
+     * Sınır bu yüzden hesabın kendisine kondu: kaynak ne olursa olsun
+     * geçilemeyen tek nokta burası.
+     */
+    private fun safePeriod(period: Int): Int = period.coerceIn(MIN_PERIOD, MAX_PERIOD)
+
+    private fun safeDigits(digits: Int): Int = digits.coerceIn(MIN_DIGITS, MAX_DIGITS)
+
     /** Verilen ana için kodu üretir. Anahtar geçersizse `null`. */
     fun code(
         secret: String,
@@ -32,9 +51,9 @@ object Totp {
     ): String? {
         val key = keyBytes(secret) ?: return null
         if (key.isEmpty()) return null
-        val counter = timeMillis / 1000L / period
+        val counter = timeMillis / 1000L / safePeriod(period)
         return try {
-            hotp(key, counter, digits, algorithm)
+            hotp(key, counter, safeDigits(digits), algorithm)
         } finally {
             // TOTP gizli anahtarı ikinci faktörün tamamı: parola kadar
             // değerli. Çözülen baytlar kod üretildiği anda sıfırlanıyor.
@@ -44,14 +63,16 @@ object Totp {
 
     /** Geçerli kodun bitmesine kalan saniye. */
     fun secondsRemaining(period: Int = 30, timeMillis: Long = System.currentTimeMillis()): Int {
+        val safe = safePeriod(period)
         val seconds = timeMillis / 1000L
-        return (period - (seconds % period)).toInt()
+        return (safe - (seconds % safe)).toInt()
     }
 
     /** 0..1 arası ilerleme; halka göstergesi bunu kullanır. */
     fun progress(period: Int = 30, timeMillis: Long = System.currentTimeMillis()): Float {
-        val millisIntoPeriod = timeMillis % (period * 1000L)
-        return (millisIntoPeriod.toFloat() / (period * 1000f)).coerceIn(0f, 1f)
+        val safe = safePeriod(period)
+        val millisIntoPeriod = timeMillis % (safe * 1000L)
+        return (millisIntoPeriod.toFloat() / (safe * 1000f)).coerceIn(0f, 1f)
     }
 
     private fun hotp(key: ByteArray, counter: Long, digits: Int, algorithm: String): String? = try {
@@ -227,8 +248,8 @@ object Totp {
                     val account = label.substringAfter(':', label).trim()
                     Config(
                         secret = secret,
-                        digits = query["digits"]?.toIntOrNull()?.coerceIn(6, 8) ?: 6,
-                        period = query["period"]?.toIntOrNull()?.coerceIn(15, 120) ?: 30,
+                        digits = query["digits"]?.toIntOrNull()?.let { safeDigits(it) } ?: 6,
+                        period = query["period"]?.toIntOrNull()?.let { safePeriod(it) } ?: 30,
                         algorithm = normalizeAlgorithm(query["algorithm"]),
                         issuer = (query["issuer"]?.takeIf { it.isNotBlank() } ?: labelIssuer).trim(),
                         account = account
@@ -255,4 +276,17 @@ object Totp {
 
     /** Kod üretmeye yeten en kısa anahtar. */
     private const val MIN_SECRET_BYTES = 5
+
+    /**
+     * Aralık ve hane sayısının kabul sınırları.
+     *
+     * RFC 6238'in varsayılanı 30 saniye / 6 hane; dağıtımda 60 saniyelik ve
+     * 8 haneli anahtarlar da görülüyor. Sınırlar bunları kapsayacak kadar
+     * geniş, sıfır ve negatif değerleri dışarıda bırakacak kadar dar.
+     * Gerekçesi [safePeriod] üzerinde.
+     */
+    private const val MIN_PERIOD = 15
+    private const val MAX_PERIOD = 120
+    private const val MIN_DIGITS = 6
+    private const val MAX_DIGITS = 8
 }

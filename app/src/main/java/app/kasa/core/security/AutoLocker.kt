@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -27,6 +28,21 @@ import kotlinx.coroutines.launch
  *
  * Sayaç arka planda çalışan bir coroutine'dir; uygulama öldürülse bile kasa
  * anahtarı yalnızca bellekte durduğu için süreçle birlikte yok olur.
+ *
+ * ### Sayaç neden tek başına yetmiyor
+ *
+ * `delay` tekdüze saate dayanıyor ve o saat cihaz derin uykudayken
+ * **ilerlemiyor**; süreç dondurulduğunda ise coroutine hiç çalışmıyor. Yani
+ * "beş dakika sonra kilitle" demek, gerçekte "beş dakika **açık** kaldıktan
+ * sonra kilitle" demekti: cebe giren telefonda sayaç neredeyse duruyordu.
+ * Ekran kapanınca kilitleme açıksa bu fark edilmiyor, ama o ayar
+ * kapatılabilir ve kapatan kullanıcı tam da süreye güvenen kullanıcı.
+ *
+ * Bu yüzden süre iki yerde tutuluyor: coroutine (uygulama yaşarken çalışan
+ * hızlı yol) ve [SystemClock.elapsedRealtime] cinsinden bir **son tarih**.
+ * Son tarih derin uykuyu da sayıyor ve öne dönüldüğünde ilk iş onu
+ * denetlemek. Böylece sayaç hiç çalışmasa bile kasa, kullanıcı geri
+ * döndüğünde kilitli.
  */
 class AutoLocker(
     private val context: Context,
@@ -71,6 +87,14 @@ class AutoLocker(
     private var registered = false
 
     /**
+     * Kilitlenmesi gereken an, [SystemClock.elapsedRealtime] cinsinden.
+     *
+     * Derin uykuyu da sayan tek saat bu. 0 ise bekleyen kilit yok.
+     */
+    @Volatile
+    private var lockDeadline = 0L
+
+    /**
      * Sistem seçicileri (dosya seçme, izin isteği) uygulamayı kısa süreliğine
      * arka plana alır. Bunu "kullanıcı uygulamadan çıktı" saymak, dışa aktarma
      * gibi işleri ortasından kesiyordu: kasa kilitlenince çözülmüş kayıtlar
@@ -108,27 +132,51 @@ class AutoLocker(
     }
 
     override fun onStart(owner: LifecycleOwner) {
-        // Öne dönüldü: bekleyen kilit sayacını iptal et.
-        pendingLock?.cancel()
-        pendingLock = null
-    }
-
-    fun suppressNextBackground() {
-        suppressUntil = System.currentTimeMillis() + SUPPRESS_WINDOW_MILLIS
-    }
-
-    override fun onStop(owner: LifecycleOwner) {
-        if (!repository.isUnlocked) return
-        if (System.currentTimeMillis() < suppressUntil) {
-            suppressUntil = 0L
-            return
-        }
-        val seconds = effectiveLockSeconds()
-        if (seconds <= 0) {
+        // Öne dönüldü. Sayacı iptal etmeden **önce** son tarihe bakılıyor:
+        // coroutine derin uyku ya da dondurulmuş süreç yüzünden hiç
+        // çalışmamış olabilir ve o durumda iptal etmek, dolmuş bir süreyi
+        // sessizce silmek olurdu.
+        val deadline = lockDeadline
+        if (deadline != 0L && SystemClock.elapsedRealtime() >= deadline) {
             lockNow()
             return
         }
         pendingLock?.cancel()
+        pendingLock = null
+        lockDeadline = 0L
+    }
+
+    fun suppressNextBackground() {
+        // Duvar saati değil tekdüze saat: af bir **süre** ve kullanıcının
+        // değiştirebildiği bir saate bağlanmasının hiçbir gerekçesi yok.
+        suppressUntil = SystemClock.elapsedRealtime() + SUPPRESS_WINDOW_MILLIS
+    }
+
+    override fun onStop(owner: LifecycleOwner) {
+        if (!repository.isUnlocked) return
+
+        // Af, kilidi **ertelemek** için var; kaldırmak için değil.
+        //
+        // Burada af alındığında hiç sayaç kurulmuyordu ve bu, kasayı süresiz
+        // açık bırakan bir yol açıyordu: kullanıcı dışa aktarma seçicisini
+        // açıp geri dönmezse (telefonu cebe koyup gitmek yeter) o oturumda
+        // bir daha `onStop` gelmiyor ve kilitleyecek hiçbir şey kalmıyordu.
+        // Artık af yalnızca "hemen kilitle" durumunu yumuşatıyor: seçici
+        // saniyeler içinde döndüğü ve dönüşte `onStart` sayacı iptal ettiği
+        // için özellik bozulmuyor, ama dönülmezse kasa yine kilitleniyor.
+        val suppressed = SystemClock.elapsedRealtime() < suppressUntil
+        if (suppressed) suppressUntil = 0L
+
+        val configured = effectiveLockSeconds()
+        val seconds = if (suppressed) maxOf(configured, SUPPRESS_WINDOW_SECONDS) else configured
+        if (seconds <= 0) {
+            lockNow()
+            return
+        }
+
+        pendingLock?.cancel()
+        // Son tarih tekdüze saatte tutuluyor; gerekçesi sınıf belgesinde.
+        lockDeadline = SystemClock.elapsedRealtime() + seconds * 1000L
         pendingLock = scope.launch {
             delay(seconds * 1000L)
             lockNow()
@@ -156,11 +204,13 @@ class AutoLocker(
     fun lockNow() {
         pendingLock?.cancel()
         pendingLock = null
+        lockDeadline = 0L
         suppressUntil = 0L
         if (repository.isUnlocked) repository.lock()
     }
 
     private companion object {
-        const val SUPPRESS_WINDOW_MILLIS = 30_000L
+        const val SUPPRESS_WINDOW_SECONDS = 30
+        const val SUPPRESS_WINDOW_MILLIS = SUPPRESS_WINDOW_SECONDS * 1000L
     }
 }

@@ -1,8 +1,11 @@
 package app.kasa.autofill
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.Signature
+import android.net.Uri
 import java.security.MessageDigest
 
 /**
@@ -19,7 +22,8 @@ import java.security.MessageDigest
  * @param certSha256 imza sertifikasının SHA-256 parmak izi (büyük harf,
  *        iki nokta üst üste ile ayrılmış) ya da okunamadıysa `null`
  * @param webDomain tarayıcıysa görüntülenen sayfanın alan adı
- * @param isBrowser [StructureParser] tarafından tanınan bir tarayıcı mı
+ * @param isBrowser çağıran, alan adı beyanına güvenilebilecek gerçek bir
+ *        tarayıcı mı — [trustedBrowser] kararı
  */
 data class CallerIdentity(
     val packageName: String?,
@@ -63,8 +67,76 @@ data class CallerIdentity(
             packageName = packageName,
             certSha256 = packageName?.let { signingFingerprint(context, it) },
             webDomain = webDomain,
-            isBrowser = isBrowser
+            // [StructureParser] yalnızca paket adına bakıyor; asıl karar burada.
+            isBrowser = isBrowser && packageName != null && trustedBrowser(context, packageName)
         )
+
+        /**
+         * Paket adı tanıdık bir tarayıcıya ait olsa bile, gerçekten o tarayıcı mı?
+         *
+         * ### Açık neredeydi
+         *
+         * Tarayıcı tespiti yalnızca paket adına bakıyordu. Paket adı cihazda
+         * benzersiz ama **sahipsiz**: adı taşıyan uygulama kurulu değilse o adı
+         * herkes alabilir. Listedeki yirmi iki addan tipik bir telefonda bir
+         * ikisi kurulu; kalanı boşta.
+         *
+         * Bunun bedeli, bu dosyanın en başında kapatıldığı söylenen açığın ta
+         * kendisiydi. Tarayıcı sayılan çağıranın bildirdiği alan adına
+         * güveniliyor ([AutofillMatcher.Tier.DOMAIN]) ve o alan adını
+         * **uygulamanın kendisi** yazıyor, sistem doğrulamıyor. Yani
+         * `com.android.browser` adıyla kurulan bir uygulama "sayfa
+         * bankam.com.tr" deyip kasadaki gerçek banka kaydının önerilmesini
+         * sağlayabiliyordu. Kullanıcı listede doğru kaydın adını gördüğü için
+         * dokunuyor ve parola saldırgana gidiyordu.
+         *
+         * ### Neden imza parmak izi değil
+         *
+         * Doğrusu her tarayıcının imzasını sabitlemek olurdu. Yirmi iki
+         * tarayıcının parmak izini doğru kaynaktan almadan gömmek, yanlış bir
+         * değerin gerçek tarayıcıda doldurmayı sessizce bozması demek — açığın
+         * kendisinden daha çok kullanıcıyı etkileyen bir sonuç.
+         *
+         * Onun yerine iki doğrulanabilir koşuldan biri aranıyor:
+         *
+         *  - **Sistem uygulaması**: ürün yazılımıyla gelmiş. Bir saldırgan
+         *    ROM'a yazamadan bunu taklit edemiyor. Chrome ve Samsung Internet
+         *    gibi baskın durumlar zaten buraya düşüyor.
+         *  - **Kullanıcının varsayılan tarayıcısı**: kullanıcı o uygulamayı
+         *    bilerek tarayıcısı olarak seçmiş. Taklit eden bir uygulama bunu
+         *    kullanıcı ona dokunmadan elde edemiyor.
+         *
+         * Bunları sağlamayan bir tarayıcı yalnızca alan adı kademesini
+         * kaybediyor; kullanıcı kaydı bir kez elle seçiyor ve o seçim imzaya
+         * bağlı kalıcı bağı ([Tier.LINKED]) kuruyor. Yani bedel bir kerelik bir
+         * dokunuş, kazanç ise beyanı doğrulanamayan bir çağıranın kasadan
+         * kayıt isteyememesi.
+         */
+        fun trustedBrowser(context: Context, packageName: String): Boolean =
+            isSystemApp(context, packageName) || isDefaultBrowser(context, packageName)
+
+        private fun isSystemApp(context: Context, packageName: String): Boolean = runCatching {
+            val flags = context.packageManager.getApplicationInfo(packageName, 0).flags
+            val system = ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP
+            (flags and system) != 0
+        }.getOrDefault(false)
+
+        /**
+         * Bu paket, kullanıcının https bağlantılarını açmak için seçtiği
+         * uygulama mı?
+         *
+         * Varsayılan seçilmemişse sistem seçim penceresini döndürüyor ve o da
+         * hiçbir tarayıcı paketiyle eşleşmiyor — yani cevap doğal olarak
+         * "hayır" oluyor. Sorgunun görünürlüğü manifestteki `<queries>`
+         * bildirimiyle zaten açık.
+         */
+        private fun isDefaultBrowser(context: Context, packageName: String): Boolean = runCatching {
+            val probe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))
+                .addCategory(Intent.CATEGORY_BROWSABLE)
+            context.packageManager
+                .resolveActivity(probe, PackageManager.MATCH_DEFAULT_ONLY)
+                ?.activityInfo?.packageName == packageName
+        }.getOrDefault(false)
 
         /**
          * Kurulu bir uygulamanın imza sertifikasının SHA-256 parmak izi.
