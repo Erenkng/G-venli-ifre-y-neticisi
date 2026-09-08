@@ -21,8 +21,8 @@ android {
         applicationId = "app.kasa"
         minSdk = 36
         targetSdk = 36
-        versionCode = 17
-        versionName = "2.6"
+        versionCode = 18
+        versionName = "2.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -19,33 +19,46 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 2.6'da yenilikler
+## 2.7'de yenilikler
 
-Bu sürümde yeni özellik yok. Uygulamaya saldıran gözle bakıldı ve çıkan
-açıklar kapatıldı.
+Sızma denemesinin ikinci turu. Yine yeni özellik yok; çıkan altı açık
+kapatıldı.
 
-- **Yanlış deneme engeli telefonun saatiyle atlatılabiliyordu.** Bekleme
-  süresi bir tarih damgası olarak yazılıyordu ve o tarihi kullanıcı
-  değiştirebiliyor: üç yanlış dene, Ayarlar'dan saati ileri al, üç yanlış
-  daha. Çalınmış bir telefonda ana parolayı sınırsız denemek demekti.
-  Engel artık değiştirilemeyen bir saate bakıyor; yeniden başlatmak da
-  süreyi silmiyor, baştan başlatıyor.
-- **Bozuk bir yedek dosyası uygulamayı düşürebiliyordu.** Dosya, kendisini
-  açmanın ne kadar bellek harcayacağını kendisi söylüyordu ve bu değer hiç
-  denetlenmiyordu; üstelik parola sorulmadan önce kullanılıyordu. Yani
-  "şunu bir açar mısın" diyen birinin parolayı bilmesine gerek yoktu.
-  Dosyadan okunan bütün boyutlar artık sınırlı.
-- **Güvenilen ağ ayarı ev adresini ele verebiliyordu.** Ağ adının özeti
-  şifresiz ayar dosyasında duruyordu. Özet geri çevrilemez ama Wi-Fi ağları
-  herkese açık veri tabanlarında konumlarıyla listeli — yani deneyerek
-  bulunabilirdi. Özet artık telefondan çıkamayan bir anahtarla alınıyor.
-  *Bu özelliği kullanıyorsan güvenilen ağını bir kez yeniden seçmen
-  gerekiyor; eski kayıt siliniyor.*
-- **Ana ekran aracı kaç kaydın olduğunu yazıyordu.** Kasanın sakladığını
-  söylediği bilgilerden biri de tam olarak buydu ve araç, ekran koruması
-  kapsamının dışında duruyor. Artık yalnızca kilit durumunu gösteriyor.
-- **Zorlama parolasıyla açılan kasada gerçek parola sınanabiliyordu.**
-  Artık sınanamıyor.
+- **Panodaki parola aslında hiç silinmiyordu.** Uygulama panoyu silmeden
+  önce "bu benim koyduğum şey mi" diye kontrol ediyordu, ama Android 10'dan
+  beri arka plandaki bir uygulama panoyu okuyamıyor — kontrol her seferinde
+  başarısız oluyor ve silme hiç yapılmıyordu. Silmeyi isteyen iki yol da
+  (zamanlayıcı ve kasanın kilitlenmesi) arka planda çalıştığı için,
+  kopyalanan parola panoda süresiz kalıyordu; ekranda "30 saniye sonra
+  silinecek" yazarken. Artık siliniyor. Zamanlayıcı da telefon uyurken
+  beklemiyor.
+- **Otomatik kilit süresi telefon uykudayken ilerlemiyordu.** "Beş dakika
+  sonra kilitle" gerçekte "beş dakika **açık kaldıktan** sonra kilitle"
+  demekti: cebe giren telefonda sayaç neredeyse duruyordu. Ekran kapanınca
+  kilitleme bunu gizliyordu, ama o ayarı kapatan kullanıcı tam da süreye
+  güvenen kullanıcı. Süre artık uykuyu da sayan bir saate bakıyor.
+- **Dosya seçtikten sonra dönülmezse kasa açık kalıyordu.** Dışa aktarma
+  ya da içe aktarma için dosya seçicisi açıldığında kilit bilerek
+  erteleniyor; ama kullanıcı seçiciden geri dönmezse kasayı kilitleyecek
+  hiçbir şey kalmıyordu. Artık kalıyor.
+- **Sahte bir tarayıcı, kasadan gerçek kaydı isteyebiliyordu.** Otomatik
+  doldurmada tarayıcı tanıma yalnızca uygulamanın adına bakıyordu ve o adı,
+  gerçek tarayıcı kurulu değilse başka bir uygulama alabilir. Böyle bir
+  uygulama "şu an bankanın sayfasındayım" deyip gerçek banka kaydının
+  önerilmesini sağlayabiliyordu; kullanıcı listede doğru kaydın adını
+  gördüğü için dokunuyordu. Artık tarayıcının ya telefonla gelmiş olması ya
+  da kullanıcının varsayılan tarayıcısı olması gerekiyor.
+  *Bunun bir bedeli var: varsayılan olmayan bir tarayıcıda kaydı ilk kez
+  elle seçmen gerekebilir. O seçim kalıcı — ikinci seferden itibaren yine
+  kendiliğinden geliyor.*
+- **Kayıt bazlı ek kilit, doğrulama bozulduğunda açılıyordu.** Parmak izi
+  okuyucusu meşgulse ya da çok denemeden sonra kilitlendiyse kapı
+  kendiliğinden açılıyordu — yani ek kilidi aşmanın yolu doğrulamayı geçmek
+  değil bozmaktı. Artık yalnızca cihazda hiçbir doğrulama yolu yoksa
+  açılıyor.
+- **Bozuk bir kayıt kasayı çökertebiliyordu.** İçe aktarılan bir dosyadaki
+  geçersiz bir 2FA ayarı, listeyi her açılışta çökerten kalıcı bir hataya
+  dönüşüyordu.
 
 Gezinme çubuğuna yine dokunulmadı.
 
