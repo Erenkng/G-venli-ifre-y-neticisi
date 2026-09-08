@@ -89,6 +89,9 @@ class BiometricGate(private val activity: FragmentActivity) {
      *
      * Cihazın ekran kilidi de kabul ediliyor: parmak izi okuyucusu olmayan
      * kullanıcıda tek seçenek "hiç doğrulama yok" olmasın diye.
+     *
+     * Kapının hangi durumda kendiliğinden açıldığı aşağıda ayrıca yazılı —
+     * o koşulun genişliği bir açıktı ve daraltıldı.
      */
     fun authenticatePresence(
         title: String,
@@ -99,9 +102,24 @@ class BiometricGate(private val activity: FragmentActivity) {
         val allowed = BiometricManager.Authenticators.BIOMETRIC_STRONG or
             BiometricManager.Authenticators.DEVICE_CREDENTIAL
 
-        // Kullanılabilir hiçbir yol yoksa kapıyı kilitli bırakmak, kullanıcıyı
-        // kendi kaydından kalıcı olarak dışarıda bırakmak olurdu.
-        if (manager.canAuthenticate(allowed) != BiometricManager.BIOMETRIC_SUCCESS) {
+        // Kapı yalnızca **kalıcı** bir sebeple açılıyor.
+        //
+        // Burada koşul "SUCCESS değilse aç" idi ve bu, geçici hataları da
+        // kapsıyordu: okuyucu meşgulse, çok denemeden sonra kilitlendiyse ya
+        // da durum belirlenemiyorsa ([BIOMETRIC_STATUS_UNKNOWN]) kapı
+        // kendiliğinden açılıyordu. Yani ek kilidi aşmanın yolu, doğrulamayı
+        // geçmek değil **bozmaktı** — üstelik ekran kilidi kurulu bir cihazda
+        // bile, çünkü tek bir durum kodu her şeye karar veriyordu.
+        //
+        // Ayrım şu: doğrulanacak bir yol hiç yoksa (donanım yok, hiçbir şey
+        // kayıtlı değil) kullanıcıyı kendi kaydından kalıcı olarak dışarıda
+        // bırakmamak için açılıyor. Geçici her durumda istem yine de
+        // deneniyor; açılamazsa kayıt kilitli kalıyor ve kullanıcı sonra
+        // yeniden deniyor.
+        val status = manager.canAuthenticate(allowed)
+        val noMethodAtAll = status == BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE ||
+            status == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED
+        if (noMethodAtAll) {
             onSuccess()
             return
         }
