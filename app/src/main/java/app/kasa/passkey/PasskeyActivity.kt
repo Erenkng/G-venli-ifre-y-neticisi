@@ -83,6 +83,16 @@ import kotlinx.coroutines.launch
  */
 class PasskeyActivity : FragmentActivity() {
 
+    /**
+     * Otomatik biyometrik istem bu pencerede açıldı mı?
+     *
+     * Kapsam bileşen değil pencere; gerekçesi
+     * [app.kasa.autofill.AutofillUnlockActivity] üzerinde yazılı olanla aynı:
+     * `remember` bileşen ağaçtan çıkıp geri girdiğinde sıfırlanıyor ve istem
+     * ikinci kez açılıyordu.
+     */
+    private var biometricPromptShown = false
+
     private val repository: VaultRepository
         get() = KasaApplication.container(this).vaultRepository
 
@@ -363,13 +373,12 @@ class PasskeyActivity : FragmentActivity() {
         var revealed by remember { mutableStateOf(false) }
         var busy by remember { mutableStateOf(false) }
         var error by remember { mutableStateOf(false) }
-        var biometricTried by remember { mutableStateOf(false) }
 
         val gate = remember { BiometricGate(this) }
 
         androidx.compose.runtime.LaunchedEffect(biometricEnabled) {
-            if (!biometricTried && biometricEnabled && gate.available) {
-                biometricTried = true
+            if (biometricEnabled && gate.available && !biometricPromptShown) {
+                biometricPromptShown = true
                 val cipher = repository.biometricCipher()
                 if (cipher != null) {
                     gate.authenticate(

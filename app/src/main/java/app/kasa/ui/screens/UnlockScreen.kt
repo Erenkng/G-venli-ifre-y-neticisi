@@ -77,7 +77,6 @@ fun UnlockScreen(
     var password by remember { mutableStateOf("") }
     var recoveryInput by remember { mutableStateOf("") }
     var revealed by remember { mutableStateOf(false) }
-    var biometricTried by remember { mutableStateOf(false) }
 
     /**
      * PIN kuruluysa açılış PIN ile başlıyor: günde on kez yazılacak olan bu.
@@ -91,9 +90,13 @@ fun UnlockScreen(
     val attemptsLeft = viewModel.attemptsLeft(settings.wipeAfterAttempts)
 
     // Açılışta bir kez biyometrik istem.
+    //
+    // "Bir kez" görünüm modelinde tutuluyor, burada değil: gerekçesi
+    // [AuthViewModel.claimBiometricPrompt] üzerinde yazılı. Kısası, bu bileşen
+    // ağaçtan çıkıp geri girebiliyor ve `remember` o an sıfırlanıyordu — yani
+    // kullanıcı parmak izini iki kez okutuyordu.
     LaunchedEffect(settings.biometricUnlock) {
-        if (!biometricTried && settings.biometricUnlock && gate?.available == true) {
-            biometricTried = true
+        if (settings.biometricUnlock && gate?.available == true && viewModel.claimBiometricPrompt()) {
             val cipher = viewModel.biometricCipher()
             if (cipher != null) {
                 gate.authenticate(

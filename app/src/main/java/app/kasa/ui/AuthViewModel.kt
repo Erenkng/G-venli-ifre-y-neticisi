@@ -120,6 +120,35 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
     private val _unlock = MutableStateFlow(UnlockState(failedAttempts = repository.failedAttempts()))
     val unlock: StateFlow<UnlockState> = _unlock.asStateFlow()
 
+    /**
+     * Otomatik biyometrik istem bu kilitli oturumda açıldı mı?
+     *
+     * ### Neden görünüm modelinde
+     *
+     * Bu bayrak kilit ekranının içinde `remember` ile tutuluyordu ve
+     * `remember` yalnızca **yeniden beste** boyunca yaşıyor: bileşen ağaçtan
+     * çıkıp geri girdiğinde (geçiş animasyonu, yapılandırma değişikliği,
+     * ekranın yeniden kurulması) sıfıra dönüyor. Yani "açılışta bir kez sor"
+     * bir değişmez değil, bileşenin yerinde kalmasına bağlı bir tesadüftü;
+     * yerinde kalmadığı her durumda kullanıcı parmak izini iki kez okutuyordu.
+     *
+     * Görünüm modeli bunların hepsini aşıyor ve doğru kapsam da bu: istemin
+     * ömrü ekranın değil, **kilitli oturumun** ömrü. Kilit açıldığında ya da
+     * yeniden kilitlendiğinde [resetBiometricPrompt] ile sıfırlanıyor.
+     */
+    private var biometricPromptShown = false
+
+    /** Otomatik istem bu oturumda daha açılmadıysa `true` döner ve işaretler. */
+    fun claimBiometricPrompt(): Boolean {
+        if (biometricPromptShown) return false
+        biometricPromptShown = true
+        return true
+    }
+
+    fun resetBiometricPrompt() {
+        biometricPromptShown = false
+    }
+
     val lockState: StateFlow<VaultRepository.LockState> = repository.lockState
 
     val integrity: DeviceIntegrity.Report by lazy { DeviceIntegrity.check(container.appContext) }
@@ -502,6 +531,8 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
             VaultRepository.UnlockOutcome.Success -> {
                 container.haptics.play(Haptics.Kind.UNLOCK)
                 _unlock.value = UnlockState()
+                // Bir sonraki kilitli oturum kendi istemini hak ediyor.
+                resetBiometricPrompt()
             }
             VaultRepository.UnlockOutcome.WrongSecret -> {
                 container.haptics.play(Haptics.Kind.WARNING)

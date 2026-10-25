@@ -69,6 +69,17 @@ import kotlinx.coroutines.launch
  */
 class AutofillUnlockActivity : FragmentActivity() {
 
+    /**
+     * Otomatik biyometrik istem bu pencerede açıldı mı?
+     *
+     * Bayrak bileşenin içinde `remember` ile tutuluyordu ve `remember`
+     * bileşen besteden çıkıp geri girdiğinde sıfırlanıyor — o anda istem
+     * ikinci kez açılıyordu. Doğru kapsam bileşen değil **pencere**: bu
+     * Activity bir doldurma isteği için bir kez açılıyor ve kullanıcıdan
+     * parmak izi bir kez isteniyor.
+     */
+    private var biometricPromptShown = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setFlags(
@@ -312,13 +323,11 @@ class AutofillUnlockActivity : FragmentActivity() {
         var revealed by remember { mutableStateOf(false) }
         var busy by remember { mutableStateOf(false) }
         var error by remember { mutableStateOf(false) }
-        var biometricTried by remember { mutableStateOf(false) }
-
         val gate = remember { BiometricGate(this) }
 
         LaunchedEffect(biometricEnabled) {
-            if (!biometricTried && biometricEnabled && gate.available) {
-                biometricTried = true
+            if (biometricEnabled && gate.available && !biometricPromptShown) {
+                biometricPromptShown = true
                 val cipher = repository.biometricCipher()
                 if (cipher != null) {
                     gate.authenticate(
