@@ -31,6 +31,12 @@ jobs:
         with:
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
+          # Eylemin varsayilani "tools platform-tools" ve "tools" paketi
+          # Android SDK deposundan kaldirildi: yeni sdkmanager onu
+          # tanimiyor ve "Failed to find package 'tools'" ile cikiyor,
+          # yani derleme hic baslamadan is duruyor. Listeyi acikca
+          # veriyoruz; gerekli olan tek sey platform-tools.
+          packages: platform-tools
 
       - name: SDK 36 bilesenleri
         run: |

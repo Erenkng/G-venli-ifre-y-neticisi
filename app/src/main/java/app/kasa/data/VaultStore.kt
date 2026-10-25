@@ -1467,6 +1467,29 @@ class VaultStore(private val context: Context) {
     /**
      * Yarım yazılmış kasa dosyası kalmasın diye önce geçici dosyaya yazıp
      * `fsync` sonrası yeniden adlandırırız.
+     *
+     * ### Hedef dosya artık silinmiyor
+     *
+     * Yeniden adlandırma başarısız olursa önce `target.delete()` çağrılıp
+     * tekrar deneniyordu. İkinci deneme de başarısız olduğunda sonuç şuydu:
+     * dosya **yok**. Verinin kendisi `.tmp` içinde duruyor ama onu arayan
+     * kimse yok.
+     *
+     * Bunun en kötü hâli kasa dosyası değil, deneme sayacı. [readAttempts]
+     * dosyanın yokluğunu haklı olarak "kasa yeni kurulmuş" sayıyor ve sıfır
+     * dönüyor — yani sayacın silinmesi üstel beklemeyi tamamen temizliyor.
+     * Yazmayı bozabilen biri için bu, sınırsız deneme demek.
+     *
+     * Silmeye zaten gerek yok: POSIX `rename(2)` var olan hedefi atomik
+     * olarak değiştiriyor ve Android'in dosya sistemlerinde (ext4, f2fs) bu
+     * garanti. Yeniden adlandırma başarısızsa hiçbir şeye dokunmamak doğru
+     * olan: eski dosya yerinde kalıyor — sayaç için bu, daha yüksek deneme
+     * sayısının korunması, yani sıkı taraf — ve çağıran hatayı görüyor.
+     *
+     * Kalan sınır açık: yazma sessizce başarısız olursa sayaç artmıyor.
+     * Okuma tarafını sıkılaştırmak (dosya yoksa engelle) bu açığı kapatırdı
+     * ama kurulumda tek bir başarısız yazma kullanıcıyı kendi kasasından
+     * kalıcı olarak kilitlerdi; o takas yanlış yöne bakıyor.
      */
     private fun writeAtomically(target: File, bytes: ByteArray) {
         val tmp = File(target.parentFile, target.name + ".tmp")
@@ -1475,10 +1498,7 @@ class VaultStore(private val context: Context) {
             out.flush()
             out.fd.sync()
         }
-        if (!tmp.renameTo(target)) {
-            target.delete()
-            check(tmp.renameTo(target)) { "Kasa dosyası yazılamadı" }
-        }
+        check(tmp.renameTo(target)) { "Kasa dosyası yazılamadı" }
         // Dosyanın içeriğini `fsync` etmek yetmiyor: yeniden adlandırma dizin
         // girdisinde yaşıyor ve o da ayrıca kalıcı kılınmalı. Aksi hâlde
         // elektrik kesilmesi, içeriği yazılmış ama adı hâlâ `.tmp` olan bir
