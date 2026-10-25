@@ -34,20 +34,29 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
     /**
      * Kurulumun adımları.
      *
-     * Sıra rastgele değil; iki tanesi bilerek araya girmiş durumda:
+     * Sıra rastgele değil: [CONFIRM_MASTER], ana parolayı ikinci kez
+     * sordurmayı ilk ekrandan alıp buraya taşıyor. İki alan yan yanayken
+     * yapılan şey hatırlamak değil kopyalamaktı; araya kurtarma adımı
+     * girince test gerçek oluyor.
      *
-     * - [RECOVERY_VERIFY], anahtarı gerçekten kaydedip kaydetmediğini
-     *   **kanıtlatıyor**. Önceden burada bir onay kutusu vardı ve onay kutusu
-     *   tam olarak "sonra bakarım"ın kendisidir: işaretlemenin bedeli sıfır.
+     * ### Kaldırılan adım
      *
-     * - [CONFIRM_MASTER], ana parolayı ikinci kez sordurmayı ilk ekrandan
-     *   alıp buraya taşıyor. İki alan yan yanayken yapılan şey hatırlamak
-     *   değil kopyalamaktı; araya kurtarma adımı girince test gerçek oluyor.
+     * Arada bir [RECOVERY_SHOWN] sonrası doğrulama adımı vardı: kullanıcıya
+     * kurtarma anahtarının üç grubu geri yazdırılıyordu. Amacı anahtarı
+     * gerçekten kaydettiğini kanıtlatmaktı ve o amaç doğruydu, ama bedeli
+     * yanlış yere düşüyordu — kurulumun en kritik anında, kâğıda yeni yazmış
+     * birinden 24 karakterlik bir kodun parçalarını elle girmesini istemek.
+     * Kullanıcı için zor olan bir adım, güvenlik kazancını götürüyor: zor
+     * adım atlanmaz, kötü yapılır.
+     *
+     * Yerine kalan şey yine bir şey yapmayı gerektiriyor: anahtarı dosyaya
+     * kaydetmek ya da karekodunu okutmak, ikisi de o ekranda. Ve kaydetmemiş
+     * biri kilitlenmiyor — ayarlardan yeni bir kurtarma anahtarı
+     * üretilebiliyor.
      */
     enum class Stage {
         SETUP,
         RECOVERY_SHOWN,
-        RECOVERY_VERIFY,
         CONFIRM_MASTER,
         BIOMETRIC_OFFER,
         POSTURE,
@@ -78,8 +87,6 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
          * sormak, kullanıcının koda bakmadan deneme yanılmayla ilerlemesine
          * kapı açardı.
          */
-        val verifyIndices: List<Int> = emptyList(),
-        val verifyError: Boolean = false,
         val confirmError: Boolean = false,
         /**
          * Ana parolayı üst üste kaç kez yanlış yazdı.
@@ -199,7 +206,6 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
                         busy = false,
                         stage = Stage.RECOVERY_SHOWN,
                         recoveryCode = code,
-                        verifyIndices = pickVerifyIndices(code)
                     )
                 },
                 onFailure = {
@@ -217,11 +223,6 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
      * kaçınılmaz olarak okuyor ve en taze hatırlanan parça o oluyor. Sondan
      * ve ortadan sormak, koda gerçekten bakılmasını gerektiriyor.
      */
-    private fun pickVerifyIndices(code: String): List<Int> {
-        val groups = code.split('-').size
-        if (groups <= VERIFY_GROUPS) return (0 until groups).toList()
-        return (1 until groups).shuffled().take(VERIFY_GROUPS).sorted()
-    }
 
     /**
      * Kurtarma anahtarını bir metin dosyasına yazar.
@@ -257,39 +258,21 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
         appendLine(container.appContext.getString(app.kasa.R.string.rec_sheet_body))
     }
 
-    fun onRecoverySeen() {
-        _setup.value = _setup.value.copy(stage = Stage.RECOVERY_VERIFY, verifyError = false)
-    }
-
-    /** Kurtarma adımına geri döner: kullanıcı koda yeniden bakmak istedi. */
-    fun onRecoveryReview() {
-        _setup.value = _setup.value.copy(stage = Stage.RECOVERY_SHOWN, verifyError = false)
-    }
-
     /**
-     * Geri yazılan grupları koddaki karşılıklarıyla karşılaştırır.
+     * Kurtarma adımı bitti: kod bellekten düşüyor ve ana parola onayına
+     * geçiliyor.
      *
-     * Karşılaştırma büyük/küçük harf ve boşluk duyarsız: Crockford Base32
-     * zaten büyük harfli ve kullanıcı kâğıttan okuyor, yani buradaki tek
-     * gerçek soru "kod elinde mi".
+     * [repository.consumeRecoveryCode] burada çağrılıyor — eskiden
+     * doğrulama adımındaydı. Kodun depodan düşmesi bu ekranın kapanmasına
+     * bağlı, kullanıcının onu geri yazmasına değil; adım kalktığına göre iş
+     * de buraya taşındı.
      */
-    fun onRecoveryVerified(typed: List<String>) {
-        val code = _setup.value.recoveryCode ?: return
-        val groups = code.split('-')
-        val ok = _setup.value.verifyIndices.withIndex().all { (slot, group) ->
-            typed.getOrNull(slot)?.trim()?.uppercase() == groups.getOrNull(group)?.uppercase()
-        }
-        if (!ok) {
-            container.haptics.play(Haptics.Kind.DENY)
-            _setup.value = _setup.value.copy(verifyError = true)
-            return
-        }
+    fun onRecoverySeen() {
         container.haptics.play(Haptics.Kind.SEAL)
         repository.consumeRecoveryCode()
         _setup.value = _setup.value.copy(
             stage = Stage.CONFIRM_MASTER,
-            recoveryCode = null,
-            verifyError = false
+            recoveryCode = null
         )
     }
 
@@ -610,7 +593,6 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
          * yani kodu tam da korunması gereken yere, galeriye koyar. Üçü,
          * koda bakmadan geçilemeyecek kadar çok.
          */
-        const val VERIFY_GROUPS = 3
 
         const val MIN_MASTER_LENGTH = 12
 

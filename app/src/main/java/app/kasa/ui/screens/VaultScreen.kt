@@ -845,7 +845,7 @@ fun VaultRow(
     // tek bir sütun oluşturuyor ve zayıf kayıtlar listeye bakarken görünüyor.
     val rule = when (tone) {
         PasswordStrength.Tone.WEAK -> KasaTheme.colors.strengthWeak
-        PasswordStrength.Tone.MEDIUM -> KasaTheme.colors.strengthMid
+        PasswordStrength.Tone.MID -> KasaTheme.colors.strengthMid
         PasswordStrength.Tone.STRONG -> KasaTheme.colors.strengthStrong
         // Ölçülemeyen tür (not, kart): marj boş kalıyor. Nötr bir işaret
         // koymak, ölçülmemiş bir şeyi ölçülmüş gibi göstermek olurdu.

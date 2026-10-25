@@ -200,7 +200,6 @@ fun OnboardingScreen(
                             )
                             AuthViewModel.Stage.SETUP -> SetupStep(viewModel, state)
                             AuthViewModel.Stage.RECOVERY_SHOWN -> RecoveryStep(viewModel, state)
-                            AuthViewModel.Stage.RECOVERY_VERIFY -> RecoveryVerifyStep(viewModel, state)
                             AuthViewModel.Stage.CONFIRM_MASTER -> ConfirmMasterStep(viewModel, state)
                             AuthViewModel.Stage.BIOMETRIC_OFFER -> BiometricStep(viewModel)
                             AuthViewModel.Stage.POSTURE -> PostureStep(viewModel)
@@ -559,12 +558,22 @@ private fun NoteRow(text: String, modifier: Modifier = Modifier) {
 /**
  * Kurtarma anahtarı adımı.
  *
- * ### Onay kutusu neden kaldırıldı
+ * ### Onay kutusu da, geri yazdırma da yok
  *
- * Burada "kurtarma anahtarını kaydettim" yazan bir onay kutusu vardı ve
+ * Burada bir zamanlar "kurtarma anahtarını kaydettim" onay kutusu vardı ve
  * niyeti kullanıcının "sonra bakarım" demesini engellemekti. Onay kutusu tam
  * olarak "sonra bakarım"ın kendisidir: işaretlemenin bedeli sıfır, kimse
- * okumadan geçer. Yerine gelen şey [RecoveryVerifyStep] — beyan yerine kanıt.
+ * okumadan geçer. Yerine anahtarın üç grubunu geri yazdıran bir adım geldi —
+ * beyan yerine kanıt.
+ *
+ * O adım da kaldırıldı. Kanıt istemek doğruydu ama bedeli yanlış yere
+ * düşüyordu: kurulumun en kritik anında, kodu kâğıda yeni yazmış birinden
+ * parçalarını elle girmesini istemek. Kullanıcı için zor olan bir adım
+ * güvenlik kazancını götürüyor — zor adım atlanmaz, kötü yapılır.
+ *
+ * Bu ekranda kalan şey yine bir **şey yapmayı** gerektiriyor ve bedeli
+ * doğru yerde: dosyaya kaydetmek ya da karekodu okutmak. İkisi de anahtarı
+ * ekrandan çıkarıp saklanabilir bir yere koyuyor, ki asıl istenen o.
  *
  * ### Anahtarın gidecek bir yeri
  *
@@ -765,98 +774,6 @@ private fun RecoveryQr(code: String) {
  * koymuş biri geri dönüp bakabilmeli; kâğıdı hiç yazmamış biri zaten dönünce
  * yazacak.
  */
-@Composable
-private fun RecoveryVerifyStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState) {
-    val slots = state.verifyIndices
-    var typed by remember(slots) { mutableStateOf(List(slots.size) { "" }) }
-    val complete = typed.all { it.trim().length >= GROUP_LENGTH }
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
-            .windowInsetsPadding(WindowInsets.navigationBars),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(Modifier.height(48.dp))
-        KasaReveal(visible = true, delayMillis = 0) {
-            Text(
-                stringResource(R.string.onb_verify_title),
-                style = KasaTheme.text.sheetTitle,
-                color = KasaTheme.colors.ink,
-                textAlign = TextAlign.Center
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        KasaReveal(visible = true, delayMillis = STEP_DELAY) {
-            Text(
-                stringResource(R.string.onb_verify_sub),
-                style = MaterialTheme.typography.bodyMedium,
-                color = KasaTheme.colors.ink2,
-                textAlign = TextAlign.Center
-            )
-        }
-        Spacer(Modifier.height(28.dp))
-
-        // Alanlar sırayla iniyor: kaç grup istendiği, saymadan önce
-        // hareketten anlaşılıyor.
-        slots.forEachIndexed { slot, group ->
-            KasaReveal(
-                visible = true,
-                delayMillis = STEP_DELAY * 2 + slot * FIELD_STEP,
-                lift = 10.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-            KasaTextField(
-                value = typed[slot],
-                onValueChange = { fresh ->
-                    // Crockford Base32 büyük harfli; kullanıcı küçük yazsa da
-                    // tireyi kendisi koysa da aynı yere varmalı.
-                    val cleaned = fresh.uppercase().filter { it.isLetterOrDigit() }.take(GROUP_LENGTH)
-                    typed = typed.toMutableList().also { it[slot] = cleaned }
-                },
-                // Grup numarası kullanıcının gördüğü sayı: koddaki sıra 1'den
-                // başlıyor, dizideki sıra 0'dan.
-                label = stringResource(R.string.onb_verify_group, group + 1),
-                textStyle = KasaTheme.text.mono,
-                imeAction = if (slot == slots.lastIndex) ImeAction.Done else ImeAction.Next,
-                isError = state.verifyError,
-                modifier = Modifier.fillMaxWidth()
-            )
-            }
-            Spacer(Modifier.height(10.dp))
-        }
-
-        if (state.verifyError) {
-            Text(
-                stringResource(R.string.onb_verify_wrong),
-                style = MaterialTheme.typography.bodySmall,
-                color = KasaTheme.colors.badgeWeakFg,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(10.dp))
-        }
-
-        Spacer(Modifier.height(10.dp))
-        KasaButton(
-            text = stringResource(R.string.continue_),
-            onClick = { viewModel.onRecoveryVerified(typed) },
-            enabled = complete,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(6.dp))
-        KasaButton(
-            text = stringResource(R.string.onb_verify_back),
-            onClick = viewModel::onRecoveryReview,
-            tone = ButtonTone.TEXT,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(40.dp))
-    }
-}
-
 /**
  * Ana parolayı hafızadan yazdırma.
  *
@@ -1451,7 +1368,6 @@ private const val SUGGEST_WORDS = 6
 private const val CODE_GROUP_STEP = 55
 
 /** Kurtarma anahtarındaki bir grubun karakter sayısı (Crockford Base32). */
-private const val GROUP_LENGTH = 4
 
 /** Ana parola kaç kez yanlış yazıldıktan sonra baştan başlamak öneriliyor. */
 private const val CONFIRM_PATIENCE = 3

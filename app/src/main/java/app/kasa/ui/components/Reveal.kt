@@ -10,7 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -103,7 +102,21 @@ fun KasaReveal(
     ) {
         content()
         if (!reduced && progress > 0.02f && progress < 0.98f) {
-            RevealDust(progress = progress, modifier = Modifier.fillMaxSize())
+            // `matchParentSize`, `fillMaxSize` değil.
+            //
+            // `fillMaxSize` gelen en büyük kısıtı doldurmaya çalışıyor ve
+            // sarmalayan [Box] içeriğine göre ölçüldüğü için bu, kutunun
+            // kendisini tam genişliğe açıyordu. Sonuç görünür bir kusurdu:
+            // geçiş başlayınca kutu genişliyor, içerik kutunun varsayılan
+            // hizasına (TopStart) düşüyor — yani sola kayıyor — ve geçiş
+            // bitip toz kalkınca kutu daralıp içerik ortaya **sıçrıyordu**.
+            // Ortalanmış bir öğe (kurulumdaki güç göstergesi gibi) her
+            // belirişinde soldan çıkıp yerine oturuyor gibi görünüyordu.
+            //
+            // `matchParentSize` tam bu iş için var: ölçüsünü kutudan alıyor
+            // ama kutunun ölçüsüne katılmıyor. Toz bir süs; yerleşime karar
+            // vermemesi gerekiyor.
+            RevealDust(progress = progress, modifier = Modifier.matchParentSize())
         }
     }
 }

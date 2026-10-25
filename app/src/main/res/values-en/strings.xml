@@ -695,11 +695,6 @@
     <string name="rec_sheet_body">This is the recovery key for the Kasa app. If you forget your master password, this is the only thing that opens the vault.\n\nDo not keep this file in the same place as the vault. Printing it on paper works too.</string>
 
     <!-- Setup: verifying the key -->
-    <string name="onb_verify_title">Let\'s use the key once</string>
-    <string name="onb_verify_sub">Type the requested groups from the key you saved. Doing it now is how you find out today that the key is really in your hands.</string>
-    <string name="onb_verify_group">Group %1$d</string>
-    <string name="onb_verify_wrong">These groups don\'t match the key. Check where you saved it and try again.</string>
-    <string name="onb_verify_back">Look at the key again</string>
 
     <!-- Setup: confirming the password -->
     <string name="onb_confirm_title">Type your master password again</string>

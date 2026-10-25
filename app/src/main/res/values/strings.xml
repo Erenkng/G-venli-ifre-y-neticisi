@@ -753,11 +753,6 @@
 Bu dosyayı kasanın kendisiyle aynı yerde tutma. Yazdırıp kâğıt olarak saklamak da olur.</string>
 
     <!-- Kurulum: anahtarı doğrulama -->
-    <string name="onb_verify_title">Anahtarı bir kez kullanalım</string>
-    <string name="onb_verify_sub">Kaydettiğin anahtardan istenen grupları yaz. Bunu şimdi yapmak, anahtarın gerçekten elinde olduğunu bugünden bilmek demek.</string>
-    <string name="onb_verify_group">%1$d. grup</string>
-    <string name="onb_verify_wrong">Gruplar anahtarla eşleşmiyor. Kaydettiğin yere bakıp yeniden dene.</string>
-    <string name="onb_verify_back">Anahtara tekrar bak</string>
 
     <!-- Kurulum: parolayı yineleme -->
     <string name="onb_confirm_title">Ana parolanı bir daha yaz</string>
