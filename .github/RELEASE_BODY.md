@@ -19,38 +19,36 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 2.8'de yenilikler
+## 2.9'da yenilikler
 
-Sızma denemesinin üçüncü turu. Yine yeni özellik yok; dört açık kapatıldı.
+Bu sürümde iki düzeltme ve ana ekranın yeni görünümü var.
 
-- **Passkey imzası, anahtarın hangi siteye ait olduğunu denetlemiyordu.**
-  İmza, isteği yapanın bildirdiği site adına göre atılıyor; anahtar ise
-  yalnızca kimlik numarasına göre bulunuyordu ve bu numaralar gizli değil.
-  İkisinin birbirine uyduğunu kontrol eden hiçbir şey yoktu — kuralın
-  tutmasını sağlayan tek şey, listeyi siteye göre süzen arayüzdü. Ama o bir
-  görüntü süzgeci; imza atan kod onun doğru çalıştığına güvenmemeli. Artık
-  imza aşaması kendi kontrolünü yapıyor.
-- **Bir önbellek dosyası, hesabın olduğu siteleri açık yazıyordu.**
-  Otomatik doldurmanın site doğrulama önbelleği şifresiz duruyordu ve
-  içindeki site adları rastgele değil: sorgu yalnızca kasadaki kayıtların
-  siteleri için atılıyor. Yani şifreli kasanın yanında, hesabın olduğu iki
-  yüze kadar sitenin açık listesi vardı. Uygulamanın sözü "kaç kayıt olduğu
-  dâhil her şey o şifreli dosyanın içinde" idi; bu dosya o sözün dışındaydı.
-  Artık cihaza bağlı bir anahtarla mühürlü ve eski açık dosya siliniyor.
-- **Önceki sürümdeki tarayıcı düzeltmesi aynı açığı taşıyordu.** 2.7'de
-  sahte tarayıcıları engellemek için "kullanıcının varsayılan tarayıcısı mı"
-  kontrolü eklenmişti. Ama Android, aday **tek** ise kullanıcı hiçbir şey
-  seçmemiş olsa da o adayı "varsayılan" olarak bildiriyor — yani hiç
-  tarayıcısı olmayan bir telefonda kötü niyetli bir uygulama yine geçebilirdi.
-  Artık gerçek bir seçim aranıyor.
-- **Dosya yazımı başarısız olursa dosya yok olabiliyordu.** Yazma, dosyayı
-  silip yeniden adlandırma denemesine düşüyordu; ikinci deneme de tutmazsa
-  dosya kayboluyor. En kötü hâli yanlış deneme sayacı: dosyası kaybolunca
-  sayaç sıfırlanıyor, yani ana parolayı denemeye karşı bekleme süresi
-  tamamen temizleniyor. Silme adımı kaldırıldı; artık başarısızlıkta eski
-  dosya yerinde kalıyor.
+- **Parmak izi iki kez soruluyordu.** Başka bir uygulamada parola
+  doldururken Kasa parmak izini iki kez istiyordu. "Açılışta bir kez sor"
+  kuralı, ekranın yerinde kalmasına bağlı bir yerde tutuluyordu; ekran
+  yeniden kurulduğunda kural sıfırlanıyor ve istem ikinci kez açılıyordu.
+  Aynı hata üç yerde vardı (doldurma penceresi, kilit ekranı, passkey
+  penceresi), üçü de düzeltildi.
+- **Ortalanmış şekiller soldan çıkıp ortaya sıçrıyordu.** Kurulumda parola
+  yazarken güç göstergesinin yaptığı şey buydu. Beliriş efektinin içindeki
+  toz katmanı, sarmalayan kutuyu tam genişliğe açıyor; içerik sola düşüyor
+  ve efekt bitince ortaya sıçrıyordu. Bu beliriş efektiyle gelen her
+  ortalanmış öğeyi etkiliyordu, hepsi düzeldi.
+- **Kurtarma anahtarının gruplarını geri yazma adımı kaldırıldı.** Amacı
+  anahtarı gerçekten kaydettiğini kanıtlatmaktı ama bedeli yanlış yere
+  düşüyordu: kodu kâğıda yeni yazmış birinden parçalarını elle girmesini
+  istemek. Anahtarı dosyaya kaydetme ve karekod seçenekleri aynı ekranda
+  duruyor; kaydetmeden geçen biri de kilitlenmiyor, ayarlardan yeni bir
+  kurtarma anahtarı üretilebiliyor.
+- **Kasa listesi artık bir dizin.** Kayıtlar kart içinde değil, doğrudan
+  zemin üzerinde. Ad belirgin biçimde iri; ikincil satır daha sakin. Parola
+  gücü satırın sonundaki noktadan **sol kenardaki kısa çizgiye** taşındı —
+  listeye dikey bakarken o çizgiler tek bir sütun oluşturuyor, yani hangi
+  kayıtların zayıf olduğu aramadan görünüyor. Kart kalkınca arkadaki
+  gradyan da ilk kez gerçekten görünüyor. Arama sonuçları da aynı görünümü
+  kullanıyor.
 
-Gezinme çubuğuna yine dokunulmadı.
+Gezinme çubuğu bu sürümde de aynı — sıradaki sürümde değişiyor.
 
 ---
 
