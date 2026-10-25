@@ -3,6 +3,7 @@ package app.kasa.ui.components
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +14,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,23 +61,54 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
+/**
+ * Bir gezinme hedefi.
+ *
+ * Simge alanı yok: çubuk kelimelerle geziniyor, gerekçesi [KasaNavBar]
+ * üzerinde yazılı. Kullanılmayan bir alan bırakmak sonraki okuyucuya
+ * "burada bir simge çiziliyor" demek olurdu.
+ */
 data class NavDestination(
     val key: String,
-    val label: String,
-    val icon: ImageVector
+    val label: String
 )
 
 /**
- * Alt gezinme çubuğu.
+ * Alt gezinme çubuğu: tipografik ray.
  *
- * Seçili öğenin arkasındaki hap (pill) yatayda sıkışık başlayıp yaylanarak
- * açılır; simge hafifçe büyür.
+ * ### Neden simge ve hap yok
+ *
+ * Burada dört kutu vardı: her biri simge + etiket, seçilinin arkasında
+ * yatayda yaylanarak açılan bir hap. İyi işlenmişti ve tam olarak her
+ * Android uygulamasında duran şeydi — uygulamanın kimlik iddiasının en zayıf
+ * olduğu yer, en çok görünen yerdi.
+ *
+ * Yeni çubuk listeyle aynı tezi sürdürüyor: ayırmayı kutu değil **tipografi**
+ * yapıyor. Hedefler bir satırda duran kelimeler. Seçili olan tam ağırlık ve
+ * genişlikte (Flex 620 / wdth 116), ötekiler ince ve dar (Flex 300 / wdth
+ * 92) ve kısık. Seçim bir hapın kayması değil, **kelimenin kendisinin öne
+ * çıkması**: biri ağırlaşırken komşuları geri çekiliyor. Değişken eksenle
+ * gezinen bir çubuk neredeyse hiçbir uygulamada yok ve bunu yapabilmesinin
+ * sebebi pakette zaten Roboto Flex'in bulunması.
+ *
+ * Tek krom parçası etkin kelimenin altındaki ince ray: yaylanarak kelimeden
+ * kelimeye kayıyor, bir deftere konmuş ayraç gibi.
+ *
+ * Simgelerin kalkmasının bir bedeli var ve açıkça söylenmeli: simge bir
+ * kelimeden daha hızlı tanınıyor, özellikle uygulamayı yeni kullanan biri
+ * için. Karşılığında dört kısa kelime belirsiz değil, dokunma alanı
+ * küçülmüyor (her kelime kendi dilimini baştan sona kaplıyor) ve ekran
+ * okuyucu için görünür metin, simgeden daha iyi bir kaynak.
+ *
+ * Çubuk kısaldı: listeye ~30dp daha yer kalıyor.
  *
  * ### Çubuğun altında ne oluyor
  *
@@ -132,22 +166,51 @@ fun KasaNavBar(
             strength = strength
         )
 
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 // Yalnızca içerik yukarı alınıyor; arka plan sistem çubuğunun
                 // altına kadar iniyor.
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(start = 12.dp, end = 12.dp, top = FADE_RUNWAY, bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(start = 10.dp, end = 10.dp, top = FADE_RUNWAY, bottom = 12.dp)
         ) {
-            destinations.forEach { destination ->
-                NavItem(
-                    destination = destination,
-                    selected = destination.key == selected,
-                    onClick = { onSelect(destination.key) },
-                    modifier = Modifier.weight(1f)
-                )
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val count = destinations.size.coerceAtLeast(1)
+                val slot = maxWidth / count
+                val index = destinations.indexOfFirst { it.key == selected }.coerceAtLeast(0)
+
+                Column(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth()) {
+                        destinations.forEach { destination ->
+                            NavItem(
+                                destination = destination,
+                                selected = destination.key == selected,
+                                onClick = { onSelect(destination.key) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(7.dp))
+
+                    // Ayraç. Konumu dilimden hesaplanıyor, ölçümden değil:
+                    // dilimler eşit olduğu için kelimenin ortası zaten
+                    // belirli ve bu, ölçüm geri bildirimi beklemeden ilk
+                    // kareden doğru yerde durması demek.
+                    val ruleWidth = RULE_WIDTH
+                    val targetX = slot * index + (slot - ruleWidth) / 2
+                    val x by animateDpAsState(targetX, KasaMotion.medium(), label = "navRule")
+                    Box(
+                        Modifier
+                            // Kayma yerleşim aşamasında okunuyor: animasyonlu
+                            // bir değeri beste aşamasında okumak her karede
+                            // yeniden beste demek.
+                            .offset { IntOffset(x.roundToPx(), 0) }
+                            .width(ruleWidth)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(KasaRadius.full))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
             }
         }
     }
@@ -398,49 +461,41 @@ private fun NavItem(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val pillScaleX by animateFloatAsState(
-        if (selected) 1f else 0.42f,
-        KasaMotion.medium(),
-        label = "pillScale"
-    )
-    val pillAlpha by animateFloatAsState(if (selected) 1f else 0f, KasaMotion.effect(), label = "pillAlpha")
-    val iconScale by animateFloatAsState(if (selected) 1.06f else 1f, KasaMotion.small(), label = "iconScale")
-    val slotScale by animateFloatAsState(if (pressed) 0.9f else 1f, KasaMotion.small(), label = "slotScale")
 
-    Column(
+    // Basınçta kelime hafifçe çekiliyor; hapsız bir çubukta dokunulduğunu
+    // söyleyen tek şey bu.
+    val press by animateFloatAsState(
+        if (pressed) 0.94f else 1f,
+        KasaMotion.small(),
+        label = "navPress"
+    )
+    val dim by animateFloatAsState(
+        if (selected) 1f else 0.62f,
+        KasaMotion.effect(),
+        label = "navDim"
+    )
+
+    Box(
         modifier = modifier
             .clickableNoRipple(interactionSource = interaction, role = Role.Tab, onClick = onClick)
-            .padding(top = 6.dp, bottom = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+            .scale(press),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(width = 64.dp, height = 34.dp)
-                .scale(slotScale),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                Modifier
-                    .size(width = 64.dp, height = 34.dp)
-                    .scale(scaleX = pillScaleX, scaleY = 1f)
-                    .clip(RoundedCornerShape(KasaRadius.full))
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = pillAlpha))
-            )
-            Icon(
-                imageVector = destination.icon,
-                contentDescription = destination.label,
-                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else KasaTheme.colors.ink3,
-                modifier = Modifier.size(24.dp).scale(iconScale)
-            )
-        }
         Text(
             text = destination.label,
-            style = KasaTheme.text.navLabel,
-            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else KasaTheme.colors.ink3
+            // Seçim ağırlık ve genişlikle söyleniyor; iki biçim arasındaki
+            // fark gözle okunacak kadar büyük olmak zorunda, yoksa "hangisi
+            // seçili" sorusu rengin tek başına cevaplamasına kalıyor.
+            style = if (selected) KasaTheme.text.navActive else KasaTheme.text.navLabel,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else KasaTheme.colors.ink3.copy(alpha = dim),
+            maxLines = 1,
+            softWrap = false,
+            textAlign = TextAlign.Center
         )
     }
 }
+
 
 data class FabAction(
     val label: String,
@@ -564,6 +619,9 @@ private fun FabMenuItem(action: FabAction, modifier: Modifier = Modifier) {
 
 /** Ana eylem düğmesinin çapı. Köşe animasyonunun hedefi buradan türetiliyor. */
 private val FAB_SIZE = 66.dp
+
+/** Etkin kelimenin altındaki ayracın genişliği. */
+private val RULE_WIDTH = 22.dp
 
 /** Gölge boyu için tasarım ölçekleri. */
 object KasaElevation {

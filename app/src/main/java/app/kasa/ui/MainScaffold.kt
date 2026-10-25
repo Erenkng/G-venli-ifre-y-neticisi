@@ -32,15 +32,11 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CreditCard
-import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.Password
-import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Timer
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -224,10 +220,10 @@ fun MainScaffold(
         (tab == TAB_VAULT && vaultView != VaultFilter.All)
 
     val destinations = listOf(
-        NavDestination(TAB_VAULT, stringResource(R.string.nav_vault), Icons.Rounded.Lock),
-        NavDestination(TAB_GENERATE, stringResource(R.string.nav_generate), Icons.Rounded.AutoAwesome),
-        NavDestination(TAB_SECURITY, stringResource(R.string.nav_security), Icons.Rounded.Shield),
-        NavDestination(TAB_SETTINGS, stringResource(R.string.nav_settings), Icons.Rounded.Tune)
+        NavDestination(TAB_VAULT, stringResource(R.string.nav_vault)),
+        NavDestination(TAB_GENERATE, stringResource(R.string.nav_generate)),
+        NavDestination(TAB_SECURITY, stringResource(R.string.nav_security)),
+        NavDestination(TAB_SETTINGS, stringResource(R.string.nav_settings))
     )
 
     // Geri tuşu: en üstteki katmanı kapat, hiçbiri yoksa kasa sekmesine dön.

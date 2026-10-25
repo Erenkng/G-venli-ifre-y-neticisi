@@ -96,11 +96,24 @@ fun KasaTile(
         modifier = modifier
             .fillMaxWidth()
             .pressScale(scale)
-            // Cam yüzey: satır zemindeki gradyanı geçiriyor, üst kenarı
-            // ışık alıyor. Gerekçesi glassSurface üzerinde yazılı.
-            .glassSurface(
-                shape = groupShape(position, tight, loose),
-                tint = if (pressed) KasaTheme.colors.tilePressed else KasaTheme.colors.tile
+            // ── cam levha kalktı ─────────────────────────────────────────
+            //
+            // Burada `glassSurface` vardı: her satır, grup köşeleriyle
+            // birbirine eklenen yarı saydam bir levhaydı. Kasa listesi
+            // dizine dönüşürken o levhanın iki bedeli görüldü —
+            // arkadaki gradyanı örtüyordu ve boşluğun yapabileceği bir
+            // ayırma işini yüzey harcayarak yapıyordu. Aynı gerekçe bu
+            // ortak satır için de geçerli: ayarlar, üretici ve güvenlik
+            // listeleri de aynı dili konuşmalı.
+            //
+            // Geriye kalan tek yüzey basınç tonu ve o yalnızca parmak
+            // basılıyken var. Köşe grubu (`position`) duruyor çünkü o tonun
+            // şeklini hâlâ o belirliyor: grubun ortasındaki satır keskin,
+            // uçları yuvarlak — dolayısıyla dokunulan satır grubun neresinde
+            // olduğunu söylemeye devam ediyor.
+            .background(
+                color = KasaTheme.colors.tilePressed.copy(alpha = if (pressed) 0.55f else 0f),
+                shape = groupShape(position, tight, loose)
             )
             // Dokunulan yere en yakın kenarın parlaması. Yüzeyin içine
             // yayılan bir ışık, satırdaki adın ve alt satırın kontrastını
@@ -328,12 +341,25 @@ fun SectionLabel(
     count: Int? = null
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+        // Yatay dolgu yok: başlık listenin sol kenarına dayanıyor ve satır
+        // adlarının solunda, marjda asılı duruyor. Dizinde bölüm işaretinin
+        // yeri burası — içerikle aynı hizaya girerse bölüm başlığı olmaktan
+        // çıkıp bir satır gibi okunuyor.
+        modifier = modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = text.uppercase(java.util.Locale("tr", "TR")),
+            // Büyük harfe çevirme **etkin yerelle** yapılıyor, sabit Türkçeyle
+            // değil.
+            //
+            // Burada `Locale("tr","TR")` gömülüydü ve Türkçe metin için
+            // doğruydu: "i" → "İ". Ama bu bileşen çevrilmiş metin de alıyor
+            // ve İngilizcede aynı kural yanlış sonuç veriyordu —
+            // "Security" → "SECURİTY", "Settings" → "SETTİNGS". Uygulamanın
+            // dili `localeConfig` ile ayarlandığı için varsayılan yerel
+            // zaten doğru olanı: Türkçede "İ", İngilizcede "I".
+            text = text.uppercase(),
             style = KasaTheme.text.sectionLabel,
             color = KasaTheme.colors.ink3
         )

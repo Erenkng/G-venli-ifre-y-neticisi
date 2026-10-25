@@ -367,8 +367,15 @@ fun listContentPadding(extraBottom: Dp = 0.dp): PaddingValues {
 
 private val SIDE_PADDING = 16.dp
 
-/** Gezinme çubuğunun iç boşluk hariç yüksekliği. */
-private val NAV_BAR_HEIGHT = 108.dp
+/**
+ * Gezinme çubuğunun iç boşluk hariç yüksekliği.
+ *
+ * Çubuk kelimelere dönüşünce kısaldı: fade koşusu (34) + kelime satırı (19)
+ * + boşluk (7) + ayraç (2) + alt dolgu (12) ≈ 74. Eski değer 108'di ve
+ * güncellenmemiş olsaydı listenin altında otuz dört piksellik boş bir şerit
+ * kalırdı — kazanılan yer kullanılmazdı.
+ */
+private val NAV_BAR_HEIGHT = 76.dp
 
 /**
  * Tam ekrana açılan bir alt sayfanın içeriğinin kaplayabileceği en fazla yer.

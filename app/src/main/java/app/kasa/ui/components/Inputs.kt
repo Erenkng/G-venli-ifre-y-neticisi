@@ -228,7 +228,7 @@ fun FieldBlock(
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Text(
-            label.uppercase(java.util.Locale("tr", "TR")),
+            label.uppercase(),
             style = KasaTheme.text.fieldLabel,
             color = KasaTheme.colors.ink3
         )
@@ -305,7 +305,7 @@ fun KasaTextField(
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Text(
-                label.uppercase(java.util.Locale("tr", "TR")),
+                label.uppercase(),
                 style = KasaTheme.text.fieldLabel,
                 color = if (isError) MaterialTheme.colorScheme.error else KasaTheme.colors.ink3
             )

@@ -138,11 +138,29 @@ val IndexMetaStyle = TextStyle(
     letterSpacing = 0.1.sp
 )
 
+/**
+ * Gezinme çubuğunun seçili olmayan kelimesi.
+ *
+ * İnce ve dar (Flex 300 / wdth 92): çubuk kelimelerle geziniyor ve "seçili
+ * değil" bilgisini taşıyan şey renk değil **ağırlık**. Seçili biçimle
+ * ([NavActiveStyle]) arasındaki fark gözle okunacak kadar büyük olmak
+ * zorunda, yoksa soru rengin tek başına cevaplamasına kalıyor.
+ */
 @OptIn(ExperimentalTextApi::class)
 val NavLabelStyle = TextStyle(
-    fontFamily = FontFamily(flex(620, width = 104f)),
-    fontSize = 11.5.sp,
-    lineHeight = 14.sp
+    fontFamily = FontFamily(flex(300, width = 92f)),
+    fontSize = 14.5.sp,
+    lineHeight = 19.sp,
+    letterSpacing = 0.1.sp
+)
+
+/** Gezinme çubuğunun seçili kelimesi: tam ağırlık, tam genişlik. */
+@OptIn(ExperimentalTextApi::class)
+val NavActiveStyle = TextStyle(
+    fontFamily = FontFamily(flex(620, width = 116f)),
+    fontSize = 14.5.sp,
+    lineHeight = 19.sp,
+    letterSpacing = (-0.1).sp
 )
 
 @OptIn(ExperimentalTextApi::class)
@@ -194,6 +212,7 @@ data class KasaTextStyles(
     val indexName: TextStyle = IndexNameStyle,
     val indexMeta: TextStyle = IndexMetaStyle,
     val navLabel: TextStyle = NavLabelStyle,
+    val navActive: TextStyle = NavActiveStyle,
     val mono: TextStyle = MonoStyle,
     val generatedPassword: TextStyle = GeneratedPasswordStyle
 )

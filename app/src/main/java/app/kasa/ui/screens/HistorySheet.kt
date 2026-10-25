@@ -220,7 +220,9 @@ private fun HistoryRow(
  * tarihin kendisi. "3 ay önce" iki satırda da aynı yazabilir.
  */
 private fun formatChangedAt(millis: Long): String =
-    SimpleDateFormat("d MMMM yyyy, HH:mm", Locale("tr", "TR")).format(Date(millis))
+    // Yerel sabit Türkçe değil, etkin yerel: ay adı buradan geliyor ve
+    // sabit Türkçeyle İngilizce kullanan birine "25 Ekim 2026" yazıyordu.
+    SimpleDateFormat("d MMMM yyyy, HH:mm", Locale.getDefault()).format(Date(millis))
 
 /** Kapalıyken görünen maske; uzunluğu gerçek parolayı ele vermiyor. */
 private const val MASK = "••••••••••••"

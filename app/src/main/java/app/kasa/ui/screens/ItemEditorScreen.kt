@@ -700,7 +700,7 @@ private fun FolderPicker(
 
     Column(Modifier.fillMaxWidth()) {
         Text(
-            stringResource(R.string.folder_field).uppercase(java.util.Locale("tr", "TR")),
+            stringResource(R.string.folder_field).uppercase(),
             style = KasaTheme.text.fieldLabel,
             color = KasaTheme.colors.ink3,
             modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
