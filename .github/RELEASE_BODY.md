@@ -19,46 +19,36 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 2.7'de yenilikler
+## 2.8'de yenilikler
 
-Sızma denemesinin ikinci turu. Yine yeni özellik yok; çıkan altı açık
-kapatıldı.
+Sızma denemesinin üçüncü turu. Yine yeni özellik yok; dört açık kapatıldı.
 
-- **Panodaki parola aslında hiç silinmiyordu.** Uygulama panoyu silmeden
-  önce "bu benim koyduğum şey mi" diye kontrol ediyordu, ama Android 10'dan
-  beri arka plandaki bir uygulama panoyu okuyamıyor — kontrol her seferinde
-  başarısız oluyor ve silme hiç yapılmıyordu. Silmeyi isteyen iki yol da
-  (zamanlayıcı ve kasanın kilitlenmesi) arka planda çalıştığı için,
-  kopyalanan parola panoda süresiz kalıyordu; ekranda "30 saniye sonra
-  silinecek" yazarken. Artık siliniyor. Zamanlayıcı da telefon uyurken
-  beklemiyor.
-- **Otomatik kilit süresi telefon uykudayken ilerlemiyordu.** "Beş dakika
-  sonra kilitle" gerçekte "beş dakika **açık kaldıktan** sonra kilitle"
-  demekti: cebe giren telefonda sayaç neredeyse duruyordu. Ekran kapanınca
-  kilitleme bunu gizliyordu, ama o ayarı kapatan kullanıcı tam da süreye
-  güvenen kullanıcı. Süre artık uykuyu da sayan bir saate bakıyor.
-- **Dosya seçtikten sonra dönülmezse kasa açık kalıyordu.** Dışa aktarma
-  ya da içe aktarma için dosya seçicisi açıldığında kilit bilerek
-  erteleniyor; ama kullanıcı seçiciden geri dönmezse kasayı kilitleyecek
-  hiçbir şey kalmıyordu. Artık kalıyor.
-- **Sahte bir tarayıcı, kasadan gerçek kaydı isteyebiliyordu.** Otomatik
-  doldurmada tarayıcı tanıma yalnızca uygulamanın adına bakıyordu ve o adı,
-  gerçek tarayıcı kurulu değilse başka bir uygulama alabilir. Böyle bir
-  uygulama "şu an bankanın sayfasındayım" deyip gerçek banka kaydının
-  önerilmesini sağlayabiliyordu; kullanıcı listede doğru kaydın adını
-  gördüğü için dokunuyordu. Artık tarayıcının ya telefonla gelmiş olması ya
-  da kullanıcının varsayılan tarayıcısı olması gerekiyor.
-  *Bunun bir bedeli var: varsayılan olmayan bir tarayıcıda kaydı ilk kez
-  elle seçmen gerekebilir. O seçim kalıcı — ikinci seferden itibaren yine
-  kendiliğinden geliyor.*
-- **Kayıt bazlı ek kilit, doğrulama bozulduğunda açılıyordu.** Parmak izi
-  okuyucusu meşgulse ya da çok denemeden sonra kilitlendiyse kapı
-  kendiliğinden açılıyordu — yani ek kilidi aşmanın yolu doğrulamayı geçmek
-  değil bozmaktı. Artık yalnızca cihazda hiçbir doğrulama yolu yoksa
-  açılıyor.
-- **Bozuk bir kayıt kasayı çökertebiliyordu.** İçe aktarılan bir dosyadaki
-  geçersiz bir 2FA ayarı, listeyi her açılışta çökerten kalıcı bir hataya
-  dönüşüyordu.
+- **Passkey imzası, anahtarın hangi siteye ait olduğunu denetlemiyordu.**
+  İmza, isteği yapanın bildirdiği site adına göre atılıyor; anahtar ise
+  yalnızca kimlik numarasına göre bulunuyordu ve bu numaralar gizli değil.
+  İkisinin birbirine uyduğunu kontrol eden hiçbir şey yoktu — kuralın
+  tutmasını sağlayan tek şey, listeyi siteye göre süzen arayüzdü. Ama o bir
+  görüntü süzgeci; imza atan kod onun doğru çalıştığına güvenmemeli. Artık
+  imza aşaması kendi kontrolünü yapıyor.
+- **Bir önbellek dosyası, hesabın olduğu siteleri açık yazıyordu.**
+  Otomatik doldurmanın site doğrulama önbelleği şifresiz duruyordu ve
+  içindeki site adları rastgele değil: sorgu yalnızca kasadaki kayıtların
+  siteleri için atılıyor. Yani şifreli kasanın yanında, hesabın olduğu iki
+  yüze kadar sitenin açık listesi vardı. Uygulamanın sözü "kaç kayıt olduğu
+  dâhil her şey o şifreli dosyanın içinde" idi; bu dosya o sözün dışındaydı.
+  Artık cihaza bağlı bir anahtarla mühürlü ve eski açık dosya siliniyor.
+- **Önceki sürümdeki tarayıcı düzeltmesi aynı açığı taşıyordu.** 2.7'de
+  sahte tarayıcıları engellemek için "kullanıcının varsayılan tarayıcısı mı"
+  kontrolü eklenmişti. Ama Android, aday **tek** ise kullanıcı hiçbir şey
+  seçmemiş olsa da o adayı "varsayılan" olarak bildiriyor — yani hiç
+  tarayıcısı olmayan bir telefonda kötü niyetli bir uygulama yine geçebilirdi.
+  Artık gerçek bir seçim aranıyor.
+- **Dosya yazımı başarısız olursa dosya yok olabiliyordu.** Yazma, dosyayı
+  silip yeniden adlandırma denemesine düşüyordu; ikinci deneme de tutmazsa
+  dosya kayboluyor. En kötü hâli yanlış deneme sayacı: dosyası kaybolunca
+  sayaç sıfırlanıyor, yani ana parolayı denemeye karşı bekleme süresi
+  tamamen temizleniyor. Silme adımı kaldırıldı; artık başarısızlıkta eski
+  dosya yerinde kalıyor.
 
 Gezinme çubuğuna yine dokunulmadı.
 
