@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kasa.R
 import app.kasa.core.crypto.SecretText
-import app.kasa.core.util.PasswordGenerator
 import app.kasa.core.util.PasswordStrength
 import app.kasa.core.util.Totp
 import app.kasa.data.VaultStore
@@ -71,6 +70,8 @@ import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaButtonGroup
 import app.kasa.ui.components.KasaChip
 import app.kasa.ui.components.KasaIconButton
+import app.kasa.data.SettingsStore
+import app.kasa.ui.GeneratorViewModel
 import app.kasa.ui.components.KasaPasswordField
 import app.kasa.ui.components.KasaTextField
 import app.kasa.ui.components.SectionLabel
@@ -91,6 +92,16 @@ import app.kasa.ui.theme.KasaTheme
 fun ItemEditorScreen(
     initial: VaultItem,
     viewModel: VaultViewModel,
+    /**
+     * Üretici, parola alanının yanındaki düğmeden açılan sayfa için.
+     *
+     * Üretici artık bir sekme değil ([GeneratorSheet]); parolanın yazıldığı
+     * yerde açılıyor. Görünüm modeli yukarıdan geliyor çünkü üretilen
+     * değerler ve geçmiş tek bir yerde tutulmalı: düzenleyicinin kendi
+     * örneğini kurması, aynı oturumda iki ayrı üretici geçmişi demekti.
+     */
+    generatorViewModel: GeneratorViewModel,
+    settings: SettingsStore.Settings,
     onScanQr: ((String) -> Unit) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -226,6 +237,8 @@ fun ItemEditorScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     PasswordEditor(
+                        generatorViewModel = generatorViewModel,
+                        settings = settings,
                         value = item.password.reveal(),
                         onValueChange = { item = item.copy(password = SecretText.of(it)) },
                         revealed = revealed,
@@ -387,9 +400,25 @@ private fun PasswordEditor(
     onValueChange: (String) -> Unit,
     revealed: Boolean,
     onToggleReveal: () -> Unit,
-    strength: PasswordStrength.Result?
+    strength: PasswordStrength.Result?,
+    generatorViewModel: GeneratorViewModel,
+    settings: SettingsStore.Settings
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    var generatorOpen by remember { mutableStateOf(false) }
+
+    if (generatorOpen) {
+        GeneratorSheet(
+            viewModel = generatorViewModel,
+            settings = settings,
+            onDismiss = { generatorOpen = false },
+            // Buradan gelen değer **bu** alana yazılıyor; yeni bir kayıt
+            // başlatmıyor. Üreticinin sekme olduğu zamanki davranış buydu ve
+            // yanlıştı: doldurmakta olduğun formu bırakıp ikinci bir form
+            // açıyordu.
+            onUseForNewEntry = { generated, _ -> onValueChange(generated) }
+        )
+    }
 
     Column {
         KasaPasswordField(
@@ -401,11 +430,16 @@ private fun PasswordEditor(
             imeAction = ImeAction.Next,
             trailingExtra = {
                 KasaIconButton(
-                    onClick = {
-                        onValueChange(
-                            PasswordGenerator.generate(PasswordGenerator.Options()).value
-                        )
-                    },
+                    // Eskiden tek dokunuşta varsayılan seçeneklerle bir parola
+                    // üretiyordu: hızlıydı ama ne üretildiği üzerinde hiçbir
+                    // söz hakkı yoktu ve beğenilmeyen değer için tek yol
+                    // üreticiyi ayrı bir sekmede açmaktı.
+                    //
+                    // Şimdi sayfa açılıyor ve içinde zaten üretilmiş bir değer
+                    // duruyor: basit durum iki dokunuş (aç, kullan), kipler ve
+                    // seçenekler bir kaydırma aşağıda. Bedeli bir dokunuş,
+                    // karşılığı ne aldığını görmek.
+                    onClick = { generatorOpen = true },
                     size = 36.dp,
                     contentDescription = stringResource(R.string.editor_generate)
                 ) {

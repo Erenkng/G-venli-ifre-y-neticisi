@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Notes
@@ -87,7 +88,7 @@ import app.kasa.ui.components.predictiveBack
 import app.kasa.ui.components.rememberBackGesture
 import app.kasa.ui.screens.ConfirmDialog
 import app.kasa.ui.screens.FolderPickerSheet
-import app.kasa.ui.screens.GeneratorScreen
+import app.kasa.ui.screens.GeneratorSheet
 import app.kasa.ui.screens.ItemDetailSheet
 import app.kasa.ui.screens.ItemEditorScreen
 import app.kasa.ui.screens.QrScanScreen
@@ -105,7 +106,6 @@ import app.kasa.ui.screens.VaultScreen
 import app.kasa.ui.theme.KasaMotion
 
 private const val TAB_VAULT = "vault"
-private const val TAB_GENERATE = "generate"
 private const val TAB_SECURITY = "security"
 private const val TAB_SETTINGS = "settings"
 
@@ -137,6 +137,17 @@ fun MainScaffold(
     // süzgeci değiller. Gerekçe TrashScreen ve TypePickerSheet üzerinde yazılı.
     var trashOpen by rememberSaveable { mutableStateOf(false) }
     var typePickerOpen by rememberSaveable { mutableStateOf(false) }
+
+    /**
+     * Üretici sayfası açık mı.
+     *
+     * Üretici bir sekme değil artık; gerekçesi [GeneratorSheet] üzerinde.
+     * Buradan açılıyor çünkü iki girişi var: ekleme menüsündeki "parola
+     * üret" ve başlatıcıdaki "üret" kısayolu. Düzenleyicinin içindeki parola
+     * alanı kendi sayfasını açıyor — oradaki değer forma yazılmalı, yeni bir
+     * kayıt başlatmamalı.
+     */
+    var generatorOpen by rememberSaveable { mutableStateOf(false) }
     var fabExpanded by remember { mutableStateOf(false) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     // Arama çubuğunun ekrandaki yeri. Kaydedilmiyor: yeniden oluşturulduğunda
@@ -177,7 +188,7 @@ fun MainScaffold(
     // Kısayol ve döşemeden gelen eylemler.
     LaunchedEffect(startAction) {
         when (startAction) {
-            MainActivity.ACTION_GENERATE -> tab = TAB_GENERATE
+            MainActivity.ACTION_GENERATE -> generatorOpen = true
             MainActivity.ACTION_SECURITY -> tab = TAB_SECURITY
             MainActivity.ACTION_SEARCH -> {
                 tab = TAB_VAULT
@@ -208,7 +219,6 @@ fun MainScaffold(
     val topBarTitle = when {
         tab == TAB_VAULT && vaultView.isTrash -> stringResource(R.string.trash_title)
         tab == TAB_VAULT -> stringResource(R.string.vault_title)
-        tab == TAB_GENERATE -> stringResource(R.string.gen_title)
         tab == TAB_SECURITY -> stringResource(R.string.sec_title)
         else -> settingsSection ?: stringResource(R.string.set_title)
     }
@@ -221,7 +231,6 @@ fun MainScaffold(
 
     val destinations = listOf(
         NavDestination(TAB_VAULT, stringResource(R.string.nav_vault)),
-        NavDestination(TAB_GENERATE, stringResource(R.string.nav_generate)),
         NavDestination(TAB_SECURITY, stringResource(R.string.nav_security)),
         NavDestination(TAB_SETTINGS, stringResource(R.string.nav_settings))
     )
@@ -378,41 +387,6 @@ fun MainScaffold(
                             onSearchBounds = { rect, corner ->
                                 searchOrigin = rect
                                 searchOriginCorner = corner
-                            }
-                        )
-
-                        TAB_GENERATE -> GeneratorScreen(
-                            viewModel = generatorViewModel,
-                            settings = settings,
-                            onHeaderCollapse = { headerCollapse.floatValue = it },
-                            // Üretilen değer kipine göre doğru alana gidiyor.
-                            //
-                            // Burada ne üretilirse üretilsin `password` alanına
-                            // yazılıyordu: kullanıcı adı üretip "kullan" diyen
-                            // kullanıcı, adını parola alanında buluyordu; çok
-                            // satırlı kurtarma kodu kümesi de tek satırlık bir
-                            // alana sıkıştırılıyordu.
-                            //
-                            // Sınır açıkça söylenmeli: uygulamada ayrı bir
-                            // "güvenli not" türü yok, o yüzden referans
-                            // değerler (onaltılık anahtar, UUID, kurtarma
-                            // kodları) giriş bilgisinin **not** alanına
-                            // gidiyor — çok satırlı tek alan orası. Böyle bir
-                            // tür eklenirse doğru yer burasıdır.
-                            onUseForNewEntry = { generated, generatorMode ->
-                                val fresh = when (generatorMode) {
-                                    GeneratorMode.USERNAME ->
-                                        app.kasa.data.model.VaultItem(name = "", username = generated)
-                                    GeneratorMode.HEX,
-                                    GeneratorMode.UUID,
-                                    GeneratorMode.RECOVERY ->
-                                        app.kasa.data.model.VaultItem(name = "", notes = generated)
-                                    else -> app.kasa.data.model.VaultItem(
-                                        name = "",
-                                        password = app.kasa.core.crypto.SecretText.of(generated)
-                                    )
-                                }
-                                vaultViewModel.startEdit(fresh)
                             }
                         )
 
@@ -603,7 +577,41 @@ fun MainScaffold(
                 } + FabAction(stringResource(R.string.fab_other), Icons.Rounded.MoreHoriz) {
                     fabExpanded = false
                     typePickerOpen = true
+                } + FabAction(stringResource(R.string.gen_title), Icons.Rounded.AutoAwesome) {
+                    // Üretici sekmeden kalktı; tek başına parola üretmek
+                    // isteyen kullanıcının girişi burası.
+                    fabExpanded = false
+                    generatorOpen = true
                 }
+            )
+        }
+
+        // ── üretici sayfası ───────────────────────────────────────────────
+        //
+        // Sekme değil, alttan açılan sayfa. Buradan açıldığında "kullan"
+        // yeni bir kayıt başlatıyor (ekleme menüsünden ya da kısayoldan
+        // gelmişse istenen o); düzenleyicinin içindeki giriş ise değeri
+        // forma yazıyor ve kendi sayfasını kendi açıyor.
+        if (generatorOpen) {
+            GeneratorSheet(
+                viewModel = generatorViewModel,
+                settings = settings,
+                onDismiss = { generatorOpen = false },
+            onUseForNewEntry = { generated, generatorMode ->
+                val fresh = when (generatorMode) {
+                    GeneratorMode.USERNAME ->
+                        app.kasa.data.model.VaultItem(name = "", username = generated)
+                    GeneratorMode.HEX,
+                    GeneratorMode.UUID,
+                    GeneratorMode.RECOVERY ->
+                        app.kasa.data.model.VaultItem(name = "", notes = generated)
+                    else -> app.kasa.data.model.VaultItem(
+                        name = "",
+                        password = app.kasa.core.crypto.SecretText.of(generated)
+                    )
+                }
+                vaultViewModel.startEdit(fresh)
+            }
             )
         }
 
@@ -698,6 +706,8 @@ fun MainScaffold(
                     ItemEditorScreen(
                         initial = item,
                         viewModel = vaultViewModel,
+                        generatorViewModel = generatorViewModel,
+                        settings = settings,
                         onScanQr = { onResult -> qrTarget = onResult },
                         onClose = { vaultViewModel.cancelEdit() }
                     )

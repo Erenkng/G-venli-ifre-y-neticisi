@@ -3,6 +3,8 @@ package app.kasa.ui.screens
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import app.kasa.ui.components.HeaderCollapse
@@ -12,6 +14,8 @@ import app.kasa.ui.components.KasaChip
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.components.pressScale
 import app.kasa.ui.theme.KasaRadius
+import app.kasa.ui.components.SheetBlurBehind
+import app.kasa.ui.components.sheetGlassColor
 import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
@@ -34,6 +38,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -92,6 +97,64 @@ import app.kasa.ui.theme.KasaTheme
  * da fark edilen bir sinyal.
  */
 @OptIn(ExperimentalLayoutApi::class)
+/**
+ * Üretici, alttan açılan sayfa olarak.
+ *
+ * ### Neden sekme değil
+ *
+ * Üretici bir **varış noktası** değil, bir **alet**. Sekme olduğu sürece
+ * kullanım şöyleydi: kayıt düzenlerken parola alanına geliyorsun, üretici
+ * sekmesine gidiyorsun, üretiyorsun, "kullan" diyor ve seni yeni bir kayıt
+ * formuna atıyor — yani zaten doldurduğun formu bırakıp başka bir form
+ * açıyorsun. Alet, işin yapıldığı yerde olmalı.
+ *
+ * Gezinme çubuğundan bir hedef düşmesi ayrıca sadeleştirme: dört kelime
+ * üçe indi ve kalan üçü gerçekten birer yer — kasa, güvenlik, ayarlar.
+ *
+ * ### Basit ile karmaşık aynı yerde
+ *
+ * İkinci bir "basit üretici" yazmak cazipti ve yanlış olurdu: iki ayrı
+ * yerde ayrı ayrı bozulan iki üretici demekti. Onun yerine **aynı** içerik
+ * kademeli açılıyor. Sayfa açıldığında görünen şey üstteki üç şey — değer,
+ * gücü ve kopyala/kullan — yani basit durum hiç kaydırmadan bitiyor.
+ * Kipler, uzunluk, karakter kümeleri, entropi hedefi ve geçmiş bir kaydırma
+ * aşağıda duruyor. Hiçbir özellik kaybedilmedi, yalnızca sırası değişti.
+ *
+ * @param onUse üretilen değeri çağıranın alanına yazar; `null` ise
+ *        "kullan" eylemi gösterilmiyor (tek başına üretip kopyalama)
+ */
+@Composable
+fun GeneratorSheet(
+    viewModel: GeneratorViewModel,
+    settings: SettingsStore.Settings,
+    onDismiss: () -> Unit,
+    onUseForNewEntry: ((String, GeneratorMode) -> Unit)? = null
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = sheetGlassColor(),
+        contentColor = KasaTheme.colors.ink,
+        shape = RoundedCornerShape(topStart = KasaRadius.xl, topEnd = KasaRadius.xl),
+        // Tutamak yok: geçmiş sayfası da böyle ve ikisinin farklı görünmesinin
+        // bir gerekçesi yok. (`SheetHandle` kayıt ayrıntısı dosyasına özel.)
+        dragHandle = null
+    ) {
+        SheetBlurBehind()
+        GeneratorScreen(
+            viewModel = viewModel,
+            settings = settings,
+            inSheet = true,
+            onUseForNewEntry = { value, mode ->
+                onUseForNewEntry?.invoke(value, mode)
+                onDismiss()
+            }
+        )
+    }
+}
+
 @Composable
 fun GeneratorScreen(
     viewModel: GeneratorViewModel,
@@ -106,7 +169,19 @@ fun GeneratorScreen(
      * konulsaydı, ekranın kaydedilmiş kopyasının içine düşerdi ve kendi
      * bulanıklığını bulanıklaştırırdı.
      */
-    onHeaderCollapse: (Float) -> Unit = {}
+    onHeaderCollapse: (Float) -> Unit = {},
+    /**
+     * Ekran bir alt sayfanın içinde mi çiziliyor?
+     *
+     * Üretici artık bir sekme değil: parola gerektiğinde alttan açılan bir
+     * sayfa. Gerekçesi [GeneratorSheet] üzerinde. İçerik iki yerde de aynı
+     * olmak zorunda — ikinci bir "basit üretici" yazmak, iki ayrı yerde
+     * ayrı ayrı bozulan iki üretici demekti — ama sarmalayan yerleşim
+     * farklı: sayfanın içinde ne tam ekran yüksekliği, ne durum çubuğu
+     * boşluğu, ne gezinme çubuğu payı, ne de cam çubuğa devreden bir dev
+     * başlık anlamlı.
+     */
+    inSheet: Boolean = false
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
@@ -143,16 +218,23 @@ fun GeneratorScreen(
 
     val listState = rememberLazyListState()
 
-    HeaderCollapse(listState, onHeaderCollapse)
+    if (!inSheet) HeaderCollapse(listState, onHeaderCollapse)
 
     LazyColumn(
         state = listState,
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.statusBars),
-        contentPadding = listContentPadding()
+        modifier = if (inSheet) {
+            modifier
+                .fillMaxWidth()
+                .heightIn(max = sheetMaxContentHeight())
+        } else {
+            modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
+        },
+        contentPadding = if (inSheet) PaddingValues(horizontal = 20.dp, bottom = 24.dp)
+        else listContentPadding()
     ) {
-        item(key = "hero") {
+        if (!inSheet) item(key = "hero") {
             HeroHeader(
                 // Büyük başlık cam çubuğa devrederken küçülüp yukarı
                 // çekiliyor: ikisi tek bir geçişin iki yarısı.
