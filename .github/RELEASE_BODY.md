@@ -19,36 +19,40 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 2.9'da yenilikler
+## 3.0'da yenilikler
 
-Bu sürümde iki düzeltme ve ana ekranın yeni görünümü var.
+Arayüz baştan düşünüldü. Yeni sürüm numarası bu yüzden: uygulama aynı işi
+yapıyor ama artık başka görünüyor.
 
-- **Parmak izi iki kez soruluyordu.** Başka bir uygulamada parola
-  doldururken Kasa parmak izini iki kez istiyordu. "Açılışta bir kez sor"
-  kuralı, ekranın yerinde kalmasına bağlı bir yerde tutuluyordu; ekran
-  yeniden kurulduğunda kural sıfırlanıyor ve istem ikinci kez açılıyordu.
-  Aynı hata üç yerde vardı (doldurma penceresi, kilit ekranı, passkey
-  penceresi), üçü de düzeltildi.
-- **Ortalanmış şekiller soldan çıkıp ortaya sıçrıyordu.** Kurulumda parola
-  yazarken güç göstergesinin yaptığı şey buydu. Beliriş efektinin içindeki
-  toz katmanı, sarmalayan kutuyu tam genişliğe açıyor; içerik sola düşüyor
-  ve efekt bitince ortaya sıçrıyordu. Bu beliriş efektiyle gelen her
-  ortalanmış öğeyi etkiliyordu, hepsi düzeldi.
-- **Kurtarma anahtarının gruplarını geri yazma adımı kaldırıldı.** Amacı
-  anahtarı gerçekten kaydettiğini kanıtlatmaktı ama bedeli yanlış yere
-  düşüyordu: kodu kâğıda yeni yazmış birinden parçalarını elle girmesini
-  istemek. Anahtarı dosyaya kaydetme ve karekod seçenekleri aynı ekranda
-  duruyor; kaydetmeden geçen biri de kilitlenmiyor, ayarlardan yeni bir
-  kurtarma anahtarı üretilebiliyor.
-- **Kasa listesi artık bir dizin.** Kayıtlar kart içinde değil, doğrudan
-  zemin üzerinde. Ad belirgin biçimde iri; ikincil satır daha sakin. Parola
-  gücü satırın sonundaki noktadan **sol kenardaki kısa çizgiye** taşındı —
-  listeye dikey bakarken o çizgiler tek bir sütun oluşturuyor, yani hangi
-  kayıtların zayıf olduğu aramadan görünüyor. Kart kalkınca arkadaki
-  gradyan da ilk kez gerçekten görünüyor. Arama sonuçları da aynı görünümü
-  kullanıyor.
+**Tez: liste bir kart yığını değil, bir dizin.** Bir parola yöneticisinin
+ana ekranı özünde taradığın adların listesi. Basılı dizinler girdiyi kutuya
+koymaz — işi tipografi ve ritim yapar. Kartlar hem arkadaki gradyanı
+örtüyordu hem de boşluğun yapabileceği bir ayırmayı yüzey harcayarak
+yapıyordu.
 
-Gezinme çubuğu bu sürümde de aynı — sıradaki sürümde değişiyor.
+- **Gezinme çubuğu artık kelimelerle geziniyor.** Simgeler ve seçilinin
+  arkasındaki hap gitti. Hedefler bir satırda duran kelimeler; seçili olan
+  tam ağırlık ve genişlikte, ötekiler ince ve kısık. Seçim bir şeyin kayması
+  değil, **kelimenin kendisinin öne çıkması** — biri ağırlaşırken komşuları
+  geri çekiliyor. Altındaki ince ray kelimeden kelimeye yaylanarak kayıyor.
+  *Simge yerine kelime bir tercih: simge daha hızlı tanınıyor, kelime daha
+  açık söylüyor. Çubuk da kısaldı, listeye yer kaldı.*
+- **Kartlar her ekrandan kalktı.** Ayarlar, üretici ve güvenlik listeleri de
+  kasa listesiyle aynı dili konuşuyor: satırlar doğrudan zemin üzerinde,
+  tek yüzey parmak basılıyken görünen ton.
+- **Bölüm başlıkları sol kenara, marja çekildi.**
+- **Cam, ait olduğu yerde kaldı:** üst/alt çubuklar ve açılan sayfalar.
+  Gradyan aileleri, günün saatine göre değişmesi ve bütün yay hareketleri
+  de yerinde.
+
+Ve arayüze bakarken çıkan birkaç gerçek hata:
+
+- **İngilizce kullananlar bozuk büyük harf görüyordu.** Başlıklar sabit
+  Türkçe kurallarıyla büyütülüyordu, yani "Security" → "SECURİTY",
+  "Settings" → "SETTİNGS". Alan etiketlerinde ve klasör alanında da aynı
+  hata vardı. Dördü de düzeldi.
+- **Parola geçmişindeki tarih hep Türkçe ay adı gösteriyordu** — İngilizce
+  kullanan biri "25 Ekim 2026" okuyordu. Artık uygulamanın diline uyuyor.
 
 ---
 
