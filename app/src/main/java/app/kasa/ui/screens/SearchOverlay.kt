@@ -44,7 +44,6 @@ import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.readablePane
 import app.kasa.ui.components.SearchTopBar
 import app.kasa.ui.components.KasaReveal
-import app.kasa.ui.components.groupPositionOf
 import kotlinx.coroutines.delay
 
 /**
@@ -196,7 +195,6 @@ fun SearchOverlay(
                     ) { index, item ->
                         VaultRow(
                             item = item,
-                            position = groupPositionOf(index, recentItems.size),
                             folderName = viewModel.folderName(item.folderId),
                             onClick = {
                                 viewModel.select(item.id)
@@ -233,7 +231,6 @@ fun SearchOverlay(
                     // edebiliyor, anlık yeniden dizilimde kaybediyor.
                     VaultRow(
                         item = item,
-                        position = groupPositionOf(index, results.size),
                         folderName = viewModel.folderName(item.folderId),
                         onClick = {
                             // Terim ancak bir kayda götürdüğünde işe yaramış

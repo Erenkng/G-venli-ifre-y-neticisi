@@ -94,6 +94,7 @@ import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.GroupPosition
 import app.kasa.ui.components.KasaButtonGroup
+import app.kasa.ui.components.KasaIndexRow
 import app.kasa.ui.components.KasaTile
 import app.kasa.ui.components.RecentCard
 import app.kasa.ui.components.SearchBarButton
@@ -101,10 +102,8 @@ import androidx.compose.runtime.State
 import app.kasa.ui.components.RowTotpCode
 import app.kasa.ui.components.rememberTotpClock
 import app.kasa.ui.components.SectionLabel
-import app.kasa.ui.components.StrengthDot
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.components.glassSurface
-import app.kasa.ui.components.groupPositionOf
 import app.kasa.ui.components.pressScale
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
@@ -486,7 +485,6 @@ fun VaultScreen(
                 ) {
                 VaultRow(
                     item = entry,
-                    position = groupPositionOf(index, sorted.size),
                     folderName = if (compact) null else viewModel.folderName(entry.folderId),
                     compact = compact,
                     selectable = selecting,
@@ -806,7 +804,6 @@ private fun LeakAlertCard(
 @Composable
 fun VaultRow(
     item: VaultItem,
-    position: GroupPosition,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     folderName: String? = null,
@@ -843,8 +840,31 @@ fun VaultRow(
     val tone = toneOf(item)
     val breachMark = stringResource(R.string.breach_mark)
 
-    KasaTile(position = position, onClick = onClick, onLongClick = onLongClick, modifier = modifier) {
-        if (selectable) SelectionMark(selected = selected) else EntryBadge(item = item)
+    // Güç artık satırın sonunda bir nokta değil, sol marjda bir tırnak.
+    // Gerekçesi KasaIndexRow üzerinde yazılı; kısası, dikey taramada marj
+    // tek bir sütun oluşturuyor ve zayıf kayıtlar listeye bakarken görünüyor.
+    val rule = when (tone) {
+        PasswordStrength.Tone.WEAK -> KasaTheme.colors.strengthWeak
+        PasswordStrength.Tone.MEDIUM -> KasaTheme.colors.strengthMid
+        PasswordStrength.Tone.STRONG -> KasaTheme.colors.strengthStrong
+        // Ölçülemeyen tür (not, kart): marj boş kalıyor. Nötr bir işaret
+        // koymak, ölçülmemiş bir şeyi ölçülmüş gibi göstermek olurdu.
+        null -> null
+    }
+
+    KasaIndexRow(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        ruleColor = rule,
+        minHeight = if (compact) 50.dp else 60.dp,
+        modifier = modifier
+    ) {
+        // Rozet dizinde bir kutu değil, marj işareti: küçük ve köşesi dar.
+        // Bilgi taşıdığı için kalkmadı — site logosu ve tür simgesi aradığını
+        // bulmayı hızlandırıyor — ama satırın öznesi artık ad.
+        if (selectable) SelectionMark(selected = selected)
+        else EntryBadge(item = item, size = 34.dp, cornerRadius = 11.dp)
+
         Column(Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -852,7 +872,7 @@ fun VaultRow(
             ) {
                 Text(
                     text = item.name,
-                    style = KasaTheme.text.tileName,
+                    style = KasaTheme.text.indexName,
                     color = KasaTheme.colors.ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -861,15 +881,13 @@ fun VaultRow(
                 if (item.attachments.isNotEmpty()) {
                     Text(
                         text = "· ${item.attachments.size}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = KasaTheme.text.indexMeta,
                         color = KasaTheme.colors.ink3
                     )
                 }
             }
             if (!compact) {
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = buildString {
+                val meta = buildString {
                     append(item.subtitle())
                     if (folderName != null) {
                         if (isNotEmpty()) append(" · ")
@@ -879,20 +897,23 @@ fun VaultRow(
                         if (isNotEmpty()) append(" · ")
                         append(breachMark)
                     }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (item.breached) KasaTheme.colors.strengthWeak else KasaTheme.colors.ink3,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+                }
+                // Boş ikincil satır için yer ayrılmıyor: dizinde ritmi
+                // bozan şey, içeriği olmayan bir satırın yüksekliği.
+                if (meta.isNotEmpty()) {
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = meta,
+                        style = KasaTheme.text.indexMeta,
+                        color = if (item.breached) KasaTheme.colors.strengthWeak
+                        else KasaTheme.colors.ink3,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
-        // Kod, güç noktasından **önce**: ikisi de satırın sonunda ama biri
-        // okunacak bir değer, öteki bir yargı. Değer içeride, yargı en dışta —
-        // liste dikey tarandığında noktalar tek bir sütun oluşturuyor ve
-        // araya giren kod o sütunu bozmuyor.
-        // Koşul satır içinde: `showTotp` gibi bir boolean üzerinden akıllı
-        // dönüşüm yapılmıyor, iki değer de burada doğrudan sınanmalı.
+
         if (totpClock != null && onCopyTotp != null && item.totpSecret.isNotBlank()) {
             RowTotpCode(
                 clock = totpClock,
@@ -900,11 +921,9 @@ fun VaultRow(
                 digits = item.totpDigits,
                 period = item.totpPeriod,
                 algorithm = item.totpAlgorithm,
-                onCopy = onCopyTotp,
-                modifier = Modifier.padding(end = 8.dp)
+                onCopy = onCopyTotp
             )
         }
-        StrengthDot(tone)
     }
 }
 

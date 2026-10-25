@@ -103,6 +103,41 @@ val TileNameStyle = TextStyle(
     letterSpacing = (-0.1).sp
 )
 
+/**
+ * Dizin satırının adı.
+ *
+ * Kasa listesi bir kart yığını değil bir **dizin**: girdiyi kutu değil
+ * tipografi ayırıyor. O yüzden ad [TileNameStyle]'dan belirgin biçimde
+ * iri ve geniş — kutu kalktığında satırı taşıyacak tek şey o.
+ *
+ * Genişlik (`wdth 116`) burada süs değil işlev: dar bir ad, kenarına
+ * dayanacak bir çerçeve olmadığında zeminde yüzüyor gibi görünüyor.
+ * Negatif harf aralığı da aynı sebeple — ad tek bir blok olarak okunmalı.
+ */
+@OptIn(ExperimentalTextApi::class)
+val IndexNameStyle = TextStyle(
+    fontFamily = FontFamily(flex(560, width = 116f)),
+    fontSize = 18.5.sp,
+    lineHeight = 23.sp,
+    letterSpacing = (-0.35).sp
+)
+
+/**
+ * Dizin satırının ikincil satırı: hesap adı, klasör, sızıntı işareti.
+ *
+ * Mono, çünkü taşıdığı şey bir ad değil bir **kimlik** (kullanıcı adı, alan
+ * adı) ve mono onu addan görsel olarak ayırıyor; iki satır aynı yazı
+ * tipindeyken hangisinin ne olduğu okunarak anlaşılıyordu. Küçük ve kısık:
+ * dizinde ikincil satır, arandığında bakılan yer.
+ */
+val IndexMetaStyle = TextStyle(
+    fontFamily = RobotoMono,
+    fontWeight = FontWeight.Medium,
+    fontSize = 11.5.sp,
+    lineHeight = 15.sp,
+    letterSpacing = 0.1.sp
+)
+
 @OptIn(ExperimentalTextApi::class)
 val NavLabelStyle = TextStyle(
     fontFamily = FontFamily(flex(620, width = 104f)),
@@ -156,6 +191,8 @@ data class KasaTextStyles(
     val sectionLabel: TextStyle = SectionLabelStyle,
     val fieldLabel: TextStyle = FieldLabelStyle,
     val tileName: TextStyle = TileNameStyle,
+    val indexName: TextStyle = IndexNameStyle,
+    val indexMeta: TextStyle = IndexMetaStyle,
     val navLabel: TextStyle = NavLabelStyle,
     val mono: TextStyle = MonoStyle,
     val generatedPassword: TextStyle = GeneratedPasswordStyle

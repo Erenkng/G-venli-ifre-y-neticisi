@@ -1,5 +1,6 @@
 package app.kasa.ui.components
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -138,6 +140,115 @@ fun KasaTile(
 }
 
 /** Kayıt rozeti: baş harf ya da simge. Basılınca kareden daireye döner. */
+/**
+ * Dizin satırı: kasa listesinin kart olmayan hâli.
+ *
+ * ### Neden kart değil
+ *
+ * Liste [KasaTile] ile kuruluyordu: her kayıt, gruplanmış köşe yarıçaplarıyla
+ * birbirine eklenen bir cam levhanın içinde. İyi işlenmişti ama iki şeye mal
+ * oluyordu.
+ *
+ * Birincisi, zemin. Uygulamanın kimliğini taşıyan şey arkadaki gradyan —
+ * günün saatine göre değişen, üç aileli, elle ayarlanmış bir yüzey. Levhalar
+ * onu neredeyse tamamen örtüyordu; yani en çok emek verilen şey en az
+ * görünen şeydi.
+ *
+ * İkincisi, yapı. Bir parola yöneticisinin ana ekranı özünde bir **dizin**:
+ * taradığın adların listesi. Basılı dizinler girdiyi kutuya koymaz, işi
+ * tipografi ve ritim yapar. Kutu, aslında boşluğun yapabileceği bir işi
+ * yüzey harcayarak yapıyordu.
+ *
+ * ### Ayırmayı ne yapıyor
+ *
+ * Satır arası çizgi yok, çerçeve yok. Ayıran şey dikey ritim ve adın
+ * (`KasaTheme.text.indexName`) ikincil satırla arasındaki tipografik fark. Çizgi eklemek kutuyu geri
+ * getirmenin ince bir yolu olurdu.
+ *
+ * ### Sol marj
+ *
+ * En soldaki kısa tırnak parola gücünü söylüyor. Eskiden satırın sonunda bir
+ * noktaydı; dizinde marja taşındı çünkü dikey taramada marj tek bir sütun
+ * oluşturuyor ve "hangi kayıtlar zayıf" sorusu listeye bakarken cevaplanıyor.
+ * Tırnağı olmayan kayıt (not, kart) marjı boş bırakıyor; ölçülemeyen bir şey
+ * için nötr bir işaret koymak, ölçülmüş gibi göstermek olurdu.
+ *
+ * ### Basınç
+ *
+ * Levha olmadığı için ölçeklenecek bir yüzey de yok. Geri bildirim iki
+ * yerden geliyor: kenardan kenara giden ince bir zemin tonu ve marj
+ * tırnağının uzaması. Dokunulan satır büyümüyor, **kendini işaretliyor** —
+ * kutusuz bir listede doğru olan bu.
+ */
+@Composable
+fun KasaIndexRow(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    /** Sol marj tırnağının rengi; `null` ise tırnak çizilmiyor. */
+    ruleColor: Color? = null,
+    minHeight: Dp = 60.dp,
+    content: @Composable RowScope.() -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+
+    // Tırnak basınçla uzuyor: satırın "kendini işaretlemesi" bu.
+    val ruleHeight by animateDpAsState(
+        targetValue = if (pressed) 30.dp else 20.dp,
+        animationSpec = KasaMotion.small(),
+        label = "indexRule"
+    )
+    val wash by animateFloatAsState(
+        targetValue = if (pressed) 1f else 0f,
+        animationSpec = KasaMotion.small(),
+        label = "indexWash"
+    )
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = minHeight)
+            // Dokunulan satırın zemin tonu.
+            //
+            // Uçları yumuşak: liste 16dp kenar boşluğuyla çalışıyor, yani bu
+            // bant ekranın kenarına dayanmıyor. Köşeli olsaydı kırpılmış
+            // görünürdü. Yumuşak uç bir kutu kurmuyor çünkü yalnızca parmak
+            // basılıyken var — dinlenme hâlinde satırın hiçbir yüzeyi yok ve
+            // asıl mesele o.
+            .clip(RoundedCornerShape(KasaRadius.s))
+            .background(KasaTheme.colors.tilePressed.copy(alpha = 0.55f * wash))
+            .combinedClickableNoRipple(
+                interactionSource = interaction,
+                role = Role.Button,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(end = 18.dp, top = 9.dp, bottom = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(13.dp)
+    ) {
+        // Marj: tırnak olsun olmasın aynı genişlikte. Değişken bir marj,
+        // ölçülebilen ve ölçülemeyen kayıtların adlarını farklı yerden
+        // başlatır ve dizinin sol kenarı dalgalanırdı.
+        Box(
+            modifier = Modifier.width(18.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (ruleColor != null) {
+                Box(
+                    Modifier
+                        .width(3.dp)
+                        .height(ruleHeight)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(ruleColor)
+                )
+            }
+        }
+        content()
+    }
+}
+
 @Composable
 fun KasaBadge(
     text: String? = null,
