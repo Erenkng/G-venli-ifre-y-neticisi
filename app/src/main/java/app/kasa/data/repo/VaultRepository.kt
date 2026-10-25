@@ -968,6 +968,16 @@ class VaultRepository(
         }.sortedByDescending { it.second.lastUsedAt }
     }
 
+    /**
+     * Kimlik bilgisi kimliğine göre passkey bulur.
+     *
+     * **Alan adına göre kapsanmamış**: kasanın tamamını tarıyor. Kimlik
+     * bilgisi kimlikleri gizli değil — doğrulayıcı tarafa gidiyor ve
+     * `allowCredentials` içinde geri geliyor — dolayısıyla buradan dönen
+     * kaydın istenen alan adına ait olduğunu **çağıran doğrulamak zorunda**.
+     * İmza atan taraftaki denetim [app.kasa.passkey.PasskeyActivity]
+     * içinde, gerekçesiyle birlikte yazılı.
+     */
     fun findPasskey(credentialId: String): Pair<VaultItem, Passkey>? =
         _data.value.liveItems.firstNotNullOfOrNull { item ->
             item.passkeys.firstOrNull { it.credentialId == credentialId }?.let { item to it }

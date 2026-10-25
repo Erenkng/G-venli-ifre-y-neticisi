@@ -122,19 +122,43 @@ data class CallerIdentity(
         }.getOrDefault(false)
 
         /**
-         * Bu paket, kullanıcının https bağlantılarını açmak için seçtiği
-         * uygulama mı?
+         * Bu paket, kullanıcının https bağlantılarını açmak için **bilerek
+         * seçtiği** uygulama mı?
          *
-         * Varsayılan seçilmemişse sistem seçim penceresini döndürüyor ve o da
-         * hiçbir tarayıcı paketiyle eşleşmiyor — yani cevap doğal olarak
-         * "hayır" oluyor. Sorgunun görünürlüğü manifestteki `<queries>`
-         * bildirimiyle zaten açık.
+         * ### Tek aday bir seçim değil
+         *
+         * Burada yalnızca `resolveActivity` sonucuna bakılıyordu ve o, aday
+         * birden fazlaysa kullanıcının seçtiğini (yoksa sistemin seçim
+         * penceresini) döndürüyor — ama aday **tek** ise kullanıcı hiçbir şey
+         * seçmemiş olsa da o tek adayı döndürüyor.
+         *
+         * Yani hiçbir tarayıcısı olmayan bir cihazda, https bağlantılarını
+         * açtığını bildiren kötü niyetli bir uygulama tek aday olarak
+         * "varsayılan tarayıcı" sayılıyordu: kapatılmak istenen kapının
+         * kendisi. Bu denetim bir önceki turda bu açığı kapatmak için
+         * eklenmişti ve kendi içinde aynı açığı taşıyordu.
+         *
+         * Ayrım şu: en az iki aday varken dönen paket bir **karardır** —
+         * karar verilmemiş olsaydı sistem seçim penceresini döndürürdü. Tek
+         * aday varken dönen paket yalnızca bir olgu. O durumda bu yol hiçbir
+         * şey söylemiyor ve kararı tek başına sistem uygulaması denetimi
+         * veriyor.
+         *
+         * Bedeli: tek tarayıcısı sistem uygulaması olmayan bir cihazda alan
+         * adı kademesi kayboluyor ve kullanıcı kaydı bir kez elle seçiyor.
+         * Sorgunun görünürlüğü manifestteki `<queries>` bildirimiyle açık.
          */
         private fun isDefaultBrowser(context: Context, packageName: String): Boolean = runCatching {
             val probe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))
                 .addCategory(Intent.CATEGORY_BROWSABLE)
-            context.packageManager
-                .resolveActivity(probe, PackageManager.MATCH_DEFAULT_ONLY)
+            val manager = context.packageManager
+
+            val candidates = manager.queryIntentActivities(probe, PackageManager.MATCH_DEFAULT_ONLY)
+                .mapNotNull { it.activityInfo?.packageName }
+                .distinct()
+            if (candidates.size < 2) return@runCatching false
+
+            manager.resolveActivity(probe, PackageManager.MATCH_DEFAULT_ONLY)
                 ?.activityInfo?.packageName == packageName
         }.getOrDefault(false)
 

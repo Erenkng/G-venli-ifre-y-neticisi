@@ -1,6 +1,7 @@
 package app.kasa.autofill
 
 import android.content.Context
+import app.kasa.core.crypto.KeystoreKeys
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -51,8 +52,8 @@ import java.util.concurrent.TimeUnit
  *
  * ### Önbellek
  *
- * Sonuç diske yazılıyor. Olumlu sonuç bir hafta, olumsuz sonuç bir gün
- * geçerli. Olumsuzun kısa tutulmasının sebebi: alan adı sahibi dosyayı yeni
+ * Sonuç diske **mühürlü** yazılıyor (gerekçesi [readCache] üzerinde).
+ * Olumlu sonuç bir hafta, olumsuz sonuç bir gün geçerli. Olumsuzun kısa tutulmasının sebebi: alan adı sahibi dosyayı yeni
  * eklemiş olabilir ve kullanıcı bir hafta boyunca "çalışmıyor" görmemeli.
  * Olumlunun uzun tutulmasının sebebi de gizlilik — her doldurmada bir istek
  * atmak, kullanıcının hangi uygulamayı ne zaman açtığını sunucuya bildirmek
@@ -183,10 +184,42 @@ class DigitalAssetLinks(private val context: Context) {
         return result
     }
 
+    /**
+     * Önbelleği diskten okur.
+     *
+     * ### Neden mühürlü
+     *
+     * Bu dosya düz metin JSON olarak yazılıyordu ve **anahtarları alan
+     * adları** — hangi alan adları olduğu da rastgele değil: sorgu yalnızca
+     * kasadaki kayıtların alan adları için atılıyor
+     * ([AutofillMatcher.delegated] onları kayıtlardan topluyor). Yani
+     * şifreli kasanın yanında, kullanıcının hesabı olan iki yüze kadar
+     * sitenin açık listesi duruyordu; olumlu girdiler bir hafta kalıcı.
+     *
+     * Uygulamanın verdiği söz şu: "kayıt adları, kaç kayıt olduğu ve hangi
+     * kategorilerin kullanıldığı dâhil her şey o şifreli dosyanın içinde."
+     * Bu dosya o sözün dışındaydı — üstelik özet bile değil, adların
+     * kendisi. Tehdit modeli kasa dosyasının kendisiyle aynı (root, adli
+     * kopya); kasanın şifreli olmasının sebebi de tam olarak o model.
+     *
+     * Artık [KeystoreKeys.deviceSeal] ile mühürlü: dosya cihazın anahtar
+     * deposuna bağlı, başka bir cihaza kopyalanırsa açılmıyor.
+     *
+     * ### Eski düz metin dosyası
+     *
+     * Açılamayan bir dosya yalnızca yok sayılmıyor, **siliniyor**. Sızıntı
+     * dosyanın içeriğiydi; yok saymak onu diskte bırakmak olurdu. Kaybedilen
+     * şey bir önbellek — en kötü durumda bir kez daha ağa çıkılıyor.
+     */
     private fun readCache(): Map<String, CacheEntry> = runCatching {
         val file = cacheFile
         if (!file.exists()) return emptyMap()
-        val parsed: Map<String, CacheEntry> = json.decodeFromString(file.readText())
+        val plain = KeystoreKeys.deviceOpen(file.readBytes())
+        if (plain == null) {
+            runCatching { file.delete() }
+            return emptyMap()
+        }
+        val parsed: Map<String, CacheEntry> = json.decodeFromString(plain.toString(Charsets.UTF_8))
         memory.putAll(parsed)
         parsed
     }.getOrDefault(emptyMap())
@@ -201,7 +234,8 @@ class DigitalAssetLinks(private val context: Context) {
             .take(MAX_CACHED_DOMAINS)
             .associate { it.key to it.value }
         cacheFile.parentFile?.mkdirs()
-        cacheFile.writeText(json.encodeToString(trimmed))
+        val sealed = KeystoreKeys.deviceSeal(json.encodeToString(trimmed).toByteArray(Charsets.UTF_8))
+        cacheFile.writeBytes(sealed)
     }
 
     /** Kullanıcı önbelleği elle temizleyebiliyor; ayarlardan çağrılıyor. */

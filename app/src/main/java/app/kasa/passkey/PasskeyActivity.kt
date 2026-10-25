@@ -258,9 +258,39 @@ class PasskeyActivity : FragmentActivity() {
             return
         }
 
+        // ── imza aşaması kendi değişmezini doğruluyor ────────────────────────
+        //
+        // İmza, `authenticatorData` içine çağıranın bildirdiği [rpId]'nin
+        // özetini koyuyor; anahtar ise yalnızca kimlik bilgisi **kimliğine**
+        // göre bulunuyor ([VaultRepository.findPasskey] kasanın tamamını
+        // tarıyor ve alan adına hiç bakmıyor). İkisinin birbirine uyduğunu
+        // kontrol eden hiçbir şey yoktu.
+        //
+        // Bir kimlik doğrulayıcının temel kuralı bu: anahtar hangi alan adı
+        // için üretildiyse yalnızca onun için imza atar (CTAP2'de kimlik
+        // bilgileri rpId'ye göre kapsanmıştır). Kuralın tutmasını bugün
+        // sağlayan şey yalnızca arayüz aşaması — [PasskeyEntries] listeyi
+        // alan adına göre süzüyor. Ama o bir **sunum** süzgeci; imza atan kod
+        // onun doğru çalıştığına güvenmek zorunda kalmamalı. Kimlik bilgisi
+        // kimlikleri gizli değil (doğrulayıcı tarafa gidiyor ve
+        // `allowCredentials` içinde geri geliyor), dolayısıyla "kimlik
+        // nereden geldi" sorusu imzanın dayanağı olamaz.
+        //
+        // `allowCredentials` de aynı sebeple burada yeniden uygulanıyor:
+        // doğrulayıcı taraf belirli kimlik bilgileri istediyse, listede
+        // olmayan biriyle imza atmanın hiçbir meşru karşılığı yok.
+        val passkey = found.second
+        val rpMatches = passkey.rpId.equals(options.rpId, ignoreCase = true)
+        val allowed = options.allowedCredentialIds.isEmpty() ||
+            options.allowedCredentialIds.contains(passkey.credentialId)
+        if (!rpMatches || !allowed) {
+            failGet()
+            return
+        }
+
         lifecycleScope.launch {
             val responseJson = PasskeyVault.assert(
-                passkey = found.second,
+                passkey = passkey,
                 options = options,
                 origin = origin,
                 packageName = request.callingAppInfo.packageName,
