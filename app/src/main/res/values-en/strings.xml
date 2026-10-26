@@ -758,4 +758,14 @@
     <string name="sec_trend">Trend</string>
     <string name="sec_trend_range">%1$d – %2$d</string>
     <string name="widget_unlocked">Vault unlocked</string>
+    <string name="rehearsal_title">Do you still remember your master password?</string>
+    <string name="rehearsal_body">With biometrics on you may not type it for months. That is how it gets forgotten. Type it once; it is not stored.</string>
+    <string name="rehearsal_action">Type it</string>
+    <string name="rehearsal_later">Later</string>
+    <string name="rehearsal_label">Master password</string>
+    <string name="rehearsal_ok">You remember it. The next rehearsal is further out.</string>
+    <string name="rehearsal_wrong">That did not match. Check that your recovery key is where you left it.</string>
+    <string name="rehearsal_missed">The master password did not match. Do you still have your recovery key? You can issue a new one in Settings.</string>
+    <string name="set_rehearsal">Memory rehearsal</string>
+    <string name="set_rehearsal_sub">Asks you to type the master password at growing intervals. It never unlocks anything and can be skipped.</string>
 </resources>

@@ -812,4 +812,14 @@ Bu dosyayı kasanın kendisiyle aynı yerde tutma. Yazdırıp kâğıt olarak sa
     <string name="sec_trend">Seyir</string>
     <string name="sec_trend_range">%1$d – %2$d</string>
     <string name="widget_unlocked">Kasa açık</string>
+    <string name="rehearsal_title">Ana parolanı hatırlıyor musun?</string>
+    <string name="rehearsal_body">Biyometri açıkken bu parolayı aylarca yazmıyorsun. Unutmanın tek yolu da bu. Bir kez yaz, kaydedilmiyor.</string>
+    <string name="rehearsal_action">Yaz</string>
+    <string name="rehearsal_later">Sonra</string>
+    <string name="rehearsal_label">Ana parola</string>
+    <string name="rehearsal_ok">Hatırlıyorsun. Bir sonraki prova daha ileride.</string>
+    <string name="rehearsal_wrong">Tutmadı. Kurtarma anahtarının yerinde olduğunu kontrol et.</string>
+    <string name="rehearsal_missed">Ana parola tutmadı. Kurtarma anahtarın elinde mi? Ayarlardan yenisini üretebilirsin.</string>
+    <string name="set_rehearsal">Hafıza provası</string>
+    <string name="set_rehearsal_sub">Ana parolayı artan aralıklarla bir kez yazdırır. Kilit açmaz, atlanabilir.</string>
 </resources>

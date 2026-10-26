@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -69,65 +70,41 @@ import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
 
-/**
- * Bir gezinme hedefi.
- *
- * Simge alanı yok: çubuk kelimelerle geziniyor, gerekçesi [KasaNavBar]
- * üzerinde yazılı. Kullanılmayan bir alan bırakmak sonraki okuyucuya
- * "burada bir simge çiziliyor" demek olurdu.
- */
 data class NavDestination(
     val key: String,
-    val label: String
+    val label: String,
+    val icon: ImageVector
 )
 
 /**
- * Alt gezinme çubuğu: tipografik ray.
+ * Havada asılı duran pill biçiminde alt gezinme çubuğu.
  *
- * ### Neden simge ve hap yok
+ * ### Buraya nasıl gelindi
  *
- * Burada dört kutu vardı: her biri simge + etiket, seçilinin arkasında
- * yatayda yaylanarak açılan bir hap. İyi işlenmişti ve tam olarak her
- * Android uygulamasında duran şeydi — uygulamanın kimlik iddiasının en zayıf
- * olduğu yer, en çok görünen yerdi.
+ * İki tur önce burada dört kutu vardı (simge + etiket + seçilinin arkasında
+ * açılan hap) — iyi işlenmiş ama her Android uygulamasıyla aynı. Sonra
+ * kelimelerle gezinen, kenardan kenara uzanan tipografik bir raya çevrildi:
+ * tez tutarlıydı, cihazda kötü çıktı. İki ders:
  *
- * Yeni çubuk listeyle aynı tezi sürdürüyor: ayırmayı kutu değil **tipografi**
- * yapıyor. Hedefler bir satırda duran kelimeler. Seçili olan tam ağırlık ve
- * genişlikte (Flex 620 / wdth 116), ötekiler ince ve dar (Flex 300 / wdth
- * 92) ve kısık. Seçim bir hapın kayması değil, **kelimenin kendisinin öne
- * çıkması**: biri ağırlaşırken komşuları geri çekiliyor. Değişken eksenle
- * gezinen bir çubuk neredeyse hiçbir uygulamada yok ve bunu yapabilmesinin
- * sebebi pakette zaten Roboto Flex'in bulunması.
+ *  - Simgeyi kaldırmak dokunma hedefini de küçültüyor. Kelime kendi
+ *    diliminin ortasında duran ince bir şerit; parmak ise ekranın altında
+ *    kabaca nişan alıyor.
+ *  - Kenardan kenara uzanan bir çubuk, ekranın altını **kapatıyor**. Havada
+ *    duran bir pill ise altından içerik geçiyor ve çubuk bir nesne gibi
+ *    okunuyor.
  *
- * Tek krom parçası etkin kelimenin altındaki ince ray: yaylanarak kelimeden
- * kelimeye kayıyor, bir deftere konmuş ayraç gibi.
+ * Şimdiki hâli: kenarlardan boşluklu, tamamen yuvarlatılmış, yükseltilmiş
+ * bir [Surface]. Simgeler geri geldi ve her hedef 64dp yüksekliğinde bir
+ * dokunma alanı kaplıyor.
  *
- * Simgelerin kalkmasının bir bedeli var ve açıkça söylenmeli: simge bir
- * kelimeden daha hızlı tanınıyor, özellikle uygulamayı yeni kullanan biri
- * için. Karşılığında dört kısa kelime belirsiz değil, dokunma alanı
- * küçülmüyor (her kelime kendi dilimini baştan sona kaplıyor) ve ekran
- * okuyucu için görünür metin, simgeden daha iyi bir kaynak.
+ * ### Camın nereye gittiği
  *
- * Çubuk kısaldı: listeye ~30dp daha yer kalıyor.
- *
- * ### Çubuğun altında ne oluyor
- *
- * Çubuk içeriğin **üzerinde** duruyor, yanında değil: liste sonuna kadar
- * kayıyor ve çubuğun altına giriyor. Girdiği yerde üç katman var:
- *
- *  1. **Arka plan bulanıklığı** — [backdrop], ekrandaki içeriğin kaydedilmiş
- *     bir kopyası. Çubuk o kopyanın yalnızca kendi altına düşen parçasını
- *     bulanıklaştırıp çiziyor. Buzlu cam etkisini veren şey bu; içeriğin
- *     hareket ettiği görünüyor ama okunmuyor.
- *  2. **Yumuşak degrade** — bulanık görüntünün üstünde, yukarıda saydam
- *     başlayıp aşağı indikçe koyulaşan bir örtü. Tam opak değil (0,96):
- *     "hafif opak" istenen his bu, ve altındaki hareket seçilmeye devam ediyor.
- *  3. **Sistem çubuğu alanı** — arka plan sistem gezinti çubuğunun altına
- *     kadar iniyor, yalnızca **içerik** iç boşlukla yukarı alınıyor. Eskiden
- *     iç boşluk çubuğun tamamına uygulandığı için o şerit boyasız kalıyordu.
- *
- * Bulanıklık kullanılamazsa (kaydedilmiş kopya yoksa) degrade tek başına
- * çalışmayı sürdürüyor; görüntü sadeleşiyor, bozulmuyor.
+ * Kenardan kenara giden çubuk iki kademeli bir blur bandı taşıyordu ve o
+ * bandın varlık sebebi "çubuğun altına giren içerik okunmasın, ama
+ * hareketi görünsün"dü. Havada duran bir pillin altına içerik girmiyor —
+ * yanından geçiyor. Bu yüzden pill opak bir yüzey; blur makinesi durum
+ * çubuğu örtüsünde ve açılan sayfalarda kullanılmaya devam ediyor, yani
+ * cam dili kalkmadı, ait olduğu yere çekildi.
  */
 @Composable
 fun KasaNavBar(
@@ -136,79 +113,41 @@ fun KasaNavBar(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
     backdrop: GraphicsLayer? = null,
-    /** Altında içerik var mı; camın gücünü bu belirliyor. */
     contentBehind: Boolean = true
 ) {
-    val colors = KasaTheme.colors
-    val strength by animateFloatAsState(
-        if (contentBehind) 1f else 0f,
-        KasaMotion.effect(),
-        label = "navBlur"
-    )
+    // İmza korunuyor: çağıran taraf hâlâ kaydedilmiş kopyayı ve "altında
+    // içerik var mı" bilgisini veriyor. Pill ikisini de kullanmıyor ama
+    // imzayı daraltmak, blur bandına dönmek istendiğinde çağıranı da
+    // değiştirmeyi gerektirirdi.
+    @Suppress("UNUSED_PARAMETER") val unusedBackdrop = backdrop
+    @Suppress("UNUSED_PARAMETER") val unusedContentBehind = contentBehind
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    0.00f to colors.navScrim.copy(alpha = 0f),
-                    0.30f to colors.navScrim.copy(alpha = 0.30f),
-                    0.62f to colors.navScrim.copy(alpha = 0.78f),
-                    1.00f to colors.navScrim.copy(alpha = 0.94f)
-                )
-            )
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Backdrop(
-            backdrop = backdrop,
-            modifier = Modifier.matchParentSize(),
-            gradientStart = { Offset(0f, 0f) },
-            gradientEnd = { Offset(0f, it.height) },
-            strength = strength
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                // Yalnızca içerik yukarı alınıyor; arka plan sistem çubuğunun
-                // altına kadar iniyor.
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(start = 10.dp, end = 10.dp, top = FADE_RUNWAY, bottom = 12.dp)
+        Surface(
+            shape = RoundedCornerShape(KasaRadius.full),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = KasaTheme.colors.ink,
+            // Yükseltme pillin havada durmasını söyleyen şey: gölge olmadan
+            // ekranın altına yapıştırılmış bir şerit gibi okunuyor.
+            shadowElevation = 10.dp,
+            tonalElevation = 3.dp
         ) {
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val count = destinations.size.coerceAtLeast(1)
-                val slot = maxWidth / count
-                val index = destinations.indexOfFirst { it.key == selected }.coerceAtLeast(0)
-
-                Column(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth()) {
-                        destinations.forEach { destination ->
-                            NavItem(
-                                destination = destination,
-                                selected = destination.key == selected,
-                                onClick = { onSelect(destination.key) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(7.dp))
-
-                    // Ayraç. Konumu dilimden hesaplanıyor, ölçümden değil:
-                    // dilimler eşit olduğu için kelimenin ortası zaten
-                    // belirli ve bu, ölçüm geri bildirimi beklemeden ilk
-                    // kareden doğru yerde durması demek.
-                    val ruleWidth = RULE_WIDTH
-                    val targetX = slot * index + (slot - ruleWidth) / 2
-                    val x by animateDpAsState(targetX, KasaMotion.medium(), label = "navRule")
-                    Box(
-                        Modifier
-                            // Kayma yerleşim aşamasında okunuyor: animasyonlu
-                            // bir değeri beste aşamasında okumak her karede
-                            // yeniden beste demek.
-                            .offset { IntOffset(x.roundToPx(), 0) }
-                            .width(ruleWidth)
-                            .height(2.dp)
-                            .clip(RoundedCornerShape(KasaRadius.full))
-                            .background(MaterialTheme.colorScheme.primary)
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                destinations.forEach { destination ->
+                    NavItem(
+                        destination = destination,
+                        selected = destination.key == selected,
+                        onClick = { onSelect(destination.key) },
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -462,40 +401,56 @@ private fun NavItem(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
 
-    // Basınçta kelime hafifçe çekiliyor; hapsız bir çubukta dokunulduğunu
-    // söyleyen tek şey bu.
+    // Seçili hedefin arkasındaki kap pillin içinde bir pill: yuvarlak
+    // biçim dışarıdaki kabuğu tekrarlıyor, köşeli bir vurgu onun içinde
+    // yabancı durur.
+    val fill by animateFloatAsState(
+        if (selected) 1f else 0f,
+        KasaMotion.medium(),
+        label = "navFill"
+    )
     val press by animateFloatAsState(
-        if (pressed) 0.94f else 1f,
+        if (pressed) 0.93f else 1f,
         KasaMotion.small(),
         label = "navPress"
     )
-    val dim by animateFloatAsState(
-        if (selected) 1f else 0.62f,
-        KasaMotion.effect(),
-        label = "navDim"
-    )
 
-    Box(
+    val container = MaterialTheme.colorScheme.secondaryContainer
+
+    Column(
         modifier = modifier
+            // 64dp: Material'ın dokunma hedefi alt sınırı 48dp ve bu onun
+            // üstünde. Kelimelerle gezinen önceki hâlde hedef, metnin
+            // kapladığı ince şeritti; parmak ekranın altında kabaca nişan
+            // alıyor ve ince şerit o nişanı tutmuyor.
+            .height(64.dp)
             .clickableNoRipple(interactionSource = interaction, role = Role.Tab, onClick = onClick)
+            .background(
+                color = container.copy(alpha = fill),
+                shape = RoundedCornerShape(KasaRadius.full)
+            )
             .scale(press),
-        contentAlignment = Alignment.Center
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
+        Icon(
+            imageVector = destination.icon,
+            contentDescription = null,
+            tint = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+            else KasaTheme.colors.ink3,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.height(4.dp))
         Text(
             text = destination.label,
-            // Seçim ağırlık ve genişlikle söyleniyor; iki biçim arasındaki
-            // fark gözle okunacak kadar büyük olmak zorunda, yoksa "hangisi
-            // seçili" sorusu rengin tek başına cevaplamasına kalıyor.
             style = if (selected) KasaTheme.text.navActive else KasaTheme.text.navLabel,
-            color = if (selected) MaterialTheme.colorScheme.primary
-            else KasaTheme.colors.ink3.copy(alpha = dim),
+            color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+            else KasaTheme.colors.ink3,
             maxLines = 1,
-            softWrap = false,
-            textAlign = TextAlign.Center
+            softWrap = false
         )
     }
 }
-
 
 data class FabAction(
     val label: String,

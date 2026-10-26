@@ -94,6 +94,8 @@ import app.kasa.ui.VaultViewModel
 import app.kasa.ui.components.EmptyState
 import app.kasa.ui.components.GroupPosition
 import app.kasa.ui.components.KasaButtonGroup
+import app.kasa.ui.components.ButtonTone
+import app.kasa.ui.components.KasaButton
 import app.kasa.ui.components.KasaIndexRow
 import app.kasa.ui.components.KasaTile
 import app.kasa.ui.components.RecentCard
@@ -151,6 +153,13 @@ fun VaultScreen(
     val folders by viewModel.folders.collectAsStateWithLifecycle()
     val smartCounts by viewModel.smartCounts.collectAsStateWithLifecycle()
     val leakAlertCount by viewModel.leakAlertCount.collectAsStateWithLifecycle()
+    val rehearsalDue by viewModel.rehearsalDue.collectAsStateWithLifecycle()
+    val rehearsalMissed by viewModel.rehearsalMissed.collectAsStateWithLifecycle()
+    var rehearsalPrompt by remember { mutableStateOf(false) }
+
+    // Prova sayacı ilk açılışta başlatılıyor; gerekçesi
+    // VaultViewModel.seedRehearsal üzerinde.
+    LaunchedEffect(Unit) { viewModel.seedRehearsal() }
     val folderCounts by viewModel.folderCounts.collectAsStateWithLifecycle()
 
     val categories = remember { listOf<Category?>(null) + Category.entries.toList() }
@@ -273,6 +282,29 @@ fun VaultScreen(
                     count = leakAlertCount,
                     onOpen = { viewModel.setView(VaultFilter.Smart(SmartFolder.LEAKED)) },
                     onDismiss = viewModel::dismissLeakAlert,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
+        }
+
+        // ── hafıza provası ───────────────────────────────────────────────
+        //
+        // Sızıntı uyarısının hemen ardında ve ondan daha sessiz: sızıntı
+        // "şu anda başkasının elinde" demek, prova ise "bir gün
+        // hatırlayamayabilirsin". İkisi aynı yerde ama sıra bu.
+        //
+        // Gerekçesi Rehearsal üzerinde: bu kasanın geri dönüşü olmayan tek
+        // arızası ana parolanın unutulması ve biyometri açıkken o parola
+        // aylarca hiç yazılmıyor.
+        if (rehearsalDue && !inTrash && view == VaultFilter.All) {
+            item(key = "rehearsal") {
+                RehearsalCard(
+                    missed = rehearsalMissed,
+                    onStart = { rehearsalPrompt = true },
+                    onPostpone = {
+                        viewModel.clearRehearsalMiss()
+                        viewModel.postponeRehearsal()
+                    },
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
             }
@@ -514,6 +546,28 @@ fun VaultScreen(
         }
     }
 
+    if (rehearsalPrompt) {
+        // Var olan parola istemi yeniden kullanılıyor: prova için ikinci bir
+        // parola alanı yazmak, aynı işi iki yerde yapmak olurdu.
+        //
+        // `minLength = 1`: buradaki iş parolayı **sınamak**, kurallarını
+        // dayatmak değil. Sekiz karakter alt sınırı kurulumda anlamlı; provada
+        // kullanıcı zaten var olan parolasını yazıyor ve onu kısa diye
+        // reddetmek, cevabı doğru olsa bile göndermesini engellerdi.
+        PasswordPromptDialog(
+            title = stringResource(R.string.rehearsal_title),
+            description = stringResource(R.string.rehearsal_body),
+            label = stringResource(R.string.rehearsal_label),
+            confirmText = stringResource(R.string.rehearsal_action),
+            minLength = 1,
+            onConfirm = { typed ->
+                rehearsalPrompt = false
+                viewModel.submitRehearsal(typed)
+            },
+            onDismiss = { rehearsalPrompt = false }
+        )
+    }
+
     purgeTarget?.let { target ->
         ConfirmDialog(
             title = stringResource(R.string.trash_purge_confirm),
@@ -633,6 +687,69 @@ private fun SelectionMark(selected: Boolean) {
  * geliyor. Aksi hâlde kullanıcı bir kez kapatarak, henüz duymadığı bir haberi
  * de kapatmış olurdu. Bulgu çözüldüğünde kart zaten kendiliğinden gidiyor.
  */
+/**
+ * Hafıza provası kartı.
+ *
+ * ### Neden sızıntı uyarısından sessiz
+ *
+ * Sızıntı uyarısı kaydırarak kapatılan, kırmızıya çalan bir karttı: "şu anda
+ * başkasının elinde" diyor. Prova aynı tonu kullanamaz — söylediği şey bir
+ * tehlike değil, bir ihtimal. Bağırırsa iki kez görülüp üçüncüde kapatılan
+ * bir şeye dönüşür ve kapatıldığı an işlevi biter.
+ *
+ * O yüzden burada kaydırma yok, kırmızı yok, sayaç yok: iki satır metin ve
+ * iki düğme. "Sonra" da gerçekten sonra demek — basamak düşmüyor, yalnızca
+ * aynı aralık kadar erteliyor.
+ *
+ * Yanlış cevaptan sonra metin değişiyor ve tek bir şey söylüyor: kurtarma
+ * anahtarını kontrol et. O noktada yapılacak gerçek iş o.
+ */
+@Composable
+private fun RehearsalCard(
+    missed: Boolean,
+    onStart: () -> Unit,
+    onPostpone: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(KasaRadius.m))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(horizontal = 18.dp, vertical = 16.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.rehearsal_title),
+            style = KasaTheme.text.indexName,
+            color = KasaTheme.colors.ink
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = stringResource(
+                if (missed) R.string.rehearsal_missed else R.string.rehearsal_body
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (missed) KasaTheme.colors.strengthWeak else KasaTheme.colors.ink2
+        )
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            KasaButton(
+                text = stringResource(R.string.rehearsal_action),
+                onClick = onStart,
+                height = 54.dp,
+                modifier = Modifier.weight(1f)
+            )
+            KasaButton(
+                text = stringResource(R.string.rehearsal_later),
+                onClick = onPostpone,
+                tone = ButtonTone.TEXT,
+                height = 54.dp,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
 @Composable
 private fun LeakAlert(
     count: Int,
@@ -856,16 +973,14 @@ fun VaultRow(
         onClick = onClick,
         onLongClick = onLongClick,
         ruleColor = rule,
-        minHeight = if (compact) 50.dp else 60.dp,
-        modifier = modifier
-    ) {
-        // Rozet dizinde bir kutu değil, marj işareti: küçük ve köşesi dar.
-        // Bilgi taşıdığı için kalkmadı — site logosu ve tür simgesi aradığını
-        // bulmayı hızlandırıyor — ama satırın öznesi artık ad.
-        if (selectable) SelectionMark(selected = selected)
-        else EntryBadge(item = item, size = 34.dp, cornerRadius = 11.dp)
-
-        Column(Modifier.weight(1f)) {
+        modifier = modifier,
+        leading = {
+            // Rozet 34'ten 44'e çıktı: dizin denemesinde "marj işareti"
+            // olsun diye küçültülmüştü ve o boyutta site logosu tanınmıyordu.
+            if (selectable) SelectionMark(selected = selected)
+            else EntryBadge(item = item, size = 44.dp, cornerRadius = 15.dp)
+        },
+        headline = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -881,12 +996,14 @@ fun VaultRow(
                 if (item.attachments.isNotEmpty()) {
                     Text(
                         text = "· ${item.attachments.size}",
-                        style = KasaTheme.text.indexMeta,
+                        style = MaterialTheme.typography.bodySmall,
                         color = KasaTheme.colors.ink3
                     )
                 }
             }
-            if (!compact) {
+        },
+        supporting = if (compact) null else {
+            {
                 val meta = buildString {
                     append(item.subtitle())
                     if (folderName != null) {
@@ -898,13 +1015,10 @@ fun VaultRow(
                         append(breachMark)
                     }
                 }
-                // Boş ikincil satır için yer ayrılmıyor: dizinde ritmi
-                // bozan şey, içeriği olmayan bir satırın yüksekliği.
                 if (meta.isNotEmpty()) {
-                    Spacer(Modifier.height(3.dp))
                     Text(
                         text = meta,
-                        style = KasaTheme.text.indexMeta,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = if (item.breached) KasaTheme.colors.strengthWeak
                         else KasaTheme.colors.ink3,
                         maxLines = 1,
@@ -912,19 +1026,20 @@ fun VaultRow(
                     )
                 }
             }
-        }
-
-        if (totpClock != null && onCopyTotp != null && item.totpSecret.isNotBlank()) {
-            RowTotpCode(
-                clock = totpClock,
-                secret = item.totpSecret,
-                digits = item.totpDigits,
-                period = item.totpPeriod,
-                algorithm = item.totpAlgorithm,
-                onCopy = onCopyTotp
-            )
-        }
-    }
+        },
+        trailing = if (totpClock != null && onCopyTotp != null && item.totpSecret.isNotBlank()) {
+            {
+                RowTotpCode(
+                    clock = totpClock,
+                    secret = item.totpSecret,
+                    digits = item.totpDigits,
+                    period = item.totpPeriod,
+                    algorithm = item.totpAlgorithm,
+                    onCopy = onCopyTotp
+                )
+            }
+        } else null
+    )
 }
 
 /**

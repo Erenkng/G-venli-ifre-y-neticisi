@@ -298,7 +298,19 @@ class SettingsStore(private val context: Context) {
          * uyarı geri geliyor. Bir boole olsaydı sonradan sızan parola da aynı
          * "kapatıldı" bayrağının altında kalırdı.
          */
-        val dismissedLeakAlert: String = ""
+        val dismissedLeakAlert: String = "",
+
+        /**
+         * Ana parolanın hafıza provası açık mı, en son ne zaman yapıldı ve
+         * hangi aralık basamağında.
+         *
+         * Gerekçesi [app.kasa.core.util.Rehearsal] üzerinde. Üçü de gizli
+         * veri değil — ne parola, ne kasanın içeriğine dair bir şey — o
+         * yüzden tercih deposunda duruyorlar.
+         */
+        val rehearsalEnabled: Boolean = true,
+        val rehearsalLastAt: Long = 0L,
+        val rehearsalStep: Int = app.kasa.core.util.Rehearsal.FIRST_STEP
     )
 
     val settings: Flow<Settings> = context.dataStore.data.map { prefs ->
@@ -387,7 +399,10 @@ class SettingsStore(private val context: Context) {
             generatorWordCount = prefs[KEY_GEN_WORDS] ?: 5,
             generatorSeparator = prefs[KEY_GEN_SEPARATOR] ?: "-",
             generatorCapitalize = prefs[KEY_GEN_CAPITALIZE] ?: true,
-            dismissedLeakAlert = prefs[KEY_LEAK_DISMISSED] ?: ""
+            dismissedLeakAlert = prefs[KEY_LEAK_DISMISSED] ?: "",
+            rehearsalEnabled = prefs[KEY_REHEARSAL_ON] ?: true,
+            rehearsalLastAt = prefs[KEY_REHEARSAL_AT] ?: 0L,
+            rehearsalStep = prefs[KEY_REHEARSAL_STEP] ?: app.kasa.core.util.Rehearsal.FIRST_STEP
         )
     }
 
@@ -457,6 +472,22 @@ class SettingsStore(private val context: Context) {
     suspend fun setGeneratorEntropyTarget(value: Int) = put(KEY_GEN_ENTROPY, value)
     suspend fun setGeneratorCapitalize(value: Boolean) = put(KEY_GEN_CAPITALIZE, value)
     suspend fun setDismissedLeakAlert(value: String) = put(KEY_LEAK_DISMISSED, value)
+
+    suspend fun setRehearsalEnabled(value: Boolean) = put(KEY_REHEARSAL_ON, value)
+
+    /**
+     * Prova sonucunu yazar: ne zaman yapıldı ve hangi basamağa geçildi.
+     *
+     * İkisi tek çağrıda, tek düzenlemede yazılıyor. Ayrı ayrı yazılsaydı
+     * aralarında bir okuma düşebilir ve prova "yapıldı ama basamak
+     * ilerlemedi" ya da tersi bir durumda görülebilirdi.
+     */
+    suspend fun setRehearsalResult(at: Long, step: Int) {
+        context.dataStore.edit {
+            it[KEY_REHEARSAL_AT] = at
+            it[KEY_REHEARSAL_STEP] = step
+        }
+    }
 
     /** Kasa silindiğinde tercihler de sıfırlanır. */
     suspend fun clear() {
@@ -547,6 +578,9 @@ class SettingsStore(private val context: Context) {
         val KEY_GRADIENT_TIME = booleanPreferencesKey("gradient_follows_time")
         val KEY_GEN_MODE = stringPreferencesKey("gen_mode")
         val KEY_LEAK_DISMISSED = stringPreferencesKey("dismissed_leak_alert")
+        val KEY_REHEARSAL_ON = booleanPreferencesKey("rehearsal_enabled")
+        val KEY_REHEARSAL_AT = longPreferencesKey("rehearsal_last_at")
+        val KEY_REHEARSAL_STEP = intPreferencesKey("rehearsal_step")
         val KEY_GEN_PIN_LEN = intPreferencesKey("gen_pin_length")
         val KEY_GEN_HEX_BITS = intPreferencesKey("gen_hex_bits")
         val KEY_GEN_BATCH = booleanPreferencesKey("gen_batch")

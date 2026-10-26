@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -154,82 +156,51 @@ fun KasaTile(
 
 /** Kayıt rozeti: baş harf ya da simge. Basılınca kareden daireye döner. */
 /**
- * Dizin satırı: kasa listesinin kart olmayan hâli.
+ * Kasa listesinin satırı.
  *
- * ### Neden kart değil
+ * ### Dizin denemesi ve geri dönüş
  *
- * Liste [KasaTile] ile kuruluyordu: her kayıt, gruplanmış köşe yarıçaplarıyla
- * birbirine eklenen bir cam levhanın içinde. İyi işlenmişti ama iki şeye mal
- * oluyordu.
+ * Bir tur önce burası elle yazılmış, kutusuz, 60dp yüksekliğinde bir
+ * "dizin satırı"ydı: ayırmayı tipografi ve ritim yapıyordu. Tez tutarlıydı,
+ * cihazda kötü çıktı. Sebebi de öğretici — kutu yalnızca süs değil, ölçü
+ * veriyor: satırın nerede başlayıp bittiğini, dokunma alanının nereye kadar
+ * uzandığını ve metnin hangi hizada durduğunu kutu söylüyordu. Kaldırılınca
+ * geriye hizası belirsiz, dokunma alanı tahmine kalmış satırlar kaldı.
  *
- * Birincisi, zemin. Uygulamanın kimliğini taşıyan şey arkadaki gradyan —
- * günün saatine göre değişen, üç aileli, elle ayarlanmış bir yüzey. Levhalar
- * onu neredeyse tamamen örtüyordu; yani en çok emek verilen şey en az
- * görünen şeydi.
+ * Şimdiki hâli Material 3'ün kendi [ListItem]'ı. Elle yazılmış bir satır
+ * yerine standart bileşeni kullanmanın karşılığı somut: iki satırlık liste
+ * öğesi için doğru yükseklik (72dp), baş/son yuva hizaları, metin stilleri
+ * ve erişilebilirlik davranışı bileşenin kendisinden geliyor — hepsi elle
+ * tutulduğunda yanlış tutulan şeyler.
  *
- * İkincisi, yapı. Bir parola yöneticisinin ana ekranı özünde bir **dizin**:
- * taradığın adların listesi. Basılı dizinler girdiyi kutuya koymaz, işi
- * tipografi ve ritim yapar. Kutu, aslında boşluğun yapabileceği bir işi
- * yüzey harcayarak yapıyordu.
- *
- * ### Ayırmayı ne yapıyor
- *
- * Satır arası çizgi yok, çerçeve yok. Ayıran şey dikey ritim ve adın
- * (`KasaTheme.text.indexName`) ikincil satırla arasındaki tipografik fark. Çizgi eklemek kutuyu geri
- * getirmenin ince bir yolu olurdu.
- *
- * ### Sol marj
- *
- * En soldaki kısa tırnak parola gücünü söylüyor. Eskiden satırın sonunda bir
- * noktaydı; dizinde marja taşındı çünkü dikey taramada marj tek bir sütun
- * oluşturuyor ve "hangi kayıtlar zayıf" sorusu listeye bakarken cevaplanıyor.
- * Tırnağı olmayan kayıt (not, kart) marjı boş bırakıyor; ölçülemeyen bir şey
- * için nötr bir işaret koymak, ölçülmüş gibi göstermek olurdu.
- *
- * ### Basınç
- *
- * Levha olmadığı için ölçeklenecek bir yüzey de yok. Geri bildirim iki
- * yerden geliyor: kenardan kenara giden ince bir zemin tonu ve marj
- * tırnağının uzaması. Dokunulan satır büyümüyor, **kendini işaretliyor** —
- * kutusuz bir listede doğru olan bu.
+ * Kap saydam bırakılıyor: arkadaki gradyan görünmeye devam ediyor, yani
+ * dizin denemesinden kalan **iyi** taraf korunuyor. Dokunulan satır
+ * yuvarlatılmış bir tonla işaretleniyor.
  */
 @Composable
 fun KasaIndexRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
-    /** Sol marj tırnağının rengi; `null` ise tırnak çizilmiyor. */
+    /** Sol kenardaki güç tırnağının rengi; `null` ise çizilmiyor. */
     ruleColor: Color? = null,
-    minHeight: Dp = 60.dp,
-    content: @Composable RowScope.() -> Unit
+    leading: @Composable (() -> Unit)? = null,
+    trailing: @Composable (() -> Unit)? = null,
+    supporting: @Composable (() -> Unit)? = null,
+    headline: @Composable () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-
-    // Tırnak basınçla uzuyor: satırın "kendini işaretlemesi" bu.
-    val ruleHeight by animateDpAsState(
-        targetValue = if (pressed) 30.dp else 20.dp,
-        animationSpec = KasaMotion.small(),
-        label = "indexRule"
-    )
     val wash by animateFloatAsState(
         targetValue = if (pressed) 1f else 0f,
         animationSpec = KasaMotion.small(),
-        label = "indexWash"
+        label = "rowWash"
     )
 
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = minHeight)
-            // Dokunulan satırın zemin tonu.
-            //
-            // Uçları yumuşak: liste 16dp kenar boşluğuyla çalışıyor, yani bu
-            // bant ekranın kenarına dayanmıyor. Köşeli olsaydı kırpılmış
-            // görünürdü. Yumuşak uç bir kutu kurmuyor çünkü yalnızca parmak
-            // basılıyken var — dinlenme hâlinde satırın hiçbir yüzeyi yok ve
-            // asıl mesele o.
-            .clip(RoundedCornerShape(KasaRadius.s))
+            .clip(RoundedCornerShape(KasaRadius.m))
             .background(KasaTheme.colors.tilePressed.copy(alpha = 0.55f * wash))
             .combinedClickableNoRipple(
                 interactionSource = interaction,
@@ -237,28 +208,36 @@ fun KasaIndexRow(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(end = 18.dp, top = 9.dp, bottom = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp)
     ) {
-        // Marj: tırnak olsun olmasın aynı genişlikte. Değişken bir marj,
-        // ölçülebilen ve ölçülemeyen kayıtların adlarını farklı yerden
-        // başlatır ve dizinin sol kenarı dalgalanırdı.
-        Box(
-            modifier = Modifier.width(18.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (ruleColor != null) {
-                Box(
-                    Modifier
-                        .width(3.dp)
-                        .height(ruleHeight)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(ruleColor)
-                )
-            }
-        }
-        content()
+        ListItem(
+            headlineContent = headline,
+            supportingContent = supporting,
+            leadingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Güç tırnağı baş yuvanın içinde: ayrı bir sütun olarak
+                    // durduğunda [ListItem]'ın kendi hizalarını bozuyordu.
+                    Box(Modifier.width(7.dp), contentAlignment = Alignment.Center) {
+                        if (ruleColor != null) {
+                            Box(
+                                Modifier
+                                    .width(3.dp)
+                                    .height(26.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(ruleColor)
+                            )
+                        }
+                    }
+                    if (leading != null) {
+                        Spacer(Modifier.width(10.dp))
+                        leading()
+                    }
+                }
+            },
+            trailingContent = trailing,
+            // Kap saydam: zemindeki gradyan satırın arkasından geçmeye devam
+            // ediyor ve basınç tonu onun üstüne biniyor.
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
     }
 }
 

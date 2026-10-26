@@ -5,6 +5,8 @@ import app.kasa.ui.components.floatingBarWidth
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawBehind
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
@@ -77,7 +79,7 @@ import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultFilter
 import app.kasa.ui.components.FabAction
 import app.kasa.ui.components.FabMenu
-import app.kasa.ui.components.GlassBackdropScrim
+import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.components.KasaNavBar
 import app.kasa.ui.components.KasaSnackbarHost
 import app.kasa.ui.components.KasaTopBar
@@ -528,18 +530,38 @@ fun MainScaffold(
             )
         }
 
-        // Menü açıkken ekran buzlanıyor. Düz bir karartmanın altında liste
-        // hâlâ okunuyordu ve menüyle dikkat için yarışıyordu; gerekçesi
-        // GlassBackdropScrim üzerinde yazılı.
-        GlassBackdropScrim(
-            visible = fabExpanded,
-            onDismiss = { fabExpanded = false },
-            // Kaydedilmemiş bir kopyayı bulanıklaştırmak boş bir kare çizmek
-            // olurdu: boş kasada kayıt hiç alınmıyor.
-            backdrop = backdrop.takeIf { needsBackdrop },
-            blurBottomInset = navBarHeight,
-            modifier = Modifier.fillMaxSize()
+        // ── ekleme menüsü açıkken: karartma, bulanıklık değil ────────────
+        //
+        // Burada iki kademeli bir cam örtü vardı ve menüyle yarışan listeyi
+        // okunmaz kılıyordu. Gerekçe kâğıt üzerinde doğruydu ama ekranda
+        // ağır çıktı: artı tuşuna her dokunuşta bütün ekranın buzlanması,
+        // beş satırlık bir menü için fazla büyük bir olay.
+        //
+        // Yerine sade bir karartma. Dışarı dokunup kapatma korunuyor —
+        // `GlassBackdropScrim`'e `backdrop = null` geçmek onu da
+        // götürürdü, çünkü o bileşen kopya yoksa hiçbir şey çizmiyor ve
+        // dolayısıyla dokunmayı da yakalamıyor.
+        val fabScrim by animateFloatAsState(
+            targetValue = if (fabExpanded) 1f else 0f,
+            animationSpec = if (fabExpanded) KasaMotion.large() else KasaMotion.exit(),
+            label = "fabScrim"
         )
+        if (fabScrim > 0.004f) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (fabExpanded) Modifier.clickableNoRipple { fabExpanded = false }
+                        else Modifier
+                    )
+                    // Oran çizim aşamasında okunuyor: beste gövdesinde
+                    // okunsaydı örtünün her karesi bütün iskeleti yeniden
+                    // besteletirdi.
+                    .drawBehind {
+                        drawRect(Color.Black.copy(alpha = 0.38f * fabScrim))
+                    }
+            )
+        }
 
         AnimatedVisibility(
             // Çöp kutusundayken yeni kayıt eklemek anlamsız.

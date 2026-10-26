@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.kasa.AppContainer
 import app.kasa.R
 import app.kasa.core.security.SecureClipboard
+import app.kasa.core.util.Rehearsal
 import app.kasa.core.util.Haptics
 import app.kasa.data.model.Attachment
 import app.kasa.data.model.Category
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -152,6 +154,97 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
         if (fingerprint.isEmpty()) return
         container.haptics.play(Haptics.Kind.MEDIUM)
         viewModelScope.launch { container.settingsStore.setDismissedLeakAlert(fingerprint) }
+    }
+
+    // ───────────────────────── hafıza provası ─────────────────────────────
+
+    /**
+     * Prova zamanı geldi mi?
+     *
+     * Gerekçesi [Rehearsal] üzerinde. Burada yalnızca zamanlama var; soruyu
+     * soran ve cevabı değerlendiren kısım ekranda.
+     *
+     * Akış `settings`e bağlı, bir saate değil: her saniye yeniden hesaplanan
+     * bir "şu an" gerekmiyor çünkü kart bir uyarı değil bir davet — bir kare
+     * geç görünmesi hiçbir şeyi bozmuyor. Ayarlar her açılışta ve her
+     * değişiklikte yeniden yayıldığı için kart da o anlarda görünüyor.
+     */
+    val rehearsalDue: StateFlow<Boolean> =
+        container.settingsStore.settings.map { settings ->
+            settings.rehearsalEnabled && Rehearsal.isDue(
+                lastAt = settings.rehearsalLastAt,
+                step = settings.rehearsalStep,
+                now = System.currentTimeMillis()
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Yanlış cevaptan sonra gösterilen uyarı; kart kapanınca sıfırlanıyor. */
+    private val _rehearsalMissed = MutableStateFlow(false)
+    val rehearsalMissed: StateFlow<Boolean> = _rehearsalMissed.asStateFlow()
+
+    /**
+     * Prova sayacını başlatır.
+     *
+     * [Rehearsal.isDue] sıfır damgayı "henüz değil" sayıyor, yani sayaç bir
+     * yerden başlatılmak zorunda. Başlangıç noktası ilk açılış: güncellemeyle
+     * gelen kullanıcı parolayı o anda yazmış oluyor ve ilk prova üç gün sonra
+     * geliyor. Kurulumu yeni bitirmiş birine parolayı iki kez üst üste
+     * yazdırmamak için de doğru olan bu.
+     */
+    fun seedRehearsal() {
+        viewModelScope.launch {
+            val settings = container.settingsStore.settings.first()
+            if (settings.rehearsalLastAt == 0L) {
+                container.settingsStore.setRehearsalResult(
+                    at = System.currentTimeMillis(),
+                    step = settings.rehearsalStep
+                )
+            }
+        }
+    }
+
+    /**
+     * Yazılan parolayı sınar ve sonucu kaydeder.
+     *
+     * Doğruysa aralık uzuyor. Yanlışsa en kısa aralığa dönülüyor **ve** damga
+     * yine güncelleniyor: yanlış cevaptan hemen sonra tekrar sormak, hatırlama
+     * sorununu çözmeyen bir ısrar olurdu. Yerine kurtarma anahtarını kontrol
+     * etme önerisi gösteriliyor — o noktada yapılacak gerçek iş o.
+     */
+    fun submitRehearsal(password: CharArray) {
+        viewModelScope.launch {
+            val settings = container.settingsStore.settings.first()
+            val ok = repository.verifyMasterPassword(password)
+            container.haptics.play(if (ok) Haptics.Kind.SEAL else Haptics.Kind.WARNING)
+            _rehearsalMissed.value = !ok
+            container.settingsStore.setRehearsalResult(
+                at = System.currentTimeMillis(),
+                step = if (ok) Rehearsal.advance(settings.rehearsalStep) else Rehearsal.reset()
+            )
+            messages.send(UiMessage(if (ok) R.string.rehearsal_ok else R.string.rehearsal_wrong))
+        }
+    }
+
+    /**
+     * Provayı şimdi değil diye erteler.
+     *
+     * Basamak **değişmiyor**: atlamak yanlış cevap vermek değil, yalnızca
+     * "şu an uygun değil". Damga güncellendiği için aynı aralık kadar sonra
+     * yeniden soruluyor.
+     */
+    fun postponeRehearsal() {
+        viewModelScope.launch {
+            val settings = container.settingsStore.settings.first()
+            container.haptics.play(Haptics.Kind.MEDIUM)
+            container.settingsStore.setRehearsalResult(
+                at = System.currentTimeMillis(),
+                step = settings.rehearsalStep
+            )
+        }
+    }
+
+    fun clearRehearsalMiss() {
+        _rehearsalMissed.value = false
     }
 
     val folderCounts: StateFlow<Map<String, Int>> =
