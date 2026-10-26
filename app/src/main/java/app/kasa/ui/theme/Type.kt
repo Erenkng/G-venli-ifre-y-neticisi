@@ -133,8 +133,8 @@ val IndexNameStyle = TextStyle(
 val IndexMetaStyle = TextStyle(
     fontFamily = RobotoMono,
     fontWeight = FontWeight.Medium,
-    fontSize = 11.5.sp,
-    lineHeight = 15.sp,
+    fontSize = 12.sp,
+    lineHeight = 16.sp,
     letterSpacing = 0.1.sp
 )
 

@@ -44,6 +44,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Folder
@@ -105,7 +106,6 @@ import app.kasa.ui.components.RowTotpCode
 import app.kasa.ui.components.rememberTotpClock
 import app.kasa.ui.components.SectionLabel
 import app.kasa.ui.components.clickableNoRipple
-import app.kasa.ui.components.glassSurface
 import app.kasa.ui.components.pressScale
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
@@ -957,28 +957,38 @@ fun VaultRow(
     val tone = toneOf(item)
     val breachMark = stringResource(R.string.breach_mark)
 
-    // Güç artık satırın sonunda bir nokta değil, sol marjda bir tırnak.
-    // Gerekçesi KasaIndexRow üzerinde yazılı; kısası, dikey taramada marj
-    // tek bir sütun oluşturuyor ve zayıf kayıtlar listeye bakarken görünüyor.
-    val rule = when (tone) {
+    // Güç satırın sağ ucunda bir nokta. Gerekçesi KasaIndexRow üzerinde
+    // yazılı; kısası, sağ marj da dikey taramada tek bir sütun oluşturuyor
+    // ve sol marjdaki tırnağın aksine rozeti yerinden itmiyor.
+    val dot = when (tone) {
         PasswordStrength.Tone.WEAK -> KasaTheme.colors.strengthWeak
         PasswordStrength.Tone.MID -> KasaTheme.colors.strengthMid
         PasswordStrength.Tone.STRONG -> KasaTheme.colors.strengthStrong
-        // Ölçülemeyen tür (not, kart): marj boş kalıyor. Nötr bir işaret
+        // Ölçülemeyen tür (not, kart): uç boş kalıyor. Nötr bir işaret
         // koymak, ölçülmemiş bir şeyi ölçülmüş gibi göstermek olurdu.
         null -> null
     }
 
+    val showTotp = totpClock != null && onCopyTotp != null && item.totpSecret.isNotBlank()
+
     KasaIndexRow(
         onClick = onClick,
         onLongClick = onLongClick,
-        ruleColor = rule,
         modifier = modifier,
+        minHeight = if (compact) 64.dp else 84.dp,
         leading = {
-            // Rozet 34'ten 44'e çıktı: dizin denemesinde "marj işareti"
-            // olsun diye küçültülmüştü ve o boyutta site logosu tanınmıyordu.
+            // Rozet 44'ten 56'ya çıktı. Sebebi büyük görünsün diye değil:
+            // bu rozetlerin çoğu bir **marka işareti** taşıyor ve bir işaret
+            // ancak tanınabildiği ölçüde iş görüyor. 44dp'de Garanti ile
+            // Trendyol iki renkli kareydi; 56dp'de ikisi de kendisi.
+            //
+            // Satır da onunla birlikte 84dp'ye çıkıyor. Ekrana sığan kayıt
+            // sayısı azalıyor ve bu bilinçli bir takas: listede asıl iş
+            // aradığını **bulmak**, ve göz bir işareti bir satır metinden
+            // daha hızlı buluyor. Sıkışık yerleşim isteyen kullanıcı için
+            // ayar zaten duruyor.
             if (selectable) SelectionMark(selected = selected)
-            else EntryBadge(item = item, size = 44.dp, cornerRadius = 15.dp)
+            else EntryBadge(item = item, size = 56.dp, cornerRadius = 18.dp)
         },
         headline = {
             Row(
@@ -1004,8 +1014,20 @@ fun VaultRow(
         },
         supporting = if (compact) null else {
             {
+                // İkincil satır tek aralıklı (mono).
+                //
+                // Taşıdığı şeylerin hepsi **makine yazısı**: e-posta adresi,
+                // kullanıcı adı, alan adı, maskelenmiş kart numarası. Mono
+                // onları addan görsel olarak ayırıyor, yani satır tek bir
+                // metin bloğu olmaktan çıkıp "ad" ve "kimlik" diye iki
+                // şeye bölünüyor; deponun yazı ölçeğinde bu kuralın kendisi
+                // zaten yazılı.
+                //
+                // İçerik olarak kullanıcı adı alan adına tercih ediliyor:
+                // alan adını zaten rozet söylüyor, ama aynı siteye ait iki
+                // kaydı birbirinden ayıran tek şey kullanıcı adı.
                 val meta = buildString {
-                    append(item.subtitle())
+                    append(item.subtitle().ifBlank { item.host().orEmpty() })
                     if (folderName != null) {
                         if (isNotEmpty()) append(" · ")
                         append(folderName)
@@ -1018,7 +1040,7 @@ fun VaultRow(
                 if (meta.isNotEmpty()) {
                     Text(
                         text = meta,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = KasaTheme.text.indexMeta,
                         color = if (item.breached) KasaTheme.colors.strengthWeak
                         else KasaTheme.colors.ink3,
                         maxLines = 1,
@@ -1027,16 +1049,34 @@ fun VaultRow(
                 }
             }
         },
-        trailing = if (totpClock != null && onCopyTotp != null && item.totpSecret.isNotBlank()) {
+        // Son yuva boşsa hiç verilmiyor: boş bir yuva da [ListItem]'ın son
+        // kenar boşluğunu ayırıyor ve notlar ile kartlar sebepsiz içeriden
+        // bitiyordu.
+        trailing = if (showTotp || dot != null) {
             {
-                RowTotpCode(
-                    clock = totpClock,
-                    secret = item.totpSecret,
-                    digits = item.totpDigits,
-                    period = item.totpPeriod,
-                    algorithm = item.totpAlgorithm,
-                    onCopy = onCopyTotp
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (showTotp) {
+                        RowTotpCode(
+                            clock = totpClock!!,
+                            secret = item.totpSecret,
+                            digits = item.totpDigits,
+                            period = item.totpPeriod,
+                            algorithm = item.totpAlgorithm,
+                            onCopy = onCopyTotp!!
+                        )
+                    }
+                    if (dot != null) {
+                        Box(
+                            Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(dot)
+                        )
+                    }
+                }
             }
         } else null
     )

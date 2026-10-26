@@ -1,6 +1,5 @@
 package app.kasa.ui.components
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -173,17 +172,36 @@ fun KasaTile(
  * ve erişilebilirlik davranışı bileşenin kendisinden geliyor — hepsi elle
  * tutulduğunda yanlış tutulan şeyler.
  *
- * Kap saydam bırakılıyor: arkadaki gradyan görünmeye devam ediyor, yani
- * dizin denemesinden kalan **iyi** taraf korunuyor. Dokunulan satır
- * yuvarlatılmış bir tonla işaretleniyor.
+ * Kap saydam bırakılıyor: arkadaki zemin görünmeye devam ediyor, yani dizin
+ * denemesinden kalan **iyi** taraf korunuyor. Dokunulan satır yuvarlatılmış
+ * bir tonla işaretleniyor.
+ *
+ * ### Güç işareti neden sol marjdan sağ uca taşındı
+ *
+ * Burada baş yuvanın içinde 3dp'lik dikey bir tırnak vardı ve gerekçesi
+ * "dikey taramada marj tek bir sütun oluşturuyor" idi. Doğruydu ama bedeli
+ * vardı: tırnak, baş yuvayı 7dp daraltıp rozeti sağa itiyordu, yani listenin
+ * sol hizası güç göstergesine kiralanmıştı. Rozet 56dp'ye çıkınca bu
+ * kiranın bedeli görünür oldu.
+ *
+ * Sağ uçtaki nokta aynı sütunu kuruyor — sağ marj da bir sütun — ve kimseyi
+ * itmiyor. Gücü olmayan türlerde (not, kart) hiç çizilmiyor: nötr bir işaret
+ * koymak, ölçülmemiş bir şeyi ölçülmüş gibi göstermek olurdu.
  */
 @Composable
 fun KasaIndexRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
-    /** Sol kenardaki güç tırnağının rengi; `null` ise çizilmiyor. */
-    ruleColor: Color? = null,
+    /**
+     * Satırın en az yüksekliği.
+     *
+     * [ListItem] kendi başına iki satırlık öğe için 72dp veriyor; 56dp'lik
+     * bir baş yuvayla o yükseklik rozetin üstüne ve altına 8'er dp bırakıyor
+     * ve satır sıkışık duruyor. Ferah yerleşimde bu değer yükseltiliyor,
+     * sıkışıkta düşürülüyor.
+     */
+    minHeight: Dp = 84.dp,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
     supporting: @Composable (() -> Unit)? = null,
@@ -210,32 +228,13 @@ fun KasaIndexRow(
             )
     ) {
         ListItem(
+            modifier = Modifier.heightIn(min = minHeight),
             headlineContent = headline,
             supportingContent = supporting,
-            leadingContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Güç tırnağı baş yuvanın içinde: ayrı bir sütun olarak
-                    // durduğunda [ListItem]'ın kendi hizalarını bozuyordu.
-                    Box(Modifier.width(7.dp), contentAlignment = Alignment.Center) {
-                        if (ruleColor != null) {
-                            Box(
-                                Modifier
-                                    .width(3.dp)
-                                    .height(26.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(ruleColor)
-                            )
-                        }
-                    }
-                    if (leading != null) {
-                        Spacer(Modifier.width(10.dp))
-                        leading()
-                    }
-                }
-            },
+            leadingContent = leading,
             trailingContent = trailing,
-            // Kap saydam: zemindeki gradyan satırın arkasından geçmeye devam
-            // ediyor ve basınç tonu onun üstüne biniyor.
+            // Kap saydam: zemin satırın arkasından geçmeye devam ediyor ve
+            // basınç tonu onun üstüne biniyor.
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }

@@ -513,7 +513,7 @@ fun FabMenu(
     )
 
     val contentWidth = MENU_WIDTH
-    val contentHeight = FAB_SIZE + MENU_PAD + actions.size * MENU_ROW
+    val contentHeight = FAB_SIZE + MENU_PAD + MENU_ROW * actions.size
     // Ölçüler **durum nesnesi** olarak alınıyor ve `Modifier.size` yerine
     // ölçüm sırasında okunuyor. `size(width, height)` değeri beste aşamasında
     // istiyor, yani kart büyüdüğü her karede FabMenu'nün bütün iskeleti —
