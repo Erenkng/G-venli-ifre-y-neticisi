@@ -97,7 +97,6 @@ import app.kasa.ui.theme.KasaTheme
  * yumuşak bir çakıl. Yüzde ya da renk çubuğundan farklı olarak bu, bakmadan
  * da fark edilen bir sinyal.
  */
-@OptIn(ExperimentalLayoutApi::class)
 /**
  * Üretici, alttan açılan sayfa olarak.
  *
@@ -157,6 +156,7 @@ fun GeneratorSheet(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GeneratorScreen(
     viewModel: GeneratorViewModel,
