@@ -5,8 +5,6 @@ import app.kasa.ui.components.floatingBarWidth
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.draw.drawBehind
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedContent
@@ -38,11 +36,7 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.MoreHoriz
-import androidx.compose.material.icons.rounded.Notes
-import androidx.compose.material.icons.rounded.Password
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -78,7 +72,6 @@ import app.kasa.core.util.Haptics
 import app.kasa.data.SettingsStore
 import app.kasa.data.GeneratorMode
 import app.kasa.data.model.Category
-import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultFilter
 import app.kasa.ui.components.FabAction
 import app.kasa.ui.components.FabMenu
@@ -533,37 +526,20 @@ fun MainScaffold(
             )
         }
 
-        // ── ekleme menüsü açıkken: karartma, bulanıklık değil ────────────
+        // ── ekleme menüsü açıkken: yalnızca dokunuş yakalayıcı ──────────
         //
-        // Burada iki kademeli bir cam örtü vardı ve menüyle yarışan listeyi
-        // okunmaz kılıyordu. Gerekçe kâğıt üzerinde doğruydu ama ekranda
-        // ağır çıktı: artı tuşuna her dokunuşta bütün ekranın buzlanması,
-        // beş satırlık bir menü için fazla büyük bir olay.
+        // Burada önce iki kademeli bir cam örtü, sonra sade bir karartma
+        // vardı. İkisi de aynı sebeple duruyordu: menü, altındaki listenin
+        // üstünde yüzen bir pil yığınıydı ve okunması için arkasının
+        // bastırılması gerekiyordu.
         //
-        // Yerine sade bir karartma. Dışarı dokunup kapatma korunuyor —
-        // `GlassBackdropScrim`'e `backdrop = null` geçmek onu da
-        // götürürdü, çünkü o bileşen kopya yoksa hiçbir şey çizmiyor ve
-        // dolayısıyla dokunmayı da yakalamıyor.
-        val fabScrim by animateFloatAsState(
-            targetValue = if (fabExpanded) 1f else 0f,
-            animationSpec = if (fabExpanded) KasaMotion.large() else KasaMotion.exit(),
-            label = "fabScrim"
-        )
-        if (fabScrim > 0.004f) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (fabExpanded) Modifier.clickableNoRipple { fabExpanded = false }
-                        else Modifier
-                    )
-                    // Oran çizim aşamasında okunuyor: beste gövdesinde
-                    // okunsaydı örtünün her karesi bütün iskeleti yeniden
-                    // besteletirdi.
-                    .drawBehind {
-                        drawRect(Color.Black.copy(alpha = 0.38f * fabScrim))
-                    }
-            )
+        // Menü artık düğmenin kendi içinden açılan donuk bir kart
+        // ([FabMenu]), yani okunurluğu kendi yüzeyinden geliyor ve
+        // bastırılacak bir şey kalmadı. Geriye örtünün tek işi kaldı:
+        // dışarı dokunulduğunda kapatmak. Bu yüzden hiçbir şey çizmiyor,
+        // sadece dokunuşu yakalıyor.
+        if (fabExpanded) {
+            Box(Modifier.fillMaxSize().clickableNoRipple { fabExpanded = false })
         }
 
         AnimatedVisibility(

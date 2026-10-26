@@ -248,7 +248,6 @@ class SettingsStore(private val context: Context) {
         val effectPressBloom: Boolean = true,
         val effectShimmer: Boolean = true,
         val effectEdgeDepth: Boolean = true,
-        val effectParallax: Boolean = false,
         val effectHoldCharge: Boolean = true,
         val effectTiltDepth: Boolean = false,
         val effectFocusGlow: Boolean = true,
@@ -375,7 +374,6 @@ class SettingsStore(private val context: Context) {
             effectPressBloom = prefs[KEY_EFFECT_BLOOM] ?: true,
             effectShimmer = prefs[KEY_EFFECT_SHIMMER] ?: true,
             effectEdgeDepth = prefs[KEY_EFFECT_EDGE] ?: true,
-            effectParallax = prefs[KEY_EFFECT_PARALLAX] ?: false,
             effectHoldCharge = prefs[KEY_EFFECT_HOLD] ?: true,
             effectTiltDepth = prefs[KEY_EFFECT_DEPTH] ?: false,
             effectFocusGlow = prefs[KEY_EFFECT_FOCUS] ?: true,
@@ -459,7 +457,6 @@ class SettingsStore(private val context: Context) {
     suspend fun setEffectPressBloom(value: Boolean) = put(KEY_EFFECT_BLOOM, value)
     suspend fun setEffectShimmer(value: Boolean) = put(KEY_EFFECT_SHIMMER, value)
     suspend fun setEffectEdgeDepth(value: Boolean) = put(KEY_EFFECT_EDGE, value)
-    suspend fun setEffectParallax(value: Boolean) = put(KEY_EFFECT_PARALLAX, value)
     suspend fun setEffectHoldCharge(value: Boolean) = put(KEY_EFFECT_HOLD, value)
     suspend fun setEffectTiltDepth(value: Boolean) = put(KEY_EFFECT_DEPTH, value)
     suspend fun setEffectFocusGlow(value: Boolean) = put(KEY_EFFECT_FOCUS, value)
@@ -570,7 +567,6 @@ class SettingsStore(private val context: Context) {
         val KEY_EFFECT_BLOOM = booleanPreferencesKey("effect_bloom")
         val KEY_EFFECT_SHIMMER = booleanPreferencesKey("effect_shimmer")
         val KEY_EFFECT_EDGE = booleanPreferencesKey("effect_edge")
-        val KEY_EFFECT_PARALLAX = booleanPreferencesKey("effect_parallax")
         val KEY_EFFECT_HOLD = booleanPreferencesKey("effect_hold_charge")
         val KEY_EFFECT_DEPTH = booleanPreferencesKey("effect_tilt_depth")
         val KEY_EFFECT_FOCUS = booleanPreferencesKey("effect_focus_glow")

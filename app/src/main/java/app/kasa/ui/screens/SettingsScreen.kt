@@ -445,13 +445,17 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setPureBlack
                 )
 
-                // ── gradyan ailesi ────────────────────────────────────────
+                // ── zemin ailesi ──────────────────────────────────────────
                 //
                 // Renk şemasından ayrı bir ayar. İkisini birleştirmek, karanlık
                 // tema isteyen kullanıcıya aynı anda bir renk kimliği dayatmak
                 // olurdu. Tam siyah açıkken bu seçim etkisiz: o kip zaten
                 // "hiç ışık olmasın" demek ve pikselleri söndürmenin kazancı
                 // oradan geliyor.
+                //
+                // Aile artık bir gradyan değil tek bir düz renk seçiyor; seçim
+                // kalktığı için değil, kalkmaması gerektiği için duruyor —
+                // üç farklı sıcaklık hâlâ üç farklı uygulama hissi veriyor.
                 Spacer(Modifier.height(16.dp))
                 SectionLabel(stringResource(R.string.set_group_gradient))
                 Spacer(Modifier.height(8.dp))
@@ -478,9 +482,9 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setGradientFollowsTime,
                     first = true
                 )
-                // Tane, gradyanın bant oluşturmasını engellemek için zaten
-                // hep vardı ama görünmeyecek kadar azdı. Kademeler onu
-                // görülür bir dokuya çıkarıyor.
+                // Tane düz zeminin basılmış bir renk kartelasına benzemesini
+                // engelliyor; kapalıyken de görünmeyecek kadar var, kademeler
+                // onu görülür bir dokuya çıkarıyor.
                 //
                 // Aç/kapa yerine kademe, çünkü "ne kadar" sorusunun tek bir
                 // doğru cevabı yok: aynı doku parlak bir ekranda zar zor
@@ -564,12 +568,6 @@ fun SettingsScreen(
                             subtitle = stringResource(R.string.set_effect_edge_sub),
                             checked = settings.effectEdgeDepth,
                             onCheckedChange = viewModel::setEffectEdgeDepth
-                        )
-                        ToggleRow(
-                            title = stringResource(R.string.set_effect_parallax),
-                            subtitle = stringResource(R.string.set_effect_parallax_sub),
-                            checked = settings.effectParallax,
-                            onCheckedChange = viewModel::setEffectParallax
                         )
                         ToggleRow(
                             title = stringResource(R.string.set_effect_hold),

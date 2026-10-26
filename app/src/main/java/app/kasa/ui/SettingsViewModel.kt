@@ -84,7 +84,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setEffectPressBloom(value: Boolean) = launchSetting { settingsStore.setEffectPressBloom(value) }
     fun setEffectShimmer(value: Boolean) = launchSetting { settingsStore.setEffectShimmer(value) }
     fun setEffectEdgeDepth(value: Boolean) = launchSetting { settingsStore.setEffectEdgeDepth(value) }
-    fun setEffectParallax(value: Boolean) = launchSetting { settingsStore.setEffectParallax(value) }
     fun setEffectHoldCharge(value: Boolean) = launchSetting { settingsStore.setEffectHoldCharge(value) }
     fun setEffectTiltDepth(value: Boolean) = launchSetting { settingsStore.setEffectTiltDepth(value) }
     fun setEffectFocusGlow(value: Boolean) = launchSetting { settingsStore.setEffectFocusGlow(value) }

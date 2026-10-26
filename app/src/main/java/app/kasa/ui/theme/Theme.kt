@@ -160,21 +160,20 @@ fun KasaTheme(
         else -> LightKasaColors
     }
 
-    // Zemin gradyanı seçilen aileden ve saatten geliyor; renk şemasının geri
+    // Zemin rengi seçilen aileden ve saatten geliyor; renk şemasının geri
     // kalanı (mürekkep, rozet renkleri) dokunulmadan kalıyor. Tam siyah
-    // kipinde gradyan hiç değiştirilmiyor: o kip zaten "hiç ışık olmasın"
+    // kipinde zemin hiç değiştirilmiyor: o kip zaten "hiç ışık olmasın"
     // demek ve AMOLED'de piksel söndürmenin bütün kazancı oradan geliyor.
-    val stops = rememberGradientStops(gradientTheme, dark, gradientFollowsTime)
-    // Tane her zaman var ama kapalıyken görünmeyecek kadar az: asıl işi
-    // gradyanın bant oluşturmasını (banding) engellemek, bir doku olsun diye
-    // değil. Kademeler onu görülür bir dokuya çıkarıyor. Tam siyah kipinde
-    // hiç uygulanmıyor, çünkü orada zemin zaten çizilmiyor.
+    val tone = rememberCanvasTone(gradientTheme, dark, gradientFollowsTime)
+    // Tane kapalıyken de görünmeyecek kadar var. Eskiden sebebi gradyanın
+    // bant oluşturmasını (banding) kırmaktı; gradyan gidince o gerekçe de
+    // gitti ama tane kaldı, çünkü yeni işi daha önemli: düz bir dolgu,
+    // üstünde hiçbir şey olmadığında basılmış bir renk kartelasına benziyor.
+    // Algı eşiğinin altındaki bu doku ona yüzey hissi veriyor. Kademeler onu
+    // görülür bir dokuya çıkarıyor; tam siyahta hiç uygulanmıyor.
     val grain = grainLevel.alpha
     val kasaColors = if (dark && pureBlack) baseColors else baseColors.copy(
-        gradientTopLeft = stops.topLeft,
-        gradientTopRight = stops.topRight,
-        gradientBottom = stops.bottom,
-        gradientBase = stops.base,
+        canvas = tone,
         grainAlpha = grain ?: baseColors.grainAlpha
     )
 

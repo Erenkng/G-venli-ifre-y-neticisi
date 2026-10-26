@@ -2,20 +2,13 @@ package app.kasa.ui.components
 
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -35,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,14 +54,16 @@ import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.kasa.R
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
@@ -459,12 +457,33 @@ data class FabAction(
 )
 
 /**
- * Genişleyen eylem düğmesi.
+ * Kendi içinden açılan eylem düğmesi.
  *
- * Açılırken alt öğeler alttan üste doğru sırayla belirir, kapanırken üstten
- * alta doğru kaybolur; bu tersine sıralama, menünün ana düğmeden çıkıp yine
- * ona döndüğü hissini veriyor. Ana düğme aynı anda 135 derece dönerek artıdan
- * çarpıya geçiyor.
+ * ### Önceki hâl ve neden değişti
+ *
+ * Düğmenin üstünde yüzen bir pil yığını vardı: yedi ayrı yuvarlak kapsül,
+ * sırayla belirip kayboluyordu. Altlarındaki listeyle yarıştıkları için
+ * arkaya bir karartma gerekiyordu, karartma da her dokunuşu bütün ekranı
+ * ilgilendiren bir olaya çeviriyordu. İki sorun aynı kökten geliyordu:
+ * menü düğmenin **yanında** açılıyordu, düğmeden değil.
+ *
+ * Şimdi tek bir yüzey var ve o yüzey düğmenin kendisi. Düğme yerinde
+ * duruyor, arkasındaki kart onun altından yukarı ve sola doğru büyüyor;
+ * eylemler o kartın içinde, büyüyen pencere açtıkça görünür oluyor. Hareketin
+ * tamamı düğmenin sınırları içinde başlıyor, yani gözün takip edeceği tek bir
+ * nesne var.
+ *
+ * Karartma da bu yüzden kalktı: kart donuk ve yükseltilmiş, altındaki satırla
+ * yarışmıyor. Örtünün varlık sebebi menünün okunurluğuydu, okunurluğu kartın
+ * kendisi sağlıyor.
+ *
+ * ### İçerik neden sabit ölçüde
+ *
+ * Kap büyürken içerik de onunla birlikte ölçülse, yazılar animasyon boyunca
+ * sıkışıp yeniden satırlanırdı — kapsayıcı dönüşümlerinin klasik hatası.
+ * Sütun [androidx.compose.foundation.layout.requiredWidth] ile gelen
+ * kısıtlamaları yok sayıyor: hep son ölçüsünde duruyor, kap yalnızca üstünü
+ * açıyor. Sütun alta çapalı, yani açığa çıkan ilk şey düğmeye en yakın eylem.
  */
 @Composable
 fun FabMenu(
@@ -479,104 +498,219 @@ fun FabMenu(
         KasaMotion.medium(),
         label = "fabRotation"
     )
-    // Tam yuvarlak = düğmenin yarısı (66/2). Eskiden hedef KasaRadius.full
-    // (999dp) idi ve yay 999'dan 22'ye inerken hedefi aşıp negatif yarıçap
-    // üretiyordu; gölgenin kullandığı platform Outline'ı negatif yarıçapta
-    // istisna atıyor ve menü **kapanırken** uygulama çöküyordu.
-    val fabRadius = animatedCorner(
-        if (expanded) FAB_SIZE / 2 else 22.dp,
+    // Kart ile düğme **aynı** yarıçapı kullanıyor. Ayrı değerler verilseydi
+    // paylaştıkları sağ alt köşede biri diğerinin eğrisini taşardı; kapalıyken
+    // de ikisi tam olarak üst üste oturmazdı.
+    //
+    // Hedef küçük tutuluyor (22→28dp): eskiden hedef KasaRadius.full (999dp)
+    // idi ve yay 999'dan 22'ye inerken hedefi aşıp negatif yarıçap üretiyordu;
+    // gölgenin kullandığı platform Outline'ı negatif yarıçapta istisna atıyor
+    // ve menü **kapanırken** uygulama çöküyordu.
+    val radius = animatedCorner(
+        if (expanded) 28.dp else 22.dp,
+        animationSpec = KasaMotion.medium(),
         label = "fabRadius"
     )
+
+    val contentWidth = MENU_WIDTH
+    val contentHeight = FAB_SIZE + MENU_PAD + actions.size * MENU_ROW
+    // Ölçüler **durum nesnesi** olarak alınıyor ve `Modifier.size` yerine
+    // ölçüm sırasında okunuyor. `size(width, height)` değeri beste aşamasında
+    // istiyor, yani kart büyüdüğü her karede FabMenu'nün bütün iskeleti —
+    // yedi satır, yazıları, simgeleri — yeniden bestelenirdi. Böyle yalnızca
+    // yeniden ölçüm oluyor.
+    val width = animateDpAsState(
+        if (expanded) contentWidth else FAB_SIZE,
+        KasaMotion.medium(),
+        label = "fabWidth"
+    )
+    val height = animateDpAsState(
+        if (expanded) contentHeight else FAB_SIZE,
+        KasaMotion.medium(),
+        label = "fabHeight"
+    )
+    // Kapalıyken kartın gölgesi yok: düğmenin gölgesiyle aynı sınırlarda iki
+    // gölge üst üste binip tek bir koyu halka yapıyordu.
+    val cardShadow by animateDpAsState(
+        if (expanded) KasaElevation.three else 0.dp,
+        KasaMotion.effect(),
+        label = "fabCardShadow"
+    )
+
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, KasaMotion.small(), label = "fabScale")
+    val scale = animateFloatAsState(if (pressed) 0.9f else 1f, KasaMotion.small(), label = "fabScale")
 
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.End,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    Box(
+        modifier = modifier
+            .animatedSize(width, height)
+            .shadow(cardShadow, RoundedCornerShape(radius), clip = false)
+            .clip(RoundedCornerShape(radius))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+        contentAlignment = Alignment.BottomEnd
     ) {
-        actions.forEachIndexed { index, action ->
-            // Menü aşağıdan yukarı açılıyor: düğmeye en yakın eylem önce
-            // beliriyor. Dördü aynı anda gelseydi tek bir blok olarak okunur,
-            // sıra bilgisi kaybolurdu. Kapanışta gecikme yok — kullanıcı kararı
-            // vermiş, menünün oyalanmaya hakkı yok.
-            val step = actions.size - 1 - index
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn(KasaMotion.stagger(step, KasaMotion.EXIT_MILLIS)) + scaleIn(
-                    initialScale = 0.7f,
-                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0.5f),
-                    animationSpec = KasaMotion.stagger(step)
-                ),
-                exit = fadeOut(KasaMotion.exit()) + scaleOut(
-                    targetScale = 0.7f,
-                    animationSpec = KasaMotion.exit()
+        Column(
+            modifier = Modifier
+                .requiredWidth(contentWidth)
+                .requiredHeight(contentHeight)
+                .padding(horizontal = MENU_PAD, vertical = MENU_PAD),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
+        ) {
+            actions.forEachIndexed { index, action ->
+                // Düğmeye en yakın eylem önce beliriyor: yedisi aynı anda
+                // gelseydi tek bir blok olarak okunur, menünün hangi uçtan
+                // açıldığı kaybolurdu.
+                val step = actions.size - 1 - index
+                FabMenuItem(
+                    action = action,
+                    appear = animateFloatAsState(
+                        if (expanded) 1f else 0f,
+                        KasaMotion.stagger(step, if (expanded) KasaMotion.ENTER_MILLIS else KasaMotion.EXIT_MILLIS),
+                        label = "fabItemAppear"
+                    ),
+                    enabled = expanded
                 )
+            }
+            // Düğmenin solunda kalan şerit: menünün ne yaptığını söyleyen
+            // sessiz bir başlık. Boş bırakılsaydı kartın alt kenarı sebepsiz
+            // bir boşlukla biterdi.
+            Row(
+                modifier = Modifier.fillMaxWidth().height(FAB_SIZE - MENU_PAD),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                FabMenuItem(action = action)
+                Text(
+                    text = stringResource(R.string.editor_new_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 8.dp).graphicsLayer {
+                        // Başlık kartla birlikte açılıyor: pencere yalnızca
+                        // düğme genişliğindeyken sıfır, tam açıldığında bir.
+                        alpha = ((width.value - FAB_SIZE) / (contentWidth - FAB_SIZE)).coerceIn(0f, 1f)
+                    }
+                )
             }
         }
-        Spacer(Modifier.height(2.dp))
+
         Box(
             modifier = Modifier
                 .size(FAB_SIZE)
-                .scale(scale)
-                .shadow(6.dp, RoundedCornerShape(fabRadius), clip = false)
-                .clip(RoundedCornerShape(fabRadius))
-                .background(if (expanded) KasaTheme.colors.ink else MaterialTheme.colorScheme.primary)
-                .clickableNoRipple(interactionSource = interaction, role = Role.Button) {
+                .pressScale(scale)
+                .shadow(KasaElevation.two, RoundedCornerShape(radius), clip = false)
+                .clip(RoundedCornerShape(radius))
+                .background(MaterialTheme.colorScheme.primary)
+                .clickableNoRipple(
+                    interactionSource = interaction,
+                    role = Role.Button,
+                    onClickLabel = stringResource(R.string.add_new)
+                ) {
                     onExpandedChange(!expanded)
                 },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = null,
-                tint = if (expanded) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onPrimary,
+                contentDescription = stringResource(R.string.add_new),
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(28.dp).rotate(rotation)
             )
         }
     }
 }
 
+/**
+ * Menüdeki bir eylem.
+ *
+ * Beliriş oranı **durum nesnesi** olarak geliyor ve yalnızca `graphicsLayer`
+ * içinde — yani çizim sırasında — okunuyor. `by` ile okunsaydı satırın
+ * iskeleti animasyon boyunca her karede yeniden bestelenirdi ve yedi satır
+ * birlikte bunu yapardı.
+ */
 @Composable
-private fun FabMenuItem(action: FabAction, modifier: Modifier = Modifier) {
+private fun FabMenuItem(
+    action: FabAction,
+    appear: State<Float>,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.92f else 1f, label = "fabItemScale")
+    val tint by animateFloatAsState(if (pressed) 1f else 0f, KasaMotion.effect(), label = "fabItemTint")
+    val press = MaterialTheme.colorScheme.primary
 
     Row(
         modifier = modifier
-            .height(50.dp)
-            .scale(scale)
-            .shadow(4.dp, RoundedCornerShape(KasaRadius.full), clip = false)
-            .clip(RoundedCornerShape(KasaRadius.full))
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .clickableNoRipple(interactionSource = interaction, role = Role.Button, onClick = action.onClick)
-            .padding(horizontal = 20.dp),
+            .fillMaxWidth()
+            .height(MENU_ROW)
+            .graphicsLayer {
+                val value = appear.value
+                alpha = value
+                // Küçük bir kayma: pencere zaten açılıyor, satırın ayrıca uzun
+                // yol almasına gerek yok. Bu kadarı satırın yerine "oturduğu"
+                // hissini veriyor.
+                translationY = (1f - value) * MENU_SLIDE.toPx()
+            }
+            .clip(RoundedCornerShape(KasaRadius.m))
+            .drawBehind { drawRect(press.copy(alpha = 0.10f * tint)) }
+            .clickableNoRipple(
+                enabled = enabled,
+                interactionSource = interaction,
+                role = Role.Button,
+                onClick = action.onClick
+            )
+            .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Icon(
             imageVector = action.icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(18.dp)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
         )
         Text(
             action.label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
         )
     }
 }
 
+/**
+ * Ölçüsünü çizim/ölçüm aşamasında okunan bir durumdan alan kap.
+ *
+ * `Modifier.size(Dp, Dp)` değeri beste aşamasında istiyor; animasyonlu bir
+ * değerle kullanıldığında her kare yeni bir beste demek. Burada değer ölçüm
+ * lambdasının içinde okunuyor, yani değişiklik yalnızca yeniden ölçüm
+ * tetikliyor — beste hiç çalışmıyor.
+ *
+ * İçerik sabit kısıtlamayla ölçülüyor ve kap kendi bildirdiği ölçüde kalıyor;
+ * içeriği daha büyükse taşan kısmı zincirdeki `clip` kesiyor.
+ */
+private fun Modifier.animatedSize(width: State<Dp>, height: State<Dp>): Modifier =
+    layout { measurable, _ ->
+        val w = width.value.roundToPx().coerceAtLeast(0)
+        val h = height.value.roundToPx().coerceAtLeast(0)
+        val placeable = measurable.measure(Constraints.fixed(w, h))
+        layout(w, h) { placeable.place(0, 0) }
+    }
+
+/** Açılmış kartın genişliği. En uzun etiket ("Banka hesabı ekle" değil, menüdeki kısa hâli) buna sığıyor. */
+private val MENU_WIDTH = 236.dp
+
+/** Menüdeki bir eylemin yüksekliği. */
+private val MENU_ROW = 52.dp
+
+/** Kartın kenar boşluğu; düğmenin kart kenarına olan uzaklığı da bu. */
+private val MENU_PAD = 8.dp
+
+/** Satırın yerine oturmak için aldığı yol. */
+private val MENU_SLIDE = 10.dp
+
+
 /** Ana eylem düğmesinin çapı. Köşe animasyonunun hedefi buradan türetiliyor. */
 private val FAB_SIZE = 66.dp
-
-/** Etkin kelimenin altındaki ayracın genişliği. */
-private val RULE_WIDTH = 22.dp
 
 /** Gölge boyu için tasarım ölçekleri. */
 object KasaElevation {

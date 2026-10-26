@@ -182,8 +182,6 @@ data class SurfaceEffects(
     val shimmer: Boolean = false,
     /** Ekranın uçlarına yaklaşan satırların geriye çekilmesi. */
     val edgeDepth: Boolean = false,
-    /** Zemin gradyanının eğimle kayması. İvmeölçer dinliyor. */
-    val parallax: Boolean = false,
     /** Uzun basış eşiğine doğru dolan kenar yayı. */
     val holdCharge: Boolean = false,
     /** Camın altındaki içeriğin eğimle geri kalması. İvmeölçer dinliyor. */
@@ -192,7 +190,7 @@ data class SurfaceEffects(
     val focusGlow: Boolean = false
 ) {
     /** İvmeölçer gerektiren bir efekt var mı. */
-    val needsTilt: Boolean get() = tilt || parallax || tiltDepth
+    val needsTilt: Boolean get() = tilt || tiltDepth
 
     companion object {
         val None = SurfaceEffects()
