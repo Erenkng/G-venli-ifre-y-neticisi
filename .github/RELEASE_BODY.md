@@ -19,42 +19,39 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 3.1'de yenilikler
+## 3.2'de yenilikler
 
-Gradyanlar kalktı, menü düğmenin içinden açılıyor, satırlar ve gezinme
-çubuğu yeniden çizildi. 3.0'daki "dizin" denemesinin cihazda kötü çıkan
-tarafları da geri alındı.
+**Kurulumda kasanın kilitlenmesi düzeldi.** Bu sürümün asıl sebebi bu.
+Kurulumda kurtarma anahtarını kaydetmek, CSV seçmek ya da bildirim izni
+vermek için sistemin ekranına gidildiğinde uygulama arka plana düşüyor ve
+otomatik kilit devreye giriyordu — sıkı duruşta 15, dengelide 60 saniye.
+Kurulum ekranı bunu görmüyordu ve altındaki her adım sessizce bozuluyordu:
 
-- **Zemin artık tek bir düz renk.** Renkli ışıkların sızdığı gradyan bir
-  dönemin imzasıydı ve o dönem geçti. Bugünün tersi: zemin susuyor, renk
-  bileşenin üstünde duruyor. Üç renk ailesi ve saate göre kayma yerinde —
-  artık dört renk yerine bir renk kayıyor.
-- **Ekleme menüsü artık düğmenin kendi içinden açılıyor.** Üstünde yüzen
-  kapsüller yerine, düğmenin altından yukarı doğru büyüyen tek bir kart.
-  **Artı tuşuna basınca çıkan bulanıklık/karartma tamamen gitti** — kartın
-  kendi yüzeyi zaten okunur.
-- **Liste satırı büyüdü.** Site işareti 44'ten 56dp'ye, satır 84dp'ye.
-  Sebep boyut değil tanınırlık: küçük hâlde işaretler birbirinin aynı
-  renkli kareleriydi. İkincil satır tek aralıklı yazıya geçti, güç işareti
-  sol kenardan sağ uca taşındı. *Sıkışık yerleşim ayarı duruyor.*
-- **Gezinme çubuğu yalnızca simge taşıyor** ve ekranı kat etmiyor,
-  ortada kendi genişliğinde duruyor. Etiketler kalktı ama hedeflerin adı
-  kalkmadı: TalkBack "Kasa, sekme" diye okuyor ve seçili olma durumu artık
-  ekran okuyucuya da bildiriliyor — eskiden yalnızca renkteydi.
-- **Parola üretici bir sekme değil.** Alttan açılan bir sayfa oldu ve
-  parolanın yazıldığı yerde açılıyor; ekleme menüsünde de kendi girişi var.
-  Gezinme çubuğu böylece üçe indi.
-- **Hafıza provası:** ana parolayı artan aralıklarla bir kez yazdıran kart.
-  Program araştırmaya dayanıyor (Blocki ve ark., NDSS 2015): ilk dönüş 12
-  saat sonra, aralıklar ~1,5 katıyla büyüyor.
+- **Ana parola onayı** kilitli kasada her zaman "yanlış" diyordu. Yani
+  doğru parolanızı yazıyor, yanlış cevabını alıyor ve üç denemeden sonra
+  kasayı silip baştan başlama önerisiyle karşılaşıyordunuz.
+- **İçe aktarma** hiçbir şey yazamıyor, "kayıt bulunamadı" diyordu.
+- **Biyometri** kurulamıyordu.
 
-Düzeltilenler:
+Artık kurulumun seçicileri kilidi erteliyor; yine de kilitlenirse ekran
+bunu saklamıyor, kilit ekranı çıkıyor ve açtığınızda kurulum kaldığı
+adımdan devam ediyor.
 
-- **Listenin son kaydı gezinme çubuğunun altında kalıyordu.** Liste dolgusu
-  76dp ayırıyordu ama çubuk 100dp yer kaplıyordu; iki sayı ayrı yerlerde
-  yazılıydı. Artık tek bir yerden türüyor.
-- **Artı düğmesinin erişilebilirlik etiketi yoktu**, TalkBack adsız bir
-  düğme okuyordu.
+**Duvar kâğıdı renkleri artık temanın tamamına iniyor** ve varsayılan
+olarak açık geliyor. Eskiden yalnızca düğmeler ve rozetler duvar kâğıdına
+uyuyordu; zemin, kartlar ve yazı rengi sabit kalıyordu. Şimdi hepsi
+uyuyor. *Güç ve sızıntı renkleri bilerek dışarıda: zayıf kırmızı, orta
+kehribar, güçlü yeşil kalıyor — bunlar süs değil uyarı.* Ayarlar →
+Görünüm'den kapatılabilir.
+
+**Tanıtımın açılışı üç kademede.** Çizim yerine oturuyor, 90 ms sonra yazı,
+190 ms sonra düğmeler alttan yükseliyor. Çizim dışarıdan içeri geliyor,
+yani açılış ekranındaki kadranın dışa doğru büyüyen hareketi kesilmeden
+devam ediyor. Hareket kapalıysa üçü de anında.
+
+Ayrıca: **içe aktarma artık yalan söylemiyor.** Yazma gerçekten olmadıysa
+"aktarıldı" demiyor; eskiden diske hiçbir şey yazılmadığı hâlde "N kayıt
+aktarıldı" diyebiliyordu.
 
 ---
 
