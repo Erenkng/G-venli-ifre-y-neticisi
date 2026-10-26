@@ -35,6 +35,9 @@
     <string name="onb_mismatch">Parolalar aynı değil</string>
     <string name="onb_too_short">Ana parola en az 12 karakter olmalı</string>
     <string name="onb_too_weak">Bu parola çok tahmin edilebilir. Daha uzun ve özgün bir şey seç.</string>
+    <string name="onb_master_need_chars">%1$d karakter daha</string>
+    <string name="onb_master_need_stronger">Uzunluk tamam ama tahmin edilebilir. İşaretin sağına geç.</string>
+    <string name="onb_master_ok">Yeterli. Bunu unutursan kurtarma anahtarı tek yoldur.</string>
     <string name="onb_create">Kasayı oluştur</string>
     <string name="onb_creating">Anahtar türetiliyor…</string>
     <string name="onb_recovery_title">Kurtarma anahtarın</string>

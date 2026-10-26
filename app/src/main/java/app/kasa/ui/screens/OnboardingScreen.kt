@@ -90,6 +90,10 @@ import app.kasa.ui.components.KasaTile
 import app.kasa.ui.components.MorphDial
 import app.kasa.ui.components.WavyProgress
 import app.kasa.ui.components.readablePane
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import app.kasa.ui.theme.KasaMotion
 import app.kasa.ui.theme.KasaRadius
 import app.kasa.ui.theme.KasaTheme
@@ -162,17 +166,27 @@ fun OnboardingScreen(
                 // sayfaları ortalanmıyor: oradaki çizimler ekranın
                 // tamamını kullanmak üzere kurulmuş.
                 Column(Modifier.fillMaxSize().readablePane()) {
-                    // Üstteki adım rayı kaldırıldı.
+                    // ── ilerleme ipliği ──────────────────────────────────
                     //
-                    // Tanıtım sayfalarının altında zaten bir gösterge vardı ve
-                    // parola adımına geçerken **ekranın öteki ucunda** ikinci
-                    // bir gösterge beliriyordu. İkisi de bir şeyler sayıyor ama
-                    // farklı şeyler sayıyorlar ve farklı yerlerde duruyorlar;
-                    // kullanıcının gördüğü şey ilerleme değil, birden ortaya
-                    // çıkan yeni bir nesne oluyordu.
+                    // Bir tur önce burada **üstte** bir adım rayı vardı ve
+                    // kaldırılmıştı. Gerekçesi doğruydu ve duruyor: tanıtım
+                    // sayfalarının altında zaten bir gösterge var, parola
+                    // adımına geçerken ekranın **öteki ucunda** ikinci bir
+                    // gösterge belirince kullanıcının gördüğü şey ilerleme
+                    // değil, birden ortaya çıkan yeni bir nesne oluyordu.
                     //
-                    // Kaç adım kaldığını söylemenin bedeli bu değil: her adımın
-                    // kendi başlığı zaten nerede olunduğunu söylüyor.
+                    // Bu sefer itiraz karşılanıyor, görmezden gelinmiyor:
+                    // iplik tanıtım noktalarının **durduğu yerde**, ekranın
+                    // altında. Yani beliren yeni bir nesne yok; aynı yerdeki
+                    // gösterge biçim değiştirip devam ediyor. Sekiz ayrı
+                    // ekranı tek bir yol gibi okutan şey de bu.
+                    //
+                    // Adım numarası yazmıyor, sürekli dolan bir çizgi.
+                    // Sebebi sayının **yanlış** olabilmesi: biyometri adımı
+                    // donanımı olmayan cihazda atlanıyor, yani "6 adımdan
+                    // 3'ü" diyen bir gösterge o cihazlarda hiç altıya
+                    // ulaşmazdı. Dolan bir çizgi atlanan adımda yalnızca
+                    // biraz daha ilerliyor ve hiçbir şey yanlış söylemiyor.
 
                     // Adımlar arası geçiş.
                     //
@@ -207,11 +221,93 @@ fun OnboardingScreen(
                             AuthViewModel.Stage.DONE -> Unit
                         }
                     }
+
+                    // İplik geçişin **dışında**: adımlar üstünde değişirken
+                    // o yerinde duruyor ve yalnızca dolgusu ilerliyor. Geçişe
+                    // dâhil edilseydi her adımda kendisi de kayıp gelirdi,
+                    // yani sabit kalması gereken tek şey de oynardı.
+                    SetupThread(
+                        progress = setupProgress(
+                            if (intentChosen) state.stage else null
+                        )
+                    )
+                    Spacer(Modifier.height(14.dp))
                 }
             }
         }
     }
 }
+
+/**
+ * Kurulumun ne kadarının geçtiği (0..1).
+ *
+ * Merdiven [AuthViewModel.Stage] sırasının aynısı. Son adım 1'e **ulaşmıyor**:
+ * aktarma ekranı dururken dolu bir çubuk, bitmemiş bir işi bitmiş göstermek
+ * olurdu.
+ */
+private fun setupProgress(stage: AuthViewModel.Stage?): Float = when (stage) {
+    null -> 0f
+    AuthViewModel.Stage.SETUP -> 1f / SETUP_RUNGS
+    AuthViewModel.Stage.RECOVERY_SHOWN -> 2f / SETUP_RUNGS
+    AuthViewModel.Stage.CONFIRM_MASTER -> 3f / SETUP_RUNGS
+    AuthViewModel.Stage.BIOMETRIC_OFFER -> 4f / SETUP_RUNGS
+    AuthViewModel.Stage.POSTURE -> 5f / SETUP_RUNGS
+    AuthViewModel.Stage.HANDOFF -> 6f / SETUP_RUNGS
+    AuthViewModel.Stage.DONE -> 1f
+}
+
+private const val SETUP_RUNGS = 7f
+
+/**
+ * Kurulumun ilerleme ipliği.
+ *
+ * ### Neden bir çizgi, nokta dizisi değil
+ *
+ * Tanıtımdaki noktalar parmağın altındaki kaydırmaya bağlı: kullanıcı sayfayı
+ * sürüklerken gösterge onunla birlikte kayıyor, yani noktalar bir **denetimin**
+ * geri bildirimi. Kurulumda sürüklenecek bir şey yok, adımlar tek yönlü
+ * ilerliyor; burada göstergenin işi geri bildirim vermek değil, yolun ne kadarının
+ * kaldığını söylemek. İki farklı iş, iki farklı biçim — ama aynı yerde, çünkü
+ * kullanıcının izlediği şey aynı: "neredeyim".
+ *
+ * ### Dolgu neden en az görünür bir pay
+ *
+ * İlk adımda ilerleme sıfır ve bomboş bir ray, çalışmayan bir gösterge gibi
+ * duruyor. Küçük bir başlangıç payı onu "henüz başlamadın"dan "başladın"a
+ * çeviriyor; söylediği şey yine doğru, çünkü kullanıcı gerçekten yola çıktı.
+ */
+@Composable
+private fun SetupThread(progress: Float, modifier: Modifier = Modifier) {
+    // Dolgu oranı durum nesnesi olarak taşınıyor ve çizim sırasında
+    // okunuyor; `by` ile okunsaydı iplik ilerlediği her karede yeniden
+    // bestelenirdi.
+    val filled = animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = KasaMotion.large(),
+        label = "setupThread"
+    )
+    val track = MaterialTheme.colorScheme.outlineVariant
+    val fill = MaterialTheme.colorScheme.primary
+
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            // Sistem çubuğu payı burada veriliyor: iplik adımların
+            // **dışında** ve ekranın en altındaki şey o.
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 32.dp)
+            .height(THREAD_HEIGHT)
+    ) {
+        val h = size.height
+        val r = CornerRadius(h / 2f)
+        drawRoundRect(color = track, size = Size(size.width, h), cornerRadius = r)
+        val w = size.width * filled.value.coerceAtLeast(THREAD_MIN_FILL)
+        drawRoundRect(color = fill, size = Size(w, h), cornerRadius = r)
+    }
+}
+
+private val THREAD_HEIGHT = 4.dp
+private const val THREAD_MIN_FILL = 0.04f
 
 /**
  * Kurulumun çatalı: boş kasa mı, elindeki yedek mi.
@@ -389,6 +485,24 @@ private fun SetupStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState)
     var revealed by remember { mutableStateOf(false) }
 
     val evaluation = if (password.isEmpty()) null else PasswordStrength.evaluate(password)
+
+    // ### Kural neden burada da duruyor
+    //
+    // `createVault` ikisini de yeniden denetliyor ve denetlemeye devam
+    // etmeli — görünümün doğruluğuna güvenen bir güvenlik kuralı, kural
+    // değildir. Ama tek denetim orada olduğu sürece kullanıcının gördüğü
+    // şey şuydu: parolayı yaz, düğmeye bas, **sonra** "çok tahmin
+    // edilebilir" cevabını al. Eşiğin nerede olduğunu hiçbir yerde
+    // söylemeyen bir ret.
+    //
+    // Hâlbuki ekranda zaten canlı bir güç göstergesi var; eksik olan tek
+    // şey o göstergenin üzerinde çizginin **nerede** olduğuydu. Artık kural
+    // yazarken uygulanıyor: düğme eşik geçilene kadar kapalı, altındaki
+    // yazı da neyin eksik olduğunu söylüyor. Ret bir cevap olmaktan çıkıp
+    // bir yön gösterdi.
+    val longEnough = password.length >= AuthViewModel.MIN_MASTER_LENGTH
+    val strongEnough = (evaluation?.entropyBits ?: 0.0) >= AuthViewModel.MIN_MASTER_ENTROPY
+    val acceptable = longEnough && strongEnough
     val strength by animateFloatAsState(
         evaluation?.score ?: 0f,
         KasaMotion.large(),
@@ -452,7 +566,15 @@ private fun SetupStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState)
             imeAction = ImeAction.Done,
             isError = state.error != null,
             supportingText = state.error?.let { stringResource(it) }
-                ?: stringResource(R.string.onb_master_hint)
+                ?: when {
+                    password.isEmpty() -> stringResource(R.string.onb_master_hint)
+                    !longEnough -> stringResource(
+                        R.string.onb_master_need_chars,
+                        AuthViewModel.MIN_MASTER_LENGTH - password.length
+                    )
+                    !strongEnough -> stringResource(R.string.onb_master_need_stronger)
+                    else -> stringResource(R.string.onb_master_ok)
+                }
         )
 
         Spacer(Modifier.height(10.dp))
@@ -480,6 +602,18 @@ private fun SetupStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState)
             WavyProgress(
                 progress = evaluation.score,
                 color = strengthColor(evaluation.tone),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
+            )
+            // Eşiğin göstergedeki yeri.
+            //
+            // Göstergenin puanı 28 bitte sıfır, 110 bitte bir; kabul çizgisi
+            // 60 bit, yani çubuğun yaklaşık %39'u. Bu oranı elle yazmak,
+            // eşiklerden biri değişince sessizce yanlış yere kayan bir
+            // çizgi bırakırdı — ikisinden türetiliyor.
+            ThresholdTick(
+                at = ((AuthViewModel.MIN_MASTER_ENTROPY - SCORE_FLOOR_BITS) /
+                    (SCORE_CEIL_BITS - SCORE_FLOOR_BITS)).toFloat(),
+                reached = strongEnough,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
             )
             Spacer(Modifier.height(6.dp))
@@ -522,12 +656,52 @@ private fun SetupStep(viewModel: AuthViewModel, state: AuthViewModel.SetupState)
         KasaButton(
             text = stringResource(if (state.busy) R.string.onb_creating else R.string.onb_create),
             onClick = { viewModel.createVault(password.toCharArray()) },
-            enabled = !state.busy && password.isNotEmpty(),
+            enabled = !state.busy && acceptable,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(40.dp))
     }
 }
+
+/**
+ * Güç göstergesinin altındaki kabul çizgisi.
+ *
+ * Göstergenin kendisi "ne kadar güçlü" diyor ama "yeterli mi" demiyordu ve
+ * ikisi farklı sorular: kullanıcı çubuğu doldurmaya çalışıyor, oysa
+ * doldurması gereken yer çubuğun %39'u. İşaret o noktayı söylüyor ve
+ * geçildiğinde renk değiştiriyor — yani çubuk bir hedef kazanıyor.
+ */
+@Composable
+private fun ThresholdTick(at: Float, reached: Boolean, modifier: Modifier = Modifier) {
+    val reachedColor = KasaTheme.colors.strengthStrong
+    val pendingColor = KasaTheme.colors.ink3
+    val color by animateColorAsState(
+        if (reached) reachedColor else pendingColor,
+        KasaMotion.effect(),
+        label = "thresholdTick"
+    )
+    Canvas(modifier.height(7.dp)) {
+        val x = size.width * at.coerceIn(0f, 1f)
+        val w = 2.dp.toPx()
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(x - w / 2f, 0f),
+            size = Size(w, size.height),
+            cornerRadius = CornerRadius(w / 2f)
+        )
+    }
+}
+
+/**
+ * Güç puanının sıfır ve bir noktalarına karşılık gelen bit değerleri.
+ *
+ * [PasswordStrength] içindeki ölçeğin aynısı. Kopyası olması hoş değil ama
+ * oradaki değerler özel; eşik işaretinin doğru yere düşmesi bu ikisine
+ * bağlı ve sabitleri burada adlandırmak, en azından ilişkinin kodda
+ * görünmesini sağlıyor.
+ */
+private const val SCORE_FLOOR_BITS = 28.0
+private const val SCORE_CEIL_BITS = 110.0
 
 /** Uyarı satırı: kenarda ince bir şerit, gövdede tek cümle. */
 @Composable

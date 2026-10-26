@@ -44,6 +44,18 @@ uyuyor. *Güç ve sızıntı renkleri bilerek dışarıda: zayıf kırmızı, or
 kehribar, güçlü yeşil kalıyor — bunlar süs değil uyarı.* Ayarlar →
 Görünüm'den kapatılabilir.
 
+**Ana parola kuralı artık yazarken uygulanıyor.** Eskiden parolayı yazıp
+"Kasayı oluştur"a basıyordunuz ve **sonra** "çok tahmin edilebilir"
+cevabını alıyordunuz — eşiğin nerede olduğunu söylemeyen bir ret. Şimdi güç
+göstergesinin üzerinde kabul çizgisi işaretli, altındaki yazı neyin eksik
+olduğunu söylüyor ve düğme eşik geçilene kadar kapalı duruyor.
+
+**Kurulumda ilerleme ipliği.** Sekiz ekran artık tek bir yol gibi okunuyor:
+tanıtım noktalarının durduğu yerde, ekranın altında, adım ilerledikçe dolan
+ince bir çizgi. Adım numarası yazmıyor — biyometri adımı donanımı olmayan
+cihazlarda atlanıyor ve "6 adımdan 3'ü" diyen bir gösterge o cihazlarda
+hiçbir zaman altıya ulaşmazdı.
+
 **Tanıtımın açılışı üç kademede.** Çizim yerine oturuyor, 90 ms sonra yazı,
 190 ms sonra düğmeler alttan yükseliyor. Çizim dışarıdan içeri geliyor,
 yani açılış ekranındaki kadranın dışa doğru büyüyen hareketi kesilmeden

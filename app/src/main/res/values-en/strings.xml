@@ -30,6 +30,9 @@
     <string name="onb_mismatch">Passwords do not match</string>
     <string name="onb_too_short">Master password must be at least 12 characters</string>
     <string name="onb_too_weak">This password is too guessable. Pick something longer and more unique.</string>
+    <string name="onb_master_need_chars">%1$d more characters</string>
+    <string name="onb_master_need_stronger">Long enough, but guessable. Get past the mark.</string>
+    <string name="onb_master_ok">Good. If you forget it, the recovery key is the only way back.</string>
     <string name="onb_create">Create vault</string>
     <string name="onb_creating">Deriving key…</string>
     <string name="onb_recovery_title">Your recovery key</string>
