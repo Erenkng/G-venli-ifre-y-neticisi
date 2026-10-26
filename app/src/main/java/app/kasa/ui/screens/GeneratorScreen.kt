@@ -3,6 +3,7 @@ package app.kasa.ui.screens
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.draw.clip
@@ -123,6 +124,7 @@ import app.kasa.ui.theme.KasaTheme
  * @param onUse üretilen değeri çağıranın alanına yazar; `null` ise
  *        "kullan" eylemi gösterilmiyor (tek başına üretip kopyalama)
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeneratorSheet(
     viewModel: GeneratorViewModel,
@@ -231,7 +233,7 @@ fun GeneratorScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.statusBars)
         },
-        contentPadding = if (inSheet) PaddingValues(horizontal = 20.dp, bottom = 24.dp)
+        contentPadding = if (inSheet) PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp)
         else listContentPadding()
     ) {
         if (!inSheet) item(key = "hero") {

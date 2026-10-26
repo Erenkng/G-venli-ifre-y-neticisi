@@ -34,6 +34,9 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.MoreHoriz
@@ -232,9 +235,9 @@ fun MainScaffold(
         (tab == TAB_VAULT && vaultView != VaultFilter.All)
 
     val destinations = listOf(
-        NavDestination(TAB_VAULT, stringResource(R.string.nav_vault)),
-        NavDestination(TAB_SECURITY, stringResource(R.string.nav_security)),
-        NavDestination(TAB_SETTINGS, stringResource(R.string.nav_settings))
+        NavDestination(TAB_VAULT, stringResource(R.string.nav_vault), Icons.Rounded.Lock),
+        NavDestination(TAB_SECURITY, stringResource(R.string.nav_security), Icons.Rounded.Shield),
+        NavDestination(TAB_SETTINGS, stringResource(R.string.nav_settings), Icons.Rounded.Tune)
     )
 
     // Geri tuşu: en üstteki katmanı kapat, hiçbiri yoksa kasa sekmesine dön.
