@@ -19,40 +19,42 @@ Android 16 (API 36) ve üstü, 64 bit.
 
 ---
 
-## 3.0'da yenilikler
+## 3.1'de yenilikler
 
-Arayüz baştan düşünüldü. Yeni sürüm numarası bu yüzden: uygulama aynı işi
-yapıyor ama artık başka görünüyor.
+Gradyanlar kalktı, menü düğmenin içinden açılıyor, satırlar ve gezinme
+çubuğu yeniden çizildi. 3.0'daki "dizin" denemesinin cihazda kötü çıkan
+tarafları da geri alındı.
 
-**Tez: liste bir kart yığını değil, bir dizin.** Bir parola yöneticisinin
-ana ekranı özünde taradığın adların listesi. Basılı dizinler girdiyi kutuya
-koymaz — işi tipografi ve ritim yapar. Kartlar hem arkadaki gradyanı
-örtüyordu hem de boşluğun yapabileceği bir ayırmayı yüzey harcayarak
-yapıyordu.
+- **Zemin artık tek bir düz renk.** Renkli ışıkların sızdığı gradyan bir
+  dönemin imzasıydı ve o dönem geçti. Bugünün tersi: zemin susuyor, renk
+  bileşenin üstünde duruyor. Üç renk ailesi ve saate göre kayma yerinde —
+  artık dört renk yerine bir renk kayıyor.
+- **Ekleme menüsü artık düğmenin kendi içinden açılıyor.** Üstünde yüzen
+  kapsüller yerine, düğmenin altından yukarı doğru büyüyen tek bir kart.
+  **Artı tuşuna basınca çıkan bulanıklık/karartma tamamen gitti** — kartın
+  kendi yüzeyi zaten okunur.
+- **Liste satırı büyüdü.** Site işareti 44'ten 56dp'ye, satır 84dp'ye.
+  Sebep boyut değil tanınırlık: küçük hâlde işaretler birbirinin aynı
+  renkli kareleriydi. İkincil satır tek aralıklı yazıya geçti, güç işareti
+  sol kenardan sağ uca taşındı. *Sıkışık yerleşim ayarı duruyor.*
+- **Gezinme çubuğu yalnızca simge taşıyor** ve ekranı kat etmiyor,
+  ortada kendi genişliğinde duruyor. Etiketler kalktı ama hedeflerin adı
+  kalkmadı: TalkBack "Kasa, sekme" diye okuyor ve seçili olma durumu artık
+  ekran okuyucuya da bildiriliyor — eskiden yalnızca renkteydi.
+- **Parola üretici bir sekme değil.** Alttan açılan bir sayfa oldu ve
+  parolanın yazıldığı yerde açılıyor; ekleme menüsünde de kendi girişi var.
+  Gezinme çubuğu böylece üçe indi.
+- **Hafıza provası:** ana parolayı artan aralıklarla bir kez yazdıran kart.
+  Program araştırmaya dayanıyor (Blocki ve ark., NDSS 2015): ilk dönüş 12
+  saat sonra, aralıklar ~1,5 katıyla büyüyor.
 
-- **Gezinme çubuğu artık kelimelerle geziniyor.** Simgeler ve seçilinin
-  arkasındaki hap gitti. Hedefler bir satırda duran kelimeler; seçili olan
-  tam ağırlık ve genişlikte, ötekiler ince ve kısık. Seçim bir şeyin kayması
-  değil, **kelimenin kendisinin öne çıkması** — biri ağırlaşırken komşuları
-  geri çekiliyor. Altındaki ince ray kelimeden kelimeye yaylanarak kayıyor.
-  *Simge yerine kelime bir tercih: simge daha hızlı tanınıyor, kelime daha
-  açık söylüyor. Çubuk da kısaldı, listeye yer kaldı.*
-- **Kartlar her ekrandan kalktı.** Ayarlar, üretici ve güvenlik listeleri de
-  kasa listesiyle aynı dili konuşuyor: satırlar doğrudan zemin üzerinde,
-  tek yüzey parmak basılıyken görünen ton.
-- **Bölüm başlıkları sol kenara, marja çekildi.**
-- **Cam, ait olduğu yerde kaldı:** üst/alt çubuklar ve açılan sayfalar.
-  Gradyan aileleri, günün saatine göre değişmesi ve bütün yay hareketleri
-  de yerinde.
+Düzeltilenler:
 
-Ve arayüze bakarken çıkan birkaç gerçek hata:
-
-- **İngilizce kullananlar bozuk büyük harf görüyordu.** Başlıklar sabit
-  Türkçe kurallarıyla büyütülüyordu, yani "Security" → "SECURİTY",
-  "Settings" → "SETTİNGS". Alan etiketlerinde ve klasör alanında da aynı
-  hata vardı. Dördü de düzeldi.
-- **Parola geçmişindeki tarih hep Türkçe ay adı gösteriyordu** — İngilizce
-  kullanan biri "25 Ekim 2026" okuyordu. Artık uygulamanın diline uyuyor.
+- **Listenin son kaydı gezinme çubuğunun altında kalıyordu.** Liste dolgusu
+  76dp ayırıyordu ama çubuk 100dp yer kaplıyordu; iki sayı ayrı yerlerde
+  yazılıydı. Artık tek bir yerden türüyor.
+- **Artı düğmesinin erişilebilirlik etiketi yoktu**, TalkBack adsız bir
+  düğme okuyordu.
 
 ---
 
