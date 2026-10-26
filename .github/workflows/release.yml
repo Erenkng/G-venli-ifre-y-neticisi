@@ -140,9 +140,22 @@ jobs:
           if [ "$SIGNED" != "true" ]; then
             cat .github/RELEASE_UNSIGNED.md >> "$notes"
           fi
-          # --target ile etiket yoksa bu commit üzerinde oluşturuluyor; etiketle
-          # tetiklendiğinde zaten var olan etiket kullanılıyor.
-          gh release create "$TAG" dist/*.apk \
-            --title "Kasa $TAG" \
-            --notes-file "$notes" \
-            --target "$GITHUB_SHA"
+          # Sürüm zaten varsa yalnızca notlar yenileniyor.
+          #
+          # `gh release create` var olan bir sürümde hata veriyor ve bu,
+          # yayımlanmış bir sürümün notlarını düzeltmenin hiçbir yolu
+          # olmaması demekti. APK'ya dokunulmuyor: yeniden derlenen bir ikili
+          # aynı koddan çıksa da bayt bayt aynı olmuyor, yani onu değiştirmek
+          # indirmiş olan herkesin elindekinden farklı bir dosya koymak
+          # olurdu.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Sürüm zaten var; yalnızca notlar güncelleniyor."
+            gh release edit "$TAG" --notes-file "$notes"
+          else
+            # --target ile etiket yoksa bu commit üzerinde oluşturuluyor;
+            # etiketle tetiklendiğinde zaten var olan etiket kullanılıyor.
+            gh release create "$TAG" dist/*.apk \
+              --title "Kasa $TAG" \
+              --notes-file "$notes" \
+              --target "$GITHUB_SHA"
+          fi
