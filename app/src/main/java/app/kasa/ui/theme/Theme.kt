@@ -126,7 +126,7 @@ private val PureBlackScheme = DarkScheme.copy(
 @Composable
 fun KasaTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = true,
     pureBlack: Boolean = false,
     gradientTheme: GradientTheme = GradientTheme.JADE,
     gradientFollowsTime: Boolean = true,
@@ -158,8 +158,12 @@ fun KasaTheme(
         dark && pureBlack -> PureBlackKasaColors
         dark -> DarkKasaColors
         else -> LightKasaColors
-    }
+    }.let { if (dynamicColor) it.wearing(colorScheme, dark, pureBlack) else it }
 
+    // Duvar kâğıdı rengi açıkken zemin oradan geliyor ve aile/saat tablosu
+    // hiç çalıştırılmıyor: ikisi aynı şeyi söylemeye çalışan iki kaynak
+    // olurdu ve kullanıcı duvar kâğıdını seçtiyse cevap duvar kâğıdı.
+    //
     // Zemin rengi seçilen aileden ve saatten geliyor; renk şemasının geri
     // kalanı (mürekkep, rozet renkleri) dokunulmadan kalıyor. Tam siyah
     // kipinde zemin hiç değiştirilmiyor: o kip zaten "hiç ışık olmasın"
@@ -172,10 +176,11 @@ fun KasaTheme(
     // Algı eşiğinin altındaki bu doku ona yüzey hissi veriyor. Kademeler onu
     // görülür bir dokuya çıkarıyor; tam siyahta hiç uygulanmıyor.
     val grain = grainLevel.alpha
-    val kasaColors = if (dark && pureBlack) baseColors else baseColors.copy(
-        canvas = tone,
-        grainAlpha = grain ?: baseColors.grainAlpha
-    )
+    val kasaColors = when {
+        dark && pureBlack -> baseColors
+        dynamicColor -> baseColors.copy(grainAlpha = grain ?: baseColors.grainAlpha)
+        else -> baseColors.copy(canvas = tone, grainAlpha = grain ?: baseColors.grainAlpha)
+    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -204,6 +209,56 @@ fun KasaTheme(
             content = content
         )
     }
+}
+
+/**
+ * Tasarımın kendi renklerini duvar kâğıdından türetilmiş şemaya giydirir.
+ *
+ * ### Neden gerekti
+ *
+ * "Duvar kâğıdı rengini kullan" anahtarı yalnızca Material'ın `colorScheme`
+ * nesnesini değiştiriyordu: düğmeler, seçili sekme ve rozet kapları duvar
+ * kâğıdına uyuyordu ama uygulamanın kendi renkleri — zemin, kart, mürekkep —
+ * elle yazılmış jade tablosunda kalıyordu. Sonuç yarım bir tema: mor bir
+ * duvar kâğıdında mor düğmeler, yeşilimsi bir zemin. Asıl geniş yüzeyler
+ * değişmediği için anahtar "açık" iken bile uygulama aynı uygulamaydı.
+ *
+ * ### Neyin değiştiği, neyin değişmediği
+ *
+ * Yüzeyler ve mürekkep şemadan geliyor. Katman sırası korunuyor: zemin
+ * kartın bir tık altında, kart en açık yüzey. Material'ın merdiveni zaten
+ * bunun için var, yani düz zemin + beyaz kart ayrımı duvar kâğıdı renginde
+ * de ayakta kalıyor.
+ *
+ * **Güç ve sızıntı renkleri değişmiyor.** Zayıf kırmızı, orta kehribar,
+ * güçlü yeşil kalıyor. Bunlar bir süs değil bir **uyarı**: kullanıcı
+ * kırmızıyı "kötü" diye okuyor ve duvar kâğıdı turuncuysa "zayıf" rozetinin
+ * turuncu olması o okumayı bozar. Renk burada bilgi taşıyor, kimlik değil.
+ */
+private fun KasaColors.wearing(
+    scheme: androidx.compose.material3.ColorScheme,
+    dark: Boolean,
+    pureBlack: Boolean
+): KasaColors {
+    if (dark && pureBlack) return this
+    return copy(
+        ink = scheme.onSurface,
+        ink2 = scheme.onSurfaceVariant,
+        // Üçüncül mürekkep için şemada ayrı bir giriş yok; `outline`
+        // Material'ın tam olarak bu aralık için tanımladığı ton.
+        ink3 = scheme.outline,
+        // Kart zeminden açık, basılı hâli zeminden koyu: aradaki fark
+        // satırın dokunulduğunu söyleyen şey ve iki yönden biri olmak
+        // zorunda, yoksa basış görünmüyor.
+        tile = scheme.surfaceContainerLowest,
+        tilePressed = scheme.surfaceContainerHigh,
+        card = scheme.surfaceContainerLowest,
+        canvas = if (dark) scheme.surface else scheme.surfaceContainer,
+        navScrim = scheme.surface,
+        snackbar = scheme.inverseSurface,
+        onSnackbar = scheme.inverseOnSurface,
+        snackbarAction = scheme.inversePrimary
+    )
 }
 
 /** Tasarıma özgü renklere kısa erişim: `KasaTheme.colors.strengthWeak` */

@@ -691,7 +691,12 @@ private fun RecoveryStep(viewModel: AuthViewModel, state: AuthViewModel.SetupSta
                     if (state.recoverySaved) R.string.onb_recovery_saved_file
                     else R.string.onb_recovery_save
                 ),
-                onClick = { saveLauncher.launch(RECOVERY_FILE_NAME) },
+                onClick = {
+                    // Sistem seçicisi uygulamayı arka plana alıyor; otomatik
+                    // kilit bunu "kullanıcı çıktı" sayıp kasayı kapatıyordu.
+                    viewModel.suppressAutoLockForPicker()
+                    saveLauncher.launch(RECOVERY_FILE_NAME)
+                },
                 tone = ButtonTone.TONAL,
                 height = 46.dp,
                 modifier = Modifier.weight(1f),
@@ -1142,6 +1147,7 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
             position = GroupPosition.FIRST,
             step = 0,
             onClick = {
+                viewModel.suppressAutoLockForPicker()
                 if (restoreFirst) archiveLauncher.launch(arrayOf(ANY_MIME))
                 else csvLauncher.launch(arrayOf(ANY_MIME))
             }
@@ -1157,6 +1163,7 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
             position = GroupPosition.LAST,
             step = 1,
             onClick = {
+                viewModel.suppressAutoLockForPicker()
                 if (restoreFirst) csvLauncher.launch(arrayOf(ANY_MIME))
                 else archiveLauncher.launch(arrayOf(ANY_MIME))
             }
@@ -1184,7 +1191,10 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
             position = GroupPosition.FIRST,
             done = autofillOn,
             step = 2,
-            onClick = { openAutofillSettings(context) }
+            onClick = {
+                viewModel.suppressAutoLockForPicker()
+                openAutofillSettings(context)
+            }
         )
         HandoffRow(
             icon = Icons.Rounded.Key,
@@ -1193,7 +1203,10 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
             position = GroupPosition.MIDDLE,
             done = passkeyOn,
             step = 3,
-            onClick = { openCredentialProviderSettings(context) }
+            onClick = {
+                viewModel.suppressAutoLockForPicker()
+                openCredentialProviderSettings(context)
+            }
         )
         // Bildirim izni.
         //
@@ -1211,6 +1224,7 @@ private fun HandoffStep(viewModel: AuthViewModel, state: AuthViewModel.SetupStat
             step = 4,
             onClick = {
                 if (!notificationsOn) {
+                    viewModel.suppressAutoLockForPicker()
                     notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                 }
             }

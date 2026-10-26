@@ -160,7 +160,7 @@ class SettingsStore(private val context: Context) {
     @Immutable
     data class Settings(
         val theme: ThemeMode = ThemeMode.SYSTEM,
-        val dynamicColor: Boolean = false,
+        val dynamicColor: Boolean = true,
         val pureBlack: Boolean = false,
         val grainLevel: GrainLevel = GrainLevel.OFF,
         val haptics: Boolean = true,
@@ -316,7 +316,7 @@ class SettingsStore(private val context: Context) {
         Settings(
             theme = runCatching { ThemeMode.valueOf(prefs[KEY_THEME] ?: ThemeMode.SYSTEM.name) }
                 .getOrDefault(ThemeMode.SYSTEM),
-            dynamicColor = prefs[KEY_DYNAMIC] ?: false,
+            dynamicColor = prefs[KEY_DYNAMIC] ?: true,
             pureBlack = prefs[KEY_PURE_BLACK] ?: false,
             // Eski sürümdeki aç/kapa anahtarı kademeye çevriliyor: açık
             // bırakmış kullanıcı ortada bir kademeyle devam ediyor.

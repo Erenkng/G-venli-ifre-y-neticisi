@@ -1334,10 +1334,20 @@ class VaultRepository(
      *
      * @return eklenen kayıt sayısı
      */
-    suspend fun importItems(incoming: List<VaultItem>): Int {
+    suspend fun importItems(incoming: List<VaultItem>): Int? {
         if (incoming.isEmpty()) return 0
         var added = 0
-        mutate { current ->
+        // Dönüş değeri **mutate'ten** geliyor, sayaçtan değil.
+        //
+        // Eskiden `added` doğrudan döndürülüyordu ve bu iki yönde birden
+        // yalan söylüyordu. Kasa kilitliyse `mutate` bloğu hiç çalışmıyor,
+        // `added` sıfır kalıyor ve çağıran bunu "dosyada kayıt yoktu" diye
+        // okuyordu — kurulum sırasında tam olarak bu oluyordu. Yazma
+        // sırasında bir istisna çıkarsa ise blok çalışmış, `added` dolmuş
+        // oluyordu: ekran "N kayıt aktarıldı" diyor, diskte hiçbir şey yok.
+        //
+        // İkisi de sessiz. Artık yazma olmadıysa cevap null.
+        val written = mutate { current ->
             val existing = current.items
             val fresh = incoming.filterNot { candidate ->
                 existing.any {
@@ -1372,7 +1382,7 @@ class VaultRepository(
             }
             if (owned.isEmpty()) current else current.copy(items = existing + owned)
         }
-        return added
+        return if (written) added else null
     }
 
     // ── otomatik doldurma ────────────────────────────────────────────────

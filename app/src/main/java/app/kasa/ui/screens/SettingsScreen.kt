@@ -456,6 +456,13 @@ fun SettingsScreen(
                 // Aile artık bir gradyan değil tek bir düz renk seçiyor; seçim
                 // kalktığı için değil, kalkmaması gerektiği için duruyor —
                 // üç farklı sıcaklık hâlâ üç farklı uygulama hissi veriyor.
+                //
+                // Duvar kâğıdı renkleri açıkken bu seçim gizleniyor, devre
+                // dışı bırakılmıyor: kapalı ama duran bir denetim, "bu
+                // neden çalışmıyor" sorusunu doğuruyor ve cevabı başka bir
+                // ayarda. Zemin o kipte duvar kâğıdından geliyor, yani
+                // ailenin söyleyecek bir şeyi kalmıyor.
+                if (!settings.dynamicColor) {
                 Spacer(Modifier.height(16.dp))
                 SectionLabel(stringResource(R.string.set_group_gradient))
                 Spacer(Modifier.height(8.dp))
@@ -482,6 +489,7 @@ fun SettingsScreen(
                     onCheckedChange = viewModel::setGradientFollowsTime,
                     first = true
                 )
+                }
                 // Tane düz zeminin basılmış bir renk kartelasına benzemesini
                 // engelliyor; kapalıyken de görünmeyecek kadar var, kademeler
                 // onu görülür bir dokuya çıkarıyor.

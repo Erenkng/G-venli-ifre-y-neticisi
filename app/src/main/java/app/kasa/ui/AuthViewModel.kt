@@ -412,6 +412,25 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
      * klasöründe duran açık bir parola listesi, kasanın koruduğu her şeyi
      * anlamsız kılar.
      */
+    /**
+     * Sistem seçicisi açılmadan hemen önce otomatik kilidi erteler.
+     *
+     * Kurulum ekranı beş ayrı yerde kullanıcıyı sistemin kendi ekranlarına
+     * gönderiyor: kurtarma anahtarını kaydet, CSV seç, arşiv seç, bildirim
+     * izni, otomatik doldurma ayarları. Bunların hiçbiri bu çağrıyı
+     * yapmıyordu ve sonucu şuydu — uygulama arka plana geçtiği anda
+     * [AutoLocker] bunu "kullanıcı çıktı" sayıp kasayı kilitliyordu.
+     *
+     * Sıkı duruşta kilitlenme süresi 15 saniye, dengelide 60. Yani dosya
+     * seçicide biraz dolaşan kullanıcı geri döndüğünde kasa kapalı oluyor
+     * ve içe aktarma hiçbir şey yapamıyor — kurulumun ortasında, sebebi
+     * hiçbir yerde yazmadan. Uygulamanın geri kalanı (dışa aktarma, ekler,
+     * karekod) bu çağrıyı zaten yapıyordu; eksik olan yalnızca kurulumdu.
+     */
+    fun suppressAutoLockForPicker() {
+        container.autoLocker.suppressNextBackground()
+    }
+
     fun importCsv(uri: Uri) {
         viewModelScope.launch {
             _setup.value = _setup.value.copy(busy = true, importError = null)
@@ -426,6 +445,10 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
                     bytes.fill(0)
                 }
             }
+            // `importItems` artık yazma başarısız olduğunda null veriyor;
+            // eskiden kasa kilitliyken de sayı döndürüyordu ve ekran
+            // "hiç kayıt bulunamadı" diyordu — yani gerçek sebep (kasa
+            // kilitlendi) hiçbir yerde görünmüyordu.
             val added = if (parsed == null) null else repository.importItems(parsed.items)
             // Depo kendi kopyasını aldı; buradaki gizli metinler artık gereksiz.
             parsed?.items?.forEach { it.password.wipe() }

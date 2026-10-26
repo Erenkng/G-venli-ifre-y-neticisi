@@ -267,7 +267,7 @@
     <string name="set_theme_light">Açık</string>
     <string name="set_theme_dark">Karanlık</string>
     <string name="set_dynamic">Duvar kâğıdı renkleri</string>
-    <string name="set_dynamic_sub">Material You ile cihaz renklerini kullan</string>
+    <string name="set_dynamic_sub">Zemin, kartlar ve yazı rengi duvar kâğıdından gelir. Güç ve sızıntı renkleri değişmez.</string>
     <string name="set_amoled">Tam siyah</string>
     <string name="set_amoled_sub">AMOLED ekranlarda karanlık modu daha koyu yapar</string>
 

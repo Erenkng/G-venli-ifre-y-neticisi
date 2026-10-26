@@ -225,7 +225,7 @@
     <string name="set_theme_light">Light</string>
     <string name="set_theme_dark">Dark</string>
     <string name="set_dynamic">Wallpaper colours</string>
-    <string name="set_dynamic_sub">Use Material You device colours</string>
+    <string name="set_dynamic_sub">Backdrop, cards and text colour follow the wallpaper. Strength and breach colours stay put.</string>
     <string name="set_amoled">Pure black</string>
     <string name="set_amoled_sub">Deepens dark mode on AMOLED screens</string>
 

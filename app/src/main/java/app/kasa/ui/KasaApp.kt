@@ -67,6 +67,29 @@ fun KasaApp(
     val inSetup = setup.stage != AuthViewModel.Stage.SETUP &&
         setup.stage != AuthViewModel.Stage.DONE
 
+    // ### Kurulum sürerken kasa kilitlenirse
+    //
+    // Kurulum ekranı kilit durumunu **eziyordu**: `inSetup` doğruyken ne
+    // olursa olsun kurulum gösteriliyordu. Kasa o sırada kilitlenirse —
+    // kullanıcı kurtarma anahtarını kaydetmek için dosya seçicisine gider,
+    // otomatik kilit süresi dolar — ekran hiçbir şey olmamış gibi duruyordu
+    // ama altındaki her adım sessizce bozuluyordu:
+    //
+    //  - Ana parola onayı: `verifyMasterPassword` kilitli kasada her zaman
+    //    `false` veriyor. Yani kullanıcı **doğru** parolasını yazıyor ve
+    //    "yanlış" cevabını alıyor. Üç denemeden sonra ekran, kasayı silip
+    //    baştan başlamayı öneriyor — doğru parolayı bilen kullanıcıya.
+    //  - İçe aktarma: hiçbir şey yazılamıyor, ekran "kayıt bulunamadı"
+    //    diyor.
+    //  - Biyometri: sarmalayıcı kurulamıyor.
+    //
+    // Üçünün de görünen sebebi yanlış ve gerçek sebep hiçbir yerde yazmıyor.
+    // Çözüm kilidi kurulum boyunca kapatmak değil — kasa o sırada doluyor ve
+    // açık bırakmanın bedeli gerçek. Çözüm durumu **göstermek**: kilitliyse
+    // kilit ekranı çıkıyor, kullanıcı açıyor ve kurulum kaldığı adımdan
+    // devam ediyor, çünkü adım oturum durumunda duruyor.
+    val setupLocked = inSetup && lockState is VaultRepository.LockState.Locked
+
     // Kurulumu geçmiş kasalarda bayrağı bir kez yerine koyuyor: yazan tek
     // yol ulaşılamaz olduğu için bugüne kadar hiç yazılmamıştı.
     LaunchedEffect(lockState, inSetup) {
@@ -83,7 +106,8 @@ fun KasaApp(
         val exitFade: FiniteAnimationSpec<Float> = KasaMotion.exit()
 
         AnimatedContent(
-            targetState = if (inSetup) VaultRepository.LockState.NeedsSetup else lockState,
+            targetState = if (inSetup && !setupLocked) VaultRepository.LockState.NeedsSetup
+            else lockState,
             transitionSpec = {
                 (fadeIn(enterFade) + scaleIn(
                     initialScale = 0.98f,
