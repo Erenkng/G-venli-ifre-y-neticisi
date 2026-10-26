@@ -74,6 +74,7 @@ import app.kasa.data.GeneratorMode
 import app.kasa.data.model.Category
 import app.kasa.data.model.VaultFilter
 import app.kasa.ui.components.FabAction
+import app.kasa.ui.components.NAV_SURFACE_HEIGHT
 import app.kasa.ui.components.FabMenu
 import app.kasa.ui.components.clickableNoRipple
 import app.kasa.ui.components.KasaNavBar
@@ -559,7 +560,11 @@ fun MainScaffold(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(end = 18.dp, bottom = 112.dp)
+                // Artı tuşu gezinme pillinin üstünde duruyor; uzaklığı
+                // pillin kendi yüksekliğinden türüyor, elle yazılmış bir
+                // sayıdan değil. Pill etiketlerini bırakıp kısalınca sabit
+                // bir sayı aralarında otuz piksellik bir boşluk bırakırdı.
+                .padding(end = 18.dp, bottom = NAV_SURFACE_HEIGHT + 20.dp)
         ) {
             FabMenu(
                 expanded = fabExpanded,

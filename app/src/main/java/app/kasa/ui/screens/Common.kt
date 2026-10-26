@@ -51,6 +51,7 @@ import app.kasa.data.model.Category
 import app.kasa.data.model.CategorySchema
 import app.kasa.data.model.SmartFolder
 import app.kasa.data.model.VaultItem
+import app.kasa.ui.components.NAV_SURFACE_HEIGHT
 import app.kasa.ui.components.CardThumb
 import app.kasa.ui.components.SiteLogo
 import app.kasa.ui.components.KasaBadge
@@ -361,21 +362,11 @@ fun listContentPadding(extraBottom: Dp = 0.dp): PaddingValues {
     return PaddingValues(
         start = SIDE_PADDING,
         end = SIDE_PADDING,
-        bottom = NAV_BAR_HEIGHT + extraBottom + system.calculateBottomPadding()
+        bottom = NAV_SURFACE_HEIGHT + extraBottom + system.calculateBottomPadding()
     )
 }
 
 private val SIDE_PADDING = 16.dp
-
-/**
- * Gezinme çubuğunun iç boşluk hariç yüksekliği.
- *
- * Çubuk kelimelere dönüşünce kısaldı: fade koşusu (34) + kelime satırı (19)
- * + boşluk (7) + ayraç (2) + alt dolgu (12) ≈ 74. Eski değer 108'di ve
- * güncellenmemiş olsaydı listenin altında otuz dört piksellik boş bir şerit
- * kalırdı — kazanılan yer kullanılmazdı.
- */
-private val NAV_BAR_HEIGHT = 76.dp
 
 /**
  * Tam ekrana açılan bir alt sayfanın içeriğinin kaplayabileceği en fazla yer.

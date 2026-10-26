@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -59,6 +58,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -91,9 +92,29 @@ data class NavDestination(
  *    duran bir pill ise altından içerik geçiyor ve çubuk bir nesne gibi
  *    okunuyor.
  *
- * Şimdiki hâli: kenarlardan boşluklu, tamamen yuvarlatılmış, yükseltilmiş
- * bir [Surface]. Simgeler geri geldi ve her hedef 64dp yüksekliğinde bir
- * dokunma alanı kaplıyor.
+ * Şimdiki hâli: kendi içeriği kadar geniş, ortalanmış, tamamen yuvarlatılmış
+ * ve yükseltilmiş bir [Surface]. Yalnızca simge taşıyor.
+ *
+ * ### Etiketler neden kalktı
+ *
+ * Üç hedef var ve üçü de uygulamanın tamamı: kasa, güvenlik, ayarlar. Bir
+ * kullanıcı bunları ikinci açılışta öğreniyor ve ondan sonra okumuyor,
+ * yalnızca nişan alıyor. Etiketler o noktadan sonra yer kaplamaktan başka
+ * bir şey yapmıyordu — ve kapladıkları yer ucuz değildi: çubuk 76dp'den
+ * 60dp'ye indi, yani listeye bir satırın beşte biri kadar yer açıldı.
+ *
+ * Bedeli **ilk** açılış ve bu bedel ödenmiyor, karşılanıyor: her simge
+ * hedefin adını `contentDescription` olarak taşıyor, yani TalkBack "Kasa,
+ * sekme" diye okuyor; ayrıca seçili olma durumu artık anlamsal olarak da
+ * bildiriliyor (`semantics { selected = ... }`), eskiden yalnızca renkle
+ * söyleniyordu ve ekran okuyucuya hiç ulaşmıyordu.
+ *
+ * ### Çubuk neden ekranı kat etmiyor
+ *
+ * Genişliği içeriğinden geliyor, kenarlardan verilen bir boşluktan değil.
+ * Sabit boşlukla kurulsaydı çubuk ekranla birlikte büyürdü: telefonda
+ * doğru görünen şey tablette, üç simgenin arasında kocaman boşluklar olan
+ * bir şeride dönerdi. İçeriği kadar geniş olunca her ekranda aynı nesne.
  *
  * ### Camın nereye gittiği
  *
@@ -124,7 +145,7 @@ fun KasaNavBar(
         modifier = modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = NAV_MARGIN),
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -137,21 +158,43 @@ fun KasaNavBar(
             tonalElevation = 3.dp
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                modifier = Modifier.padding(NAV_INSET),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 destinations.forEach { destination ->
                     NavItem(
                         destination = destination,
                         selected = destination.key == selected,
-                        onClick = { onSelect(destination.key) },
-                        modifier = Modifier.weight(1f)
+                        onClick = { onSelect(destination.key) }
                     )
                 }
             }
         }
     }
 }
+
+/** Pillin ekranın altından ve kenarlarından uzaklığı. */
+private val NAV_MARGIN = 12.dp
+
+/** Pillin iç boşluğu; seçili hapın kabuğa olan uzaklığı da bu. */
+private val NAV_INSET = 6.dp
+
+/**
+ * Gezinme yüzeyinin sistem çubuğunun üstünde kapladığı **toplam** yükseklik.
+ *
+ * Kaydırılan listeler son kaydın pillin altında kalmaması için bu kadar
+ * boşluk bırakıyor. Burada duruyor ve elle yazılmış bir sayı değil, çünkü
+ * önceki hâlinde öyleydi ve yanlıştı: liste tarafındaki sabit 76dp
+ * yazıyordu, gerçek yükseklik ise 100dp'ydi (pill 76 + iki yanda 12
+ * boşluk). Yani son kayıt yirmi dört piksel pillin altında kalıyordu ve
+ * kimse iki sayıyı birlikte güncellemediği için kalmaya devam ediyordu.
+ * Türetilmiş bir değer böyle sapamaz.
+ *
+ * Hesaplanan özellik, sabit değil: dosya düzeyindeki değerler bildirim
+ * sırasına göre ilkleniyor ve burada kullanılanların üçü de aşağıda
+ * tanımlı. Sabit olsaydı sıfırla hesaplanırdı.
+ */
+val NAV_SURFACE_HEIGHT: Dp get() = NAV_MARGIN * 2 + NAV_INSET * 2 + NAV_ITEM_HEIGHT
 
 /**
  * Gezinme yüzeyinin altındaki bulanık arka plan.
@@ -414,41 +457,52 @@ private fun NavItem(
     )
 
     val container = MaterialTheme.colorScheme.secondaryContainer
+    val isSelected = selected
 
-    Column(
+    Box(
         modifier = modifier
-            // 64dp: Material'ın dokunma hedefi alt sınırı 48dp ve bu onun
-            // üstünde. Kelimelerle gezinen önceki hâlde hedef, metnin
-            // kapladığı ince şeritti; parmak ekranın altında kabaca nişan
-            // alıyor ve ince şerit o nişanı tutmuyor.
-            .height(64.dp)
+            .size(width = NAV_ITEM_WIDTH, height = NAV_ITEM_HEIGHT)
             .clickableNoRipple(interactionSource = interaction, role = Role.Tab, onClick = onClick)
+            // Seçili olma bilgisi eskiden yalnızca renkteydi ve ekran
+            // okuyucuya hiç ulaşmıyordu. Etiketler kalkınca bunu bildirmek
+            // zorunlu hâle geldi: görsel ipucu kalmayan bir kullanıcının
+            // nerede olduğunu anlamasının başka yolu yok.
+            //
+            // Değer ayrı bir adla taşınıyor. `this.selected = selected`
+            // yazılsaydı sağ taraf da lambdanın örtük alıcısına çözülürdü
+            // ve `SemanticsPropertyReceiver.selected` yalnızca yazılabilir
+            // bir özellik: okunduğunda istisna atıyor. Derlenirdi, çalışma
+            // anında patlardı.
+            .semantics { this.selected = isSelected }
             .background(
                 color = container.copy(alpha = fill),
                 shape = RoundedCornerShape(KasaRadius.full)
             )
             .scale(press),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = destination.icon,
-            contentDescription = null,
+            // Etiketin yerini bu alıyor: yazı ekrandan kalktı ama hedefin
+            // adı kalkmadı, TalkBack "Kasa, sekme" diye okumaya devam ediyor.
+            contentDescription = destination.label,
             tint = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
             else KasaTheme.colors.ink3,
             modifier = Modifier.size(24.dp)
         )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = destination.label,
-            style = if (selected) KasaTheme.text.navActive else KasaTheme.text.navLabel,
-            color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
-            else KasaTheme.colors.ink3,
-            maxLines = 1,
-            softWrap = false
-        )
     }
 }
+
+/**
+ * Bir gezinme hedefinin dokunma alanı.
+ *
+ * Yükseklik Material'ın 48dp'lik alt sınırında; etiketli hâlde 64dp'ydi ve
+ * o 16dp'nin tamamı yazıya gidiyordu. Genişlik ise sınırın çok üstünde,
+ * çünkü asıl kaçırma yönü yatay: üç hedef yan yana duruyor ve parmak
+ * aralarında kayıyor, yukarı-aşağı değil.
+ */
+private val NAV_ITEM_HEIGHT = 48.dp
+private val NAV_ITEM_WIDTH = 88.dp
 
 data class FabAction(
     val label: String,
