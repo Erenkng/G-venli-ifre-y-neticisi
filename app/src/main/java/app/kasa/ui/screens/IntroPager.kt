@@ -1,7 +1,11 @@
 package app.kasa.ui.screens
 
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -40,6 +44,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
@@ -119,6 +125,49 @@ fun IntroPager(
     val phase: State<Float> =
         if (reduced) remember { mutableStateOf(0f) } else animatedPhase
 
+    // ── açılış ────────────────────────────────────────────────────────────
+    //
+    // Uygulamanın ilk karesi burası ve buraya kadar hiçbir hareket yoktu:
+    // açılış ekranındaki kadran kullanıcıya doğru büyüyerek çözülüyor,
+    // ardından tanıtım **olduğu gibi** beliriyordu. Yani özenle kurulmuş bir
+    // devir teslim, karşı tarafta hiç karşılanmıyordu.
+    //
+    // Şimdi üç kademeli bir perde açılışı var ve kademeler aynı yönde:
+    //
+    //  1. **Çizim.** 1,06'dan 1'e iniyor. Yön bilerek içeri doğru: açılış
+    //     ekranının kadranı dışarı doğru büyüyerek kayboluyor, yani ekranda
+    //     süren hareket dışa doğru. Tanıtımın da dışarıdan başlayıp yerine
+    //     oturması o hareketi kesmek yerine tamamlıyor — iki ayrı animasyon
+    //     değil, tek bir hareketin iki yarısı.
+    //  2. **Yazı**, 90 ms sonra.
+    //  3. **Gösterge ve düğmeler**, 190 ms sonra, alttan yükselerek.
+    //
+    // Gecikmeler küçük görünüyor ama sıra bu kadarıyla okunuyor: aynı anda
+    // gelen bir ekran tek bir blok, sırayla gelen bir ekranın ise okuma
+    // yönü hareketin kendisinden çıkıyor. Kurulum adımlarının tamamı zaten
+    // bu dili konuşuyor ([KasaReveal]); eksik olan tanıtımdı.
+    //
+    // Değerler **durum nesnesi** olarak taşınıyor ve yalnızca `graphicsLayer`
+    // içinde okunuyor: `by` ile okunsaydı açılış boyunca her karede üç
+    // sahnenin tamamı yeniden bestelenirdi.
+    var opened by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { opened = true }
+    val artOpen = animateFloatAsState(
+        targetValue = if (opened) 1f else 0f,
+        animationSpec = openingSpec(delayMillis = 0),
+        label = "introOpenArt"
+    )
+    val textOpen = animateFloatAsState(
+        targetValue = if (opened) 1f else 0f,
+        animationSpec = openingSpec(delayMillis = OPEN_TEXT_DELAY),
+        label = "introOpenText"
+    )
+    val controlsOpen = animateFloatAsState(
+        targetValue = if (opened) 1f else 0f,
+        animationSpec = openingSpec(delayMillis = OPEN_CONTROLS_DELAY),
+        label = "introOpenControls"
+    )
+
     // Sayfa değişiminde bir yer değiştirme titreşimi. Düğmeye değil sayfanın
     // kendisine bağlı: kaydırarak geçmek de aynı olay ve düğmeye bağlansaydı
     // kullanıcının iki geçiş yolundan biri sessiz kalırdı.
@@ -152,6 +201,17 @@ fun IntroPager(
             ) {
                 Box(
                     Modifier
+                        .graphicsLayer {
+                            // Yalnızca ilk sayfa: açılış bir kez oluyor ve
+                            // ikinci sayfaya kaydıran kullanıcı onu yeniden
+                            // görmemeli. Ötekiler için değer sabit 1.
+                            if (page != 0) return@graphicsLayer
+                            val t = artOpen.value
+                            alpha = t
+                            val s = 1f + (1f - t) * OPEN_BLOOM
+                            scaleX = s
+                            scaleY = s
+                        }
                         // Genişlik sınırı çizimin ekranı taşırmasını
                         // engelliyor. En-boy oranı sabit olduğu için geniş bir
                         // pencerede `fillMaxWidth` yüksekliği de ekranın
@@ -199,7 +259,18 @@ fun IntroPager(
                     Modifier.graphicsLayer {
                         // Üç düzlemin en öndeki: sayfadan **hızlı** kayıyor.
                         translationX = offset * size.width * PARALLAX_TEXT
-                        alpha = (1f - abs(offset) * 1.4f).coerceIn(0f, 1f)
+                        val swipe = (1f - abs(offset) * 1.4f).coerceIn(0f, 1f)
+                        if (page != 0) {
+                            alpha = swipe
+                            return@graphicsLayer
+                        }
+                        // İlk sayfada kaydırma saydamlığı ile açılış
+                        // saydamlığı **çarpılıyor**, biri ötekini ezmiyor:
+                        // açılış sürerken kaydıran kullanıcı iki etkiyi de
+                        // görmeli, yoksa yazı yarı yolda zıplar.
+                        val t = textOpen.value
+                        alpha = swipe * t
+                        translationY = (1f - t) * OPEN_LIFT.toPx()
                     },
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -220,15 +291,23 @@ fun IntroPager(
             }
         }
 
-        PageDots(
-            count = pages.size,
-            current = pagerState.currentPage,
-            fraction = pagerState.currentPageOffsetFraction
-        )
+        val controlsLayer = Modifier.graphicsLayer {
+            val t = controlsOpen.value
+            alpha = t
+            translationY = (1f - t) * OPEN_LIFT.toPx()
+        }
+
+        Box(controlsLayer) {
+            PageDots(
+                count = pages.size,
+                current = pagerState.currentPage,
+                fraction = pagerState.currentPageOffsetFraction
+            )
+        }
 
         Spacer(Modifier.height(24.dp))
 
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).then(controlsLayer)) {
             KasaButton(
                 text = stringResource(if (onLastPage) R.string.intro_start else R.string.intro_next),
                 onClick = {
@@ -254,6 +333,48 @@ fun IntroPager(
         Spacer(Modifier.height(12.dp))
     }
 }
+
+/**
+ * Açılış kademelerinin ortak zamanlaması.
+ *
+ * `KasaMotion.stagger` ile yapılmadı: oradaki adım aralığı 26 ms ve menü
+ * öğeleri gibi birbirine yakın şeyler için ölçülmüş. Perde açılışında
+ * kademeler arasında **okunabilir** bir ara gerekiyor, yoksa üçü tek bir
+ * blok olarak geliyor ve sıra kayboluyor.
+ *
+ * Hareket kapalıyken anında: açılış bir süs ve kullanıcı hareketi
+ * istemediğini söylediyse cevap onu yavaşlatmak değil hiç yapmamak.
+ */
+@Composable
+private fun openingSpec(delayMillis: Int): FiniteAnimationSpec<Float> {
+    val reduced = LocalReducedMotion.current
+    return remember(reduced, delayMillis) {
+        if (reduced) snap()
+        else tween(
+            durationMillis = OPEN_MILLIS,
+            delayMillis = delayMillis,
+            easing = FastOutSlowInEasing
+        )
+    }
+}
+
+/** Bir açılış kademesinin süresi. */
+private const val OPEN_MILLIS = 420
+
+/** Yazının çizimden, düğmelerin yazıdan geri kalma payı. */
+private const val OPEN_TEXT_DELAY = 90
+private const val OPEN_CONTROLS_DELAY = 190
+
+/**
+ * Çizimin başlangıçtaki fazlalığı.
+ *
+ * Küçük: 1,06 gözün "yaklaştı" diye okuduğu en düşük değerlerden biri ve
+ * daha büyüğü, açılışı bir efekt olarak fark ettiriyor.
+ */
+private const val OPEN_BLOOM = 0.06f
+
+/** Yazının ve düğmelerin yerine otururken aldığı yol. */
+private val OPEN_LIFT = 18.dp
 
 private data class IntroPage(val title: Int, val body: Int, val scene: IntroScene)
 
